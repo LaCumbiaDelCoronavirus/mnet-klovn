@@ -7,19 +7,21 @@ using System.Runtime.CompilerServices;
 using Content.Shared.Damage;
 using Content.Shared.Power;
 using Content.Shared.Power.EntitySystems;
+using Microsoft.CodeAnalysis;
 using Robust.Shared.Audio.Systems;
+using Robust.Shared.Network;
 using Robust.Shared.Physics.Events;
 using Robust.Shared.Physics.Systems;
 using Robust.Shared.Timing;
 using DependencyAttribute = Robust.Shared.IoC.DependencyAttribute;
 
-
 namespace Content.Shared._KS14.TeslaGate;
 
 public abstract class SharedTeslaGateSystem : EntitySystem
 {
-    [Dependency] protected readonly SharedAudioSystem AudioSystem = default!;
+    [Dependency] private readonly INetManager _netManager = default!;
     [Dependency] private readonly IGameTiming _gameTiming = default!;
+    [Dependency] private readonly SharedAudioSystem _audioSystem = default!;
     [Dependency] private readonly SharedPhysicsSystem _physicsSystem = default!;
     [Dependency] private readonly DamageableSystem _damageableSystem = default!;
     [Dependency] private readonly SharedAppearanceSystem _appearanceSystem = default!;
@@ -34,10 +36,12 @@ public abstract class SharedTeslaGateSystem : EntitySystem
         SubscribeLocalEvent<TeslaGateComponent, PowerChangedEvent>(OnPowerChange);
     }
 
-
     public override void Update(float frameTime)
     {
         base.Update(frameTime);
+
+        if (!_gameTiming.IsFirstTimePredicted)
+            return;
 
         var query = EntityQueryEnumerator<TeslaGateComponent>();
         while (query.MoveNext(out var uid, out var teslaGateComponent))
@@ -84,30 +88,28 @@ public abstract class SharedTeslaGateSystem : EntitySystem
     private void ZapEmAll(Entity<TeslaGateComponent> teslaGate)
     {
         var (uid, teslaGateComponent) = teslaGate;
-        teslaGateComponent.LastShockTime = _gameTiming.CurTime;
-        teslaGateComponent.NextPulse = _gameTiming.CurTime + teslaGate.Comp.PulseInterval;
 
-        AudioSystem.PlayLocal(teslaGateComponent.ShockSound, uid, soundInitiator: null);
+        ResetAccumulator(teslaGate, metaDataComponent: MetaData(uid));
 
+        _audioSystem.PlayLocal(teslaGateComponent.ShockSound, uid, soundInitiator: null);
         UpdateAppearance(teslaGate, true);
-        Dirty(teslaGate);
+
+        Log.Debug("Zapped");
 
         teslaGateComponent.CurrentlyShocking = true;
+
         foreach (var entity in _physicsSystem.GetContactingEntities(uid))
             CollideAct(teslaGateComponent, entity);
     }
 
     private void QuitZappinEmAll(Entity<TeslaGateComponent> teslaGate)
     {
-        var (uid, teslaGateComponent) = teslaGate;
-
-        teslaGateComponent.CurrentlyShocking = false;
-        teslaGateComponent.ThingsBeingShocked.Clear();
+        teslaGate.Comp.CurrentlyShocking = false;
+        teslaGate.Comp.ThingsBeingShocked.Clear();
 
         UpdateAppearance(teslaGate, false);
-        Dirty(teslaGate);
 
-        AudioSystem.PlayLocal(teslaGateComponent.StartingSound, uid, soundInitiator: null);
+        _audioSystem.PlayLocal(teslaGate.Comp.StartingSound, teslaGate, soundInitiator: null);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -136,8 +138,6 @@ public abstract class SharedTeslaGateSystem : EntitySystem
     {
         _appearanceSystem.SetData(teslaGate, TeslaGateVisuals.ShockingState, active ? TeslaGateVisualState.Active : TeslaGateVisualState.Inactive);
         _pointLight.SetEnabled(teslaGate.Owner, active);
-
-        Dirty(teslaGate);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -151,23 +151,25 @@ public abstract class SharedTeslaGateSystem : EntitySystem
 
     public void Enable(Entity<TeslaGateComponent> teslaGate)
     {
-        var (uid, teslaGateComponent) = teslaGate;
+        if (CanStartWork(teslaGate))
+            _audioSystem.PlayPvs(teslaGate.Comp.StartingSound, teslaGate);
 
-        if (CanStartWork(uid))
-            AudioSystem.PlayPvs(teslaGateComponent.StartingSound, uid);
-
-        ResetAccumulator(teslaGateComponent);
-        teslaGateComponent.Enabled = true;
-
-        Dirty(teslaGate);
+        SetEnabledInternal(teslaGate, true);
     }
 
     public void Disable(Entity<TeslaGateComponent> teslaGate)
     {
-        teslaGate.Comp.Enabled = false;
-        ResetAccumulator(teslaGate);
+        SetEnabledInternal(teslaGate, false);
+    }
 
-        Dirty(teslaGate);
+    private void SetEnabledInternal(Entity<TeslaGateComponent> teslaGate, bool value)
+    {
+        var metaDataComponent = MetaData(teslaGate);
+        ResetAccumulator(teslaGate, metaDataComponent: metaDataComponent);
+        teslaGate.Comp.Enabled = value;
+
+        //DirtyField(teslaGate.Owner, teslaGate.Comp, nameof(teslaGate.Comp.Enabled), meta: metaDataComponent);
+        Dirty(teslaGate, meta: metaDataComponent);
     }
 
     private void OnPowerChange(Entity<TeslaGateComponent> teslaGate, ref PowerChangedEvent args)
@@ -187,9 +189,12 @@ public abstract class SharedTeslaGateSystem : EntitySystem
         }
     }
 
-    protected void ResetAccumulator(TeslaGateComponent teslaGateComponent)
+    protected void ResetAccumulator(Entity<TeslaGateComponent> teslaGate, MetaDataComponent? metaDataComponent = null)
     {
-        teslaGateComponent.NextPulse = _gameTiming.CurTime + teslaGateComponent.PulseInterval;
-        teslaGateComponent.LastShockTime = TimeSpan.MinValue;
+        teslaGate.Comp.NextPulse = _gameTiming.CurTime + teslaGate.Comp.PulseInterval;
+        teslaGate.Comp.LastShockTime = _gameTiming.CurTime;
+
+        if (_netManager.IsServer)
+            DirtyFields(teslaGate!, metaDataComponent, nameof(teslaGate.Comp.NextPulse), nameof(teslaGate.Comp.LastShockTime));
     }
 }

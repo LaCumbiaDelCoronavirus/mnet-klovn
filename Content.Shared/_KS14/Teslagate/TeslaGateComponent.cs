@@ -15,19 +15,19 @@ namespace Content.Shared._KS14.TeslaGate;
 /// <summary>
 ///     This is used for tesla gate and storing the time it has to / from the next pulse
 /// </summary>
-[RegisterComponent, NetworkedComponent, AutoGenerateComponentState]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState(fieldDeltas: true)]
 public sealed partial class TeslaGateComponent : Component
 {
     /// <summary>
     ///     When can the gate pulse again?
     /// </summary>
-    [DataField(customTypeSerializer: typeof(TimeOffsetSerializer)), ViewVariables(VVAccess.ReadWrite)]
+    [DataField(customTypeSerializer: typeof(TimeOffsetSerializer)), AutoNetworkedField, ViewVariables(VVAccess.ReadOnly)]
     public TimeSpan NextPulse = TimeSpan.Zero;
 
     /// <summary>
     ///     Last time the gate turned on.
     /// </summary>
-    [DataField(customTypeSerializer: typeof(TimeOffsetSerializer)), ViewVariables(VVAccess.ReadOnly)]
+    [DataField(customTypeSerializer: typeof(TimeOffsetSerializer)), AutoNetworkedField, ViewVariables(VVAccess.ReadOnly)]
     public TimeSpan LastShockTime = TimeSpan.Zero;
 
     [DataField]
@@ -45,32 +45,32 @@ public sealed partial class TeslaGateComponent : Component
     [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadWrite)]
     public bool WasDisabledByPower = false;
 
-    [DataField, ViewVariables(VVAccess.ReadWrite)]
+    [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadWrite)]
     public bool Enabled = false;
 
     /// <summary>
     ///     Whether this tesla gate's timer is cut.
     ///         Determines whether the gate will automatically turn on or off.
     /// </summary>
-    [DataField, ViewVariables(VVAccess.ReadOnly)]
+    [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadOnly)]
     public bool IsTimerWireCut = false;
 
     /// <summary>
     ///     Whether this tesla gate's aux wire is cut.
     /// </summary>
-    [DataField, ViewVariables(VVAccess.ReadOnly)]
+    [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadOnly)]
     public bool IsAuxWireCut = false;
 
     /// <summary>
     ///     Whether this tesla gate's pulse interval is hacked via wires.
     /// </summary>
-    [DataField, ViewVariables(VVAccess.ReadOnly)]
+    [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadOnly)]
     public bool IsIntervalHacked = false;
 
     /// <summary>
     ///     Whether this tesla gate is hacked to force it to be on.
     /// </summary>
-    [DataField, ViewVariables(VVAccess.ReadOnly)]
+    [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadOnly)]
     public bool IsForceHacked = false;
 
     /// <summary>
