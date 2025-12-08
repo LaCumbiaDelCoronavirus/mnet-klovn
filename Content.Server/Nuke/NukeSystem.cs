@@ -275,6 +275,7 @@ public sealed class NukeSystem : EntitySystem
         if (component.Status != NukeStatus.AWAIT_CODE)
             return;
 
+        Log.Error($"NUKE_CODE_ENTERED = {component.EnteredCode}");
         UpdateStatus(uid, component);
         UpdateUserInterface(uid, component);
     }
