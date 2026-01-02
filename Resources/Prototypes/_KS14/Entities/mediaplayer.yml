@@ -1,0 +1,11 @@
+- type: entity
+  id: MediaPlayer
+  name: media player
+  description: What do you think it does? Wrong, it's a lag machine.
+  save: false
+  components:
+  - type: Sprite
+    layers:
+    - map: ["enum.AnomalyScannerVisualLayers.Screen"]
+      visible: false
+      shader: unshaded
