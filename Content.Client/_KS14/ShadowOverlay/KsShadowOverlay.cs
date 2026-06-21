@@ -78,7 +78,7 @@ public sealed class KsShadowOverlay : Overlay
                 var texture = _spriteSystem.Frame0(sprite);
 
                 var position = transformComponent.LocalPosition;
-                var quad = new Box2Rotated(box: Box2.CenteredAround(position + entity.Comp.Offset, texture.Size / (float)EyeManager.PixelsPerMeter * spriteComponent.Scale), -localEyeRotation, position);
+                var quad = new Box2Rotated(box: Box2.CenteredAround(position + entity.Comp.Offset * spriteComponent.Scale, texture.Size / (float)EyeManager.PixelsPerMeter * spriteComponent.Scale), -localEyeRotation, position);
 
                 worldHandle.DrawTextureRectRegion(
                     texture,
