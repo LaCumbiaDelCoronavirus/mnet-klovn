@@ -1,0 +1,118 @@
+- type: salvageDungeonMod
+  id: SyndicateBase
+  desc: salvage-dungeon-mod-syndicate-base
+  proto: SyndicateBase
+  biomes:
+    - Snow
+  factions:
+    - Syndicate
+
+- type: dungeonConfig
+  id: SyndicateBase
+  layers:
+  - !type:PrefabDunGen
+    roomWhitelist:
+      tags:
+      - SalvageSyndicateBase
+    presets:
+    - Bucket
+    - Wow
+    - SpaceShip
+    - Tall
+
+  - !type:CorridorDunGen
+    width: 3
+    tile: FloorSteel
+
+  - !type:DungeonEntranceDunGen
+    count: 2
+    tile: FloorSteel
+    contents: SyndicateBaseEntrancePossiblyRigged
+
+  - !type:RoomEntranceDunGen
+    tile: FloorSteel
+    contents: SyndicateBaseEntrancePossiblyRigged
+
+  - !type:EntranceFlankDunGen
+    tile: FloorSteel
+    contents: SyndicateBaseEntrancePossiblyRigged
+
+  - !type:ExternalWindowDunGen
+    tile: FloorSteel
+    contents: SyndicateBaseWindow
+
+  - !type:WallMountDunGen
+    contents: ScienceLabsWalls
+    tile: FloorSteel
+
+  - !type:BoundaryWallDunGen
+    wall: WallSolid
+    cornerWall: WallReinforced
+    tile: FloorDark
+
+  - !type:JunctionDunGen
+    width: 1
+    tile: FloorSteel
+    contents: SyndicateBaseAirlock
+
+  - !type:JunctionDunGen
+    width: 3
+    tile: FloorSteel
+    contents: SyndicateBaseAirlock
+
+  - !type:AutoCablingDunGen
+    entity: CableApcExtension
+
+  - !type:CornerClutterDunGen
+    contents: BaseClutter
+
+  - !type:CorridorDecalSkirtingDunGen
+    cardinalDecals:
+      South: BrickTileWhiteLineS
+      East: BrickTileWhiteLineE
+      North: BrickTileWhiteLineN
+      West: BrickTileWhiteLineW
+    cornerDecals:
+      SouthEast: BrickTileWhiteCornerSe
+      SouthWest: BrickTileWhiteCornerSw
+      NorthEast: BrickTileWhiteCornerNe
+      NorthWest: BrickTileWhiteCornerNw
+    pocketDecals:
+      SouthWest: BrickTileWhiteInnerSw
+      SouthEast: BrickTileWhiteInnerSe
+      NorthWest: BrickTileWhiteInnerNw
+      NorthEast: BrickTileWhiteInnerNe
+
+# Syndicate base
+- type: entityTable
+  id: SyndicateBaseAirlock
+  table: !type:GroupSelector
+    children:
+    - id: CableApcExtension
+    - id: AirlockSyndicateGlass
+
+- type: entityTable
+  id: SyndicateBaseWindow
+  table: !type:GroupSelector
+    children:
+    - id: CableApcExtension
+    - id: Grille
+    - id: ReinforcedPlasmaWindow
+
+- type: entityTable
+  id: SyndicateBaseEntrance
+  table: !type:GroupSelector
+    children:
+    - id: CableApcExtension
+    - id: AirlockSyndicateGlassLocked
+
+- type: entityTable
+  id: SyndicateBaseEntrancePossiblyRigged
+  table: !type:GroupSelector
+    children:
+    - id: CableApcExtension
+    - id: AirlockSyndicateGlassLocked
+    - id: LandMineExplosive
+      prob: 0.02
+    - id: LandMineModular
+      prob: 0.05
