@@ -1,0 +1,15 @@
+
+// Fed by CopyToShaderParameters
+uniform highp vec2 DST_UV;
+uniform sampler2D DST_TEXTURE;
+
+void fragment()
+{
+    lowp vec4 base = texture(TEXTURE, UV);
+    lowp vec4 mul  = texture(DST_TEXTURE, DST_UV);
+
+    lowp vec3 result = base.rgb * mul.rgb;
+
+    COLOR.rgb = result;
+    COLOR.a = base.a * mul.a;
+}

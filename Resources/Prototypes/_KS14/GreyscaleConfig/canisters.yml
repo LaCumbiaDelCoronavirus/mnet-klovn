@@ -1,0 +1,87 @@
+- type: greyscaleConfig
+  id: canister_premain
+  data:
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: base
+      copyToShaderParameters:
+        layerKey: canister_premain_map_multiply
+        parameterTexture: DST_TEXTURE
+        parameterUV: DST_UV
+    id: multi
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: multi_shader
+      shader: KsAdd
+      map: ["canister_premain_map_multiply"]
+
+  # Multi
+
+  # - layer:
+  #     sprite: _KS14/Structures/Storage/canister.rsi
+  #     state: add_shader
+  #     shader: KsAdd
+  #     map: ["canister_premain_map_add"]
+
+
+- type: greyscaleConfig
+  id: canister_postmain
+  data:
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: window-base
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: lights
+
+  # Outline, Paper
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: outline
+    id: multi
+  - layer:
+      state: paper
+      visible: false
+      map: [ "enum.PaperLabelVisuals.Layer" ]
+      sprite: Structures/Storage/canister.rsi
+
+- type: greyscaleConfig
+  id: canister_default
+  data:
+  - presetId: canister_premain
+  - presetId: canister_postmain
+
+- type: greyscaleConfig
+  id: canister_striped
+  data:
+  - presetId: canister_premain
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: stripe
+    id: stripes
+  - presetId: canister_postmain
+
+- type: greyscaleConfig
+  id: canister_hazard
+  data:
+  - presetId: canister_premain
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: hazard_stripes
+    id: stripes
+  - presetId: canister_postmain
+
+- type: greyscaleConfig
+  id: canister_double
+  data:
+  - presetId: canister_premain
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: double_stripe
+    id: stripes
+  - layer:
+      sprite: _KS14/Structures/Storage/canister.rsi
+      state: double_stripe_shader
+      shader: KsSubtract
+    id: stripes
+  - presetId: canister_postmain

@@ -1,0 +1,16 @@
+
+
+- type: shader
+  id: KsSubtract
+  kind: canvas
+  path: "/Textures/_KS14/Shaders/Blending/multiply.swsl"
+
+- type: shader
+  id: KsAdd
+  kind: source
+  path: "/Textures/_KS14/Shaders/Blending/add.swsl"
+
+- type: shader
+  id: KsMultiply
+  kind: source
+  path: "/Textures/_KS14/Shaders/Blending/multiply.swsl"
