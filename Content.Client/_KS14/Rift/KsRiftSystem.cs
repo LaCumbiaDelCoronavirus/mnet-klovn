@@ -1,6 +1,7 @@
 using System.Numerics;
 using Content.Client.Examine;
 using Content.Client.Viewport;
+using Content.Shared._KS14.IoC;
 using Robust.Client.GameObjects;
 using Robust.Client.Graphics;
 using Robust.Shared.Graphics;
@@ -10,15 +11,35 @@ namespace Content.Client._KS14.Rift;
 
 public sealed class KsRiftSystem : EntitySystem
 {
+    [Dependency] private readonly IOverlayManager _overlayManager = default!;
+    [Dependency] private readonly SystemCollectionHookManager _collectionHookManager = default!;
     [Dependency] private readonly TransformSystem _transformSystem = default!;
     [Dependency] private readonly ExamineSystem _examineSystem = default!;
 
-    public IEnumerable<(Entity<KsRiftComponent, TransformComponent>, (Vector2, Angle))> GetVisibleRiftsEnumerator(IEye eye, ScalingViewport viewport)
+    public override void Initialize()
+    {
+        base.Initialize();
+        _collectionHookManager.HookAction(OnDependenciesAvailable);
+    }
+
+    private void OnDependenciesAvailable(IDependencyCollection dependencyCollection)
+    {
+        var overlay = new KsRiftOverlay(dependencyCollection);
+        _overlayManager.AddOverlay(overlay);
+    }
+
+    public override void Shutdown()
+    {
+        _overlayManager.RemoveOverlay<KsRiftOverlay>();
+        base.Shutdown();
+    }
+
+    public IEnumerable<(Entity<KsRiftComponent, TransformComponent>, (Vector2, Angle))> GetVisibleRiftsEnumerator(IEye eye, IClydeViewport viewport)
     {
         var mapId = eye.Position.MapId;
-        var eyeSize = viewport.ViewportSize / EyeManager.PixelsPerMeter;
+        var eyeSize = viewport.Size / EyeManager.PixelsPerMeter;
         var eyeMaxRange = MathF.Max(eyeSize.X, eyeSize.Y);
-        var eqe = EntityQueryEnumerator<KsRiftComponent, TransformComponent>();
+        var eqe = AllEntityQuery<KsRiftComponent, TransformComponent>();
 
         while (eqe.MoveNext(out var uid, out var riftComponent, out var transformComponent))
         {

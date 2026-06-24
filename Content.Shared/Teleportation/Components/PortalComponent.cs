@@ -82,4 +82,8 @@ public sealed partial class PortalComponent : Component
     /// </summary>
     [DataField, ViewVariables(VVAccess.ReadWrite)]
     public bool Smooth;
+
+    // KS14 Addition
+    [DataField, ViewVariables(VVAccess.ReadWrite)]
+    public float BaseSparkMultiplier;
 }

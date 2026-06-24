@@ -277,7 +277,7 @@ public abstract class SharedPortalSystem : EntitySystem
         _transform.SetCoordinates(subject, target);
 
         // KS14: Gib if tile isn't free (trollface emoji)
-        var sparkMultiplier = 1f;
+        var sparkMultiplier = ent.Comp.BaseSparkMultiplier;
         if (ent.Comp.FragOnTargetTileOccupied &&
             TryComp<BodyComponent>(subject, out var subjectBodyComponent))
         {

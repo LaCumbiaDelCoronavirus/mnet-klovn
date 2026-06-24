@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using Content.Client._KS14.Rift; // KS14
 using Content.Shared._KS14.ZLevel; // KS14
 using Robust.Client.GameObjects; // KS14
 using Robust.Client.Graphics;
@@ -32,7 +31,6 @@ namespace Content.Client.Viewport
         [Dependency] private readonly IInputManager _inputManager = default!;
 
         // KS14 START: zlevels
-        [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
         private Robust.Shared.Graphics.Eye _zLevelEye = new Robust.Shared.Graphics.Eye()
         {
             DrawFov = false,
@@ -40,15 +38,8 @@ namespace Content.Client.Viewport
         };
         private MapSystem _mapSystem = default!;
         private KsZLevelSystem _zLevelSystem = null!;
-        private KsRiftSystem _riftSystem = null!;
-        private TransformSystem _transformSystem = null!;
         private List<Entity<KsZLevelComponent>> _mapsToIterate = [];
         private IRenderTexture _zBlurBuffer = default!;
-        private IRenderTexture _riftBuffer = default!;
-        private ProtoId<ShaderPrototype> _stencilMaskId = "StencilMask";
-        private ProtoId<ShaderPrototype> _stencilDrawId = "StencilEqualDraw";
-        private Vector2[] _primitives = new Vector2[4];
-        private DrawVertexUV2DColor[] _verts = new DrawVertexUV2DColor[4];
         // KS14 END: zlevels
 
         // Internal viewport creation is deferred.
@@ -257,59 +248,6 @@ namespace Content.Client.Viewport
             _viewport.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
             handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox);
 
-            // KS14 start: rifts
-            var worldToViewportMatrix = _viewport.GetWorldToLocalMatrix();
-            _viewport.Eye = _zLevelEye;
-
-            _zLevelEye.DrawLight = _eye!.DrawLight;
-            _zLevelEye.DrawFov = _eye.DrawFov;
-            _zLevelEye.Offset = _eye.Offset;
-            _zLevelEye.Scale = _eye.Scale;
-
-            var drawingHandle = handle.DrawingHandleScreen;
-            var rScaleHalf = _viewport.RenderScale / (Vector2.One / (_viewport.RenderTarget.Size / (Vector2)_viewport.Size)) * 0.5f;
-            foreach (var ((riftUid, riftComponent, riftTransformComponent), (riftWorldPosition, riftWorldRotation)) in _riftSystem.GetVisibleRiftsEnumerator(_eye!, this))
-            {
-                // Deduce eye rotation relative to grid (or map if no grid)
-                var localEyeRotation = _eye.Rotation - (riftWorldRotation - riftTransformComponent.LocalRotation) + riftComponent.RotationOffset;
-
-                var riftViewportPosition = Vector2.Transform(riftWorldPosition, worldToViewportMatrix);
-                var renderScaledBoundingBox = new Box2(riftComponent.BoundingBox.BottomLeft * rScaleHalf, riftComponent.BoundingBox.TopRight * rScaleHalf);
-                var box2Rotated = new Box2Rotated(renderScaledBoundingBox.Translated(riftViewportPosition), _eye.Rotation - localEyeRotation, riftViewportPosition);
-                _primitives[0] = box2Rotated.BottomLeft;
-                _primitives[1] = box2Rotated.BottomRight;
-                _primitives[2] = box2Rotated.TopRight;
-                _primitives[3] = box2Rotated.TopLeft;
-
-                handle.DrawingHandleScreen.RenderInRenderTarget(_riftBuffer, () =>
-                {
-                    handle.DrawingHandleScreen.DrawPrimitives(DrawPrimitiveTopology.TriangleFan, _primitives, Color.White);
-                }, Color.Transparent);
-
-                var offset = _eye.Position.Position - riftWorldPosition;
-                // i don't know how to fix this being wonky so i just do this
-                _zLevelEye.Position = new(riftWorldPosition + offset + (-localEyeRotation).RotateVec(riftComponent.RenderOffset) /* offset ts */, _eye!.Position.MapId);
-                _zLevelEye.Rotation = riftWorldRotation + localEyeRotation;
-                // this gets affected by shaders, watch out
-                _viewport.Render();
-
-                drawingHandle.UseShader(_prototypeManager.Index(_stencilMaskId).InstanceUnique());
-                drawingHandle.DrawTextureRect(_riftBuffer.Texture, drawBox);
-
-                // // Now for drawing // TODO LCDC: do this
-                // box2Rotated = new Box2Rotated(Box2.FromDimensions(drawBox.Left, drawBox.Bottom, drawBox.Width, drawBox.Height), riftComponent.RotationOffset);
-                // _verts[0] = new(box2Rotated.TopLeft, new(0, 0), Color.White);
-                // _verts[1] = new(box2Rotated.TopRight, new(1, 0), Color.White);
-                // _verts[2] = new(box2Rotated.BottomLeft, new(1, 1), Color.White);
-                // _verts[3] = new(box2Rotated.BottomRight, new(0, 1), Color.White);
-
-                drawingHandle.UseShader(_prototypeManager.Index(_stencilDrawId).InstanceUnique());
-                handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox);
-                drawingHandle.UseShader(null);
-            }
-            _viewport.Eye = _eye;
-            // KS14 end: rifts
-
             _viewport.RenderScreenOverlaysAbove(handle, this, drawBoxGlobal);
         }
 
@@ -401,12 +339,8 @@ namespace Content.Client.Viewport
             // KS14 Start
             _mapSystem ??= _entityManager.System<MapSystem>();
             _zLevelSystem ??= _entityManager.System<KsZLevelSystem>();
-            _riftSystem ??= _entityManager.System<KsRiftSystem>();
-            _transformSystem ??= _entityManager.System<TransformSystem>();
             _zBlurBuffer = _clyde
                 .CreateRenderTarget(ViewportSize * renderScale, new RenderTargetFormatParameters(RenderTargetColorFormat.Rgba8Srgb), sampleParameters: sampleParameters, "zblur");
-            _riftBuffer = _clyde
-                .CreateRenderTarget(ViewportSize * renderScale, new RenderTargetFormatParameters(RenderTargetColorFormat.Rgba8Srgb), sampleParameters: sampleParameters, "sanabi");
             // KS14 End
         }
 
