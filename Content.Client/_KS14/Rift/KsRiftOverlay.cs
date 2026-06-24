@@ -91,8 +91,6 @@ public sealed class KsRiftOverlay : Overlay
         if (_currentlyDrawing)
             throw new InvalidOperationException("f");
 
-        _currentlyDrawing = true;
-
         var scale = viewport.RenderScale / (Vector2.One / viewport.RenderTarget.Size / (Vector2)viewport.Size);
         var eyeRotation = args.Viewport.Eye?.Rotation ?? new();
 
@@ -126,7 +124,9 @@ public sealed class KsRiftOverlay : Overlay
             _rEye.Position = new(riftWorldPosition + offset + (-localEyeRotation).RotateVec(riftComponent.RenderOffset) /* offset ts */, eye!.Position.MapId);
             _rEye.Rotation = riftWorldRotation + localEyeRotation;
             // this gets affected by shaders, watch out
+            _currentlyDrawing = true;
             rViewport.Render();
+            _currentlyDrawing = false;
 
             worldHandle.UseShader(_stencilMaskShader);
             worldHandle.DrawTextureRect(resources.StencilTarget!.Texture, worldBounds);
@@ -138,7 +138,6 @@ public sealed class KsRiftOverlay : Overlay
         // RIFTS END
 
         worldHandle.SetTransform(Matrix3x2.Identity);
-        _currentlyDrawing = false;
     }
 
     private sealed class CachedResources : IDisposable
