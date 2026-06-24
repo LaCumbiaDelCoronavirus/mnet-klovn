@@ -13,6 +13,7 @@ using Robust.Shared.IoC;
 using Robust.Shared.Map;
 using Robust.Shared.Map.Components; // KS14
 using Robust.Shared.Maths;
+using Robust.Shared.Physics;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Timing;
 using Robust.Shared.Utility;
@@ -40,6 +41,7 @@ namespace Content.Client.Viewport
         private MapSystem _mapSystem = default!;
         private KsZLevelSystem _zLevelSystem = null!;
         private KsRiftSystem _riftSystem = null!;
+        private TransformSystem _transformSystem = null!;
         private List<Entity<KsZLevelComponent>> _mapsToIterate = [];
         private IRenderTexture _zBlurBuffer = default!;
         private IRenderTexture _riftBuffer = default!;
@@ -256,7 +258,7 @@ namespace Content.Client.Viewport
             handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox);
 
             // KS14 start: rifts
-            var lematrix = _viewport.GetWorldToLocalMatrix();
+            var worldToViewportMatrix = _viewport.GetWorldToLocalMatrix();
             _viewport.Eye = _zLevelEye;
 
             _zLevelEye.DrawLight = _eye!.DrawLight;
@@ -265,10 +267,15 @@ namespace Content.Client.Viewport
             _zLevelEye.Scale = _eye.Scale;
 
             var drawingHandle = handle.DrawingHandleScreen;
-            foreach (var ((riftUid, riftComponent, riftTransformComponent), (riftWorldPosition, riftWorldRotation)) in _riftSystem.GetVisibleRiftsEnumerator(_eye!.Position.MapId))
+            var rScaleHalf = _viewport.RenderScale / (Vector2.One / (_viewport.RenderTarget.Size / (Vector2)_viewport.Size)) * 0.5f;
+            foreach (var ((riftUid, riftComponent, riftTransformComponent), (riftWorldPosition, riftWorldRotation)) in _riftSystem.GetVisibleRiftsEnumerator(_eye!, this))
             {
-                var localTranslation = Vector2.Transform(riftWorldPosition, lematrix);
-                var box2Rotated = new Box2Rotated(riftComponent.BoundingBox.Translated(localTranslation), riftComponent.RotationOffset, localTranslation);
+                // Deduce eye rotation relative to grid (or map if no grid)
+                var localEyeRotation = _eye.Rotation - (riftWorldRotation - riftTransformComponent.LocalRotation) + riftComponent.RotationOffset;
+
+                var riftViewportPosition = Vector2.Transform(riftWorldPosition, worldToViewportMatrix);
+                var renderScaledBoundingBox = new Box2(riftComponent.BoundingBox.BottomLeft * rScaleHalf, riftComponent.BoundingBox.TopRight * rScaleHalf);
+                var box2Rotated = new Box2Rotated(renderScaledBoundingBox.Translated(riftViewportPosition), _eye.Rotation - localEyeRotation, riftViewportPosition);
                 _primitives[0] = box2Rotated.BottomLeft;
                 _primitives[1] = box2Rotated.BottomRight;
                 _primitives[2] = box2Rotated.TopRight;
@@ -279,25 +286,25 @@ namespace Content.Client.Viewport
                     handle.DrawingHandleScreen.DrawPrimitives(DrawPrimitiveTopology.TriangleFan, _primitives, Color.White);
                 }, Color.Transparent);
 
-                // i don't know how to fix this being wonky so i just do this
                 var offset = _eye.Position.Position - riftWorldPosition;
-                _zLevelEye.Position = new(riftWorldPosition + offset + riftComponent.RenderOffset, _eye!.Position.MapId);
-                _zLevelEye.Rotation = riftWorldRotation - riftTransformComponent.LocalRotation;
+                // i don't know how to fix this being wonky so i just do this
+                _zLevelEye.Position = new(riftWorldPosition + offset + (-localEyeRotation).RotateVec(riftComponent.RenderOffset) /* offset ts */, _eye!.Position.MapId);
+                _zLevelEye.Rotation = riftWorldRotation + localEyeRotation;
                 // this gets affected by shaders, watch out
                 _viewport.Render();
 
                 drawingHandle.UseShader(_prototypeManager.Index(_stencilMaskId).InstanceUnique());
                 drawingHandle.DrawTextureRect(_riftBuffer.Texture, drawBox);
 
-                // Now for drawing (bruh)
-                box2Rotated = new Box2Rotated(Box2.FromDimensions(drawBox.Left, drawBox.Bottom, drawBox.Width, drawBox.Height), riftComponent.RotationOffset);
-                _verts[0] = new(box2Rotated.TopLeft, new(0, 0), Color.White);
-                _verts[1] = new(box2Rotated.TopRight, new(1, 0), Color.White);
-                _verts[2] = new(box2Rotated.BottomLeft, new(1, 1), Color.White);
-                _verts[3] = new(box2Rotated.BottomRight, new(0, 1), Color.White);
+                // // Now for drawing // TODO LCDC: do this
+                // box2Rotated = new Box2Rotated(Box2.FromDimensions(drawBox.Left, drawBox.Bottom, drawBox.Width, drawBox.Height), riftComponent.RotationOffset);
+                // _verts[0] = new(box2Rotated.TopLeft, new(0, 0), Color.White);
+                // _verts[1] = new(box2Rotated.TopRight, new(1, 0), Color.White);
+                // _verts[2] = new(box2Rotated.BottomLeft, new(1, 1), Color.White);
+                // _verts[3] = new(box2Rotated.BottomRight, new(0, 1), Color.White);
 
                 drawingHandle.UseShader(_prototypeManager.Index(_stencilDrawId).InstanceUnique());
-                handle.DrawingHandleScreen.DrawPrimitives(DrawPrimitiveTopology.TriangleFan, _viewport.RenderTarget.Texture, _verts);
+                handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox);
                 drawingHandle.UseShader(null);
             }
             _viewport.Eye = _eye;
@@ -395,6 +402,7 @@ namespace Content.Client.Viewport
             _mapSystem ??= _entityManager.System<MapSystem>();
             _zLevelSystem ??= _entityManager.System<KsZLevelSystem>();
             _riftSystem ??= _entityManager.System<KsRiftSystem>();
+            _transformSystem ??= _entityManager.System<TransformSystem>();
             _zBlurBuffer = _clyde
                 .CreateRenderTarget(ViewportSize * renderScale, new RenderTargetFormatParameters(RenderTargetColorFormat.Rgba8Srgb), sampleParameters: sampleParameters, "zblur");
             _riftBuffer = _clyde
