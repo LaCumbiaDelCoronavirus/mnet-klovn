@@ -75,4 +75,11 @@ public sealed partial class PortalComponent : Component
     /// </summary>
     [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadWrite)]
     public bool FragOnTargetTileOccupied = true;
+
+    // KS14 Addition
+    /// <summary>
+    ///     Should teleportees always go to the center of the portal, or should something a bit smarter be done?
+    /// </summary>
+    [DataField, ViewVariables(VVAccess.ReadWrite)]
+    public bool Smooth;
 }
