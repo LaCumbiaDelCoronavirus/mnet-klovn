@@ -176,7 +176,7 @@ public sealed partial class UplinkSystem : EntitySystem
         SetUplink(user, storeEntity, balance, giveDiscounts);
         var implant = _subdermalImplant.AddImplant(user, FallbackUplinkImplant);
 
-        if (!HasComp<RemoteStoreComponent>(implant))
+        if (!HasComp<StoreComponent>/* KS14: RemoteStoreComponent -> StoreComponent; because slambam doesn't like testing his shit: "Code still supports locking stores to a single PDA, though not enabled in this instance." */(implant))
         {
             Log.Error($"Implant does not have the store component {implant}");
             return false;
@@ -198,7 +198,7 @@ public sealed partial class UplinkSystem : EntitySystem
             {
                 var pdaUid = containerSlot.ContainedEntity;
 
-                if (HasComp<PdaComponent>(pdaUid) && HasComp<RemoteStoreComponent>(pdaUid))
+                if (HasComp<PdaComponent>(pdaUid) && HasComp<StoreComponent>/* KS14: RemoteStoreComponent -> StoreComponent; because slambam doesn't like testing his shit: "Code still supports locking stores to a single PDA, though not enabled in this instance." */(pdaUid))
                     return pdaUid.Value;
             }
         }
@@ -206,7 +206,7 @@ public sealed partial class UplinkSystem : EntitySystem
         // Also check hands
         foreach (var item in _handsSystem.EnumerateHeld(user))
         {
-            if (HasComp<PdaComponent>(item) && HasComp<RemoteStoreComponent>(item))
+            if (HasComp<PdaComponent>(item) && HasComp<StoreComponent>/* KS14: RemoteStoreComponent -> StoreComponent; because slambam doesn't like testing his shit: "Code still supports locking stores to a single PDA, though not enabled in this instance." */(item))
                 return item;
         }
 

@@ -1,6 +1,6 @@
 - type: entity
   abstract: true
-  parent: [ BaseItem ]
+  parent: [ BaseItem, StorePresetUplink ] # KS14: Added StorePresetUplink
   id: BasePDA
   name: PDA
   description: Personal Data Assistant.
@@ -110,7 +110,7 @@
         type: InstrumentBoundUserInterface
       enum.HealthAnalyzerUiKey.Key:
         type: HealthAnalyzerBoundUserInterface
-  - type: RemoteStore # PDAs can access uplinks so they need this component.
+  # - type: RemoteStore # PDAs can access uplinks so they need this component. # KS14: Removed, so that we don't have universal uplinks.
   - type: Tag
     tags:
     - DoorBumpOpener

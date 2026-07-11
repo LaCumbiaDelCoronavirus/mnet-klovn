@@ -76,7 +76,7 @@ public sealed partial class StoreSystem : SharedStoreSystem
 
     private void OnImplantActivate(Entity<RemoteStoreComponent> entity, ref OpenUplinkImplantEvent args)
     {
-        if (GetRemoteStore(entity.AsNullable()) is not { } store)
+        if (GetStore/* KS14: GetRemoteStore -> GetStore; because slambam doesn't like testing his shit: "Code still supports locking stores to a single PDA, though not enabled in this instance." */(entity.AsNullable()) is not { } store)
             return;
 
         ToggleUi(args.Performer, store, store.Comp, entity, entity.Comp);

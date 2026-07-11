@@ -155,7 +155,7 @@
     - Syndicate
 
 - type: entity
-  parent: BaseSubdermalImplant
+  parent: [ BaseSubdermalImplant, StorePresetUplink ] # KS14: Added StorePresetUplink
   id: UplinkImplant
   name: uplink implant
   description: This implant lets the user access a hidden Syndicate uplink at will.
@@ -166,7 +166,7 @@
     whitelist:
       components:
       - Hands # prevent mouse buying grenade penguin since its not telepathic
-  - type: RemoteStore
+  #- type: RemoteStore # KS14: Removed, so that we don't have universal uplinks.
   - type: UserInterface
     interfaces:
       enum.StoreUiKey.Key:
