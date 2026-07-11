@@ -20,7 +20,7 @@
     price: 200
   - type: Currency
     price:
-      Telecrystal: 3
+      Telecrystal: 1 # KS14: keep this 1, lmao
 
 - type: entity
   parent: Telecrystal

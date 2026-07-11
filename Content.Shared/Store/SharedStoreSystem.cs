@@ -85,7 +85,7 @@ public abstract partial class SharedStoreSystem : EntitySystem
 
         args.Handled = true;
         var msg = Loc.GetString("store-currency-inserted", ("used", args.Used), ("target", ev.TargetOverride ?? target));
-        Popup.PopupEntity(msg, target, args.User);
+        Popup.PopupPredicted/*KS14: Predicted*/(msg, target, args.User);
     }
 
     /// <summary>
@@ -187,7 +187,7 @@ public abstract partial class SharedStoreSystem : EntitySystem
         if (stack != null)
             Stack.SetCount((currency.Owner, stack), 0);
 
-        QueueDel(currency);
+        PredictedQueueDel(currency); // KS14: PredictedQueueDel
         return true;
     }
 
