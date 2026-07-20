@@ -34,7 +34,7 @@ public abstract partial class SharedGunSystem
                 ent.Comp.Count--;
 
             var proto = ent.Comp.Proto;
-            var ammoEnt = PredictedSpawnAtPosition(proto, args.Coordinates);
+            var ammoEnt = PredictedSpawnAtPosition(proto, args.Coordinates); // Trauma - predict this shit
             args.Ammo.Add((ammoEnt, EnsureShootable(ammoEnt)));
         }
 
