@@ -58,7 +58,7 @@ public abstract partial class SharedCardboardBoxSystem : EntitySystem
         if (_net.IsServer)
             RaiseNetworkEvent(new PlayBoxEffectMessage(GetNetEntity(ent), GetNetEntity(operatorEnt.Value.Owner)));
 
-        _audio.PlayPredicted(ent.Comp.EffectSound, ent, args.User);
+        _audio.PlayPredicted(ent.Comp.EffectSound, ent, operatorEnt.Value.Owner);
         ent.Comp.EffectCooldown = _timing.CurTime + ent.Comp.CooldownDuration;
         Dirty(ent);
     }

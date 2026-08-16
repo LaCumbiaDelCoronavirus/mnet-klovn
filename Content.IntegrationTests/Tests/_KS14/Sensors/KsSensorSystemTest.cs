@@ -63,7 +63,7 @@ public sealed class KsSensorSystemTest : GameTest
 
         var map = await pair.CreateTestMap();
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
 

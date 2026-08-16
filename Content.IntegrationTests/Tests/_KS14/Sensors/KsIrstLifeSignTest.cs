@@ -108,7 +108,7 @@ public sealed class KsIrstLifeSignTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -183,7 +183,7 @@ public sealed class KsIrstLifeSignTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -239,7 +239,7 @@ public sealed class KsIrstLifeSignTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -301,7 +301,7 @@ public sealed class KsIrstLifeSignTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -359,7 +359,7 @@ public sealed class KsIrstLifeSignTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -434,7 +434,7 @@ public sealed class KsIrstLifeSignTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -506,7 +506,7 @@ public sealed class KsIrstLifeSignTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -584,7 +584,7 @@ public sealed class KsIrstLifeSignTest : GameTest
     /// <summary>8x8, big enough to clear the &lt;10 mass junk filter.</summary>
     private static Entity<MapGridComponent> MakeShipGrid(
         IEntityManager entManager,
-        IMapManager mapManager,
+        SharedMapSystem mapManager,
         SharedMapSystem mapSystem,
         MapId mapId)
     {

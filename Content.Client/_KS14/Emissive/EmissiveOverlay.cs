@@ -26,12 +26,12 @@ public sealed partial class EmissiveOverlay : Overlay
     [Dependency] private IPrototypeManager _prototypeManager = default!;
     [Dependency] private IReflectionManager _reflectionManager = default!;
     [Dependency] private IGameTiming _gameTiming = default!;
-    [Dependency] private IMapManager _mapManager = default!;
     [Dependency] private IOverlayManager _overlay = default!;
 
     private readonly SharedTransformSystem _transformSystem = default!;
     private readonly EntityLookupSystem _lookupSystem = default!;
     private readonly SpriteSystem _spriteSystem = default!;
+    private readonly SharedMapSystem _mapSystem = default!;
 
     private readonly EntityQuery<SpriteComponent> _spriteQuery = default!;
 
@@ -53,6 +53,7 @@ public sealed partial class EmissiveOverlay : Overlay
         _transformSystem = _entityManager.System<SharedTransformSystem>();
         _lookupSystem = _entityManager.System<EntityLookupSystem>();
         _spriteSystem = _entityManager.System<SpriteSystem>();
+        _mapSystem = _entityManager.System<SharedMapSystem>();
 
         _spriteQuery = _entityManager.GetEntityQuery<SpriteComponent>();
 
@@ -78,7 +79,7 @@ public sealed partial class EmissiveOverlay : Overlay
 
         var viewport = args.Viewport;
         _grids.Clear();
-        _mapManager.FindGridsIntersecting(mapId, bounds, ref _grids, approx: true);
+        _mapSystem.FindGridsIntersecting(mapId, bounds, ref _grids, approx: true);
 
         if (_grids.Count == 0)
             return;

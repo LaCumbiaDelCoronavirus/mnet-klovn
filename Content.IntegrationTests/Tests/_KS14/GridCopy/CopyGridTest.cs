@@ -33,7 +33,7 @@ public sealed class CopyGridTest : GameTest
         var map = await pair.CreateTestMap();
 
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var gridCopy = entManager.System<GridCopySystem>();
@@ -87,7 +87,7 @@ public sealed class CopyGridTest : GameTest
         var map = await pair.CreateTestMap();
 
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var gridCopy = entManager.System<GridCopySystem>();
@@ -141,7 +141,7 @@ public sealed class CopyGridTest : GameTest
 
         var entManager = server.ResolveDependency<IEntityManager>();
         var conHost = server.ResolveDependency<IConsoleHost>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
 
@@ -188,7 +188,7 @@ public sealed class CopyGridTest : GameTest
         var map = await pair.CreateTestMap();
 
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var mindSystem = entManager.System<Content.Server.Mind.MindSystem>();

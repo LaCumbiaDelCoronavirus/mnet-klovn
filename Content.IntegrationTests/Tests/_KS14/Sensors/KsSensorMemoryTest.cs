@@ -69,7 +69,7 @@ public sealed class KsSensorMemoryTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -168,7 +168,7 @@ public sealed class KsSensorMemoryTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();
@@ -253,7 +253,7 @@ public sealed class KsSensorMemoryTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var uiSystem = entManager.System<SharedUserInterfaceSystem>();

@@ -27,13 +27,13 @@ public sealed partial class MechSoundboardSystem : EntitySystem
         // TODO: Allocs
         var state = new MechSoundboardUiState
         {
-            Sounds = new List<ProtoId<SoundCollectionPrototype>>(comp.Sounds.Count)
+            Sounds = new List<string>(comp.Sounds.Count)
         };
 
         foreach (var sound in comp.Sounds)
         {
             if (sound.Collection is { } collection)
-                state.Sounds.Add(collection);
+                state.Sounds.Add(collection.Id);
         }
 
         args.States.Add(GetNetEntity(uid), state);

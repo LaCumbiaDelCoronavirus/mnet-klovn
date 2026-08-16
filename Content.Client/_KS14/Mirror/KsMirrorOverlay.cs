@@ -33,7 +33,7 @@ public sealed partial class KsMirrorOverlay : Overlay
     private readonly ShaderInstance _stencilDrawShader;
 
     [Dependency] private IClyde _clyde = default!;
-    [Dependency] private IMapManager _mapManager = default!;
+    [Dependency] private SharedMapSystem _mapSystem = default!;
     [Dependency] private EntityManager _entityManager = default!;
     [Dependency] private TransformSystem _transformSystem = default!;
     [Dependency] private SpriteSystem _spriteSystem = default!;
@@ -105,7 +105,7 @@ public sealed partial class KsMirrorOverlay : Overlay
 
         _grids.Clear();
         _gridCache.Clear();
-        _mapManager.FindGridsIntersecting(args.MapId, worldBounds, ref _grids, approx: true);
+        _mapSystem.FindGridsIntersecting(args.MapId, worldBounds, ref _grids, approx: true);
 
         if (_grids.Count == 0)
             return;

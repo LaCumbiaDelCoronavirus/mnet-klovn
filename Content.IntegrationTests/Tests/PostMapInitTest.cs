@@ -334,7 +334,7 @@ namespace Content.IntegrationTests.Tests
             var pair = Pair;
             var server = pair.Server;
 
-            var mapManager = server.ResolveDependency<IMapManager>();
+            var mapManager = server.EntMan.System<SharedMapSystem>();
             var entityManager = server.ResolveDependency<IEntityManager>(); // KS14
             var mapLoaderSystem = entityManager.System<MapLoaderSystem>(); // KS14
             var sharedMapSystem = entityManager.System<SharedMapSystem>();  // KS14

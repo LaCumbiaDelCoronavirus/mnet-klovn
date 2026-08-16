@@ -152,7 +152,7 @@ public sealed class KsSensorConfigTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var locMan = server.ResolveDependency<ILocalizationManager>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
@@ -270,7 +270,7 @@ public sealed class KsSensorConfigTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
 
@@ -335,7 +335,7 @@ public sealed class KsSensorConfigTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
         var physicsSystem = entManager.System<SharedPhysicsSystem>();
@@ -402,7 +402,7 @@ public sealed class KsSensorConfigTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
 
@@ -464,7 +464,7 @@ public sealed class KsSensorConfigTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
 
@@ -525,7 +525,7 @@ public sealed class KsSensorConfigTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
 
@@ -584,7 +584,7 @@ public sealed class KsSensorConfigTest : GameTest
     {
         var server = Pair.Server;
         var entManager = server.ResolveDependency<IEntityManager>();
-        var mapManager = server.ResolveDependency<IMapManager>();
+        var mapManager = server.EntMan.System<SharedMapSystem>();
         var mapSystem = entManager.System<SharedMapSystem>();
         var xformSystem = entManager.System<SharedTransformSystem>();
 
@@ -632,7 +632,7 @@ public sealed class KsSensorConfigTest : GameTest
 
     /// <summary>8x8, big enough to clear the &lt;10 mass junk filter.</summary>
     private static Entity<MapGridComponent> MakeShipGrid(
-        IMapManager mapManager,
+        SharedMapSystem mapManager,
         SharedMapSystem mapSystem,
         MapId mapId)
     {
@@ -640,7 +640,7 @@ public sealed class KsSensorConfigTest : GameTest
     }
 
     private static Entity<MapGridComponent> MakeGrid(
-        IMapManager mapManager,
+        SharedMapSystem mapManager,
         SharedMapSystem mapSystem,
         MapId mapId,
         int width,
