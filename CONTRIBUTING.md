@@ -362,6 +362,31 @@ _systemCollectionHookManager.HookAction(dependencyCollection =>
     dependencyCollection.InjectDependencies(overlay, oneOff: true));
 ```
 
+**Per-entity state is a component, not a system dictionary (C#)** — anything a system remembers *about* an entity belongs on that entity, in a component read through an injected `EntityQuery<T>`. A `Dictionary<EntityUid, T>` held by the system is a parallel entity store: nothing removes an entry when its entity is deleted, so it leaks or needs its own cleanup; VV cannot see it; and it has to be cleared, epoch-stamped or pruned by hand. As a component, the data dies with its entity and shows up in VV. `[Access]` the component to the system that owns it (see above).
+
+```csharp
+// not this - a cache of light levels keyed by target, cleared every tick
+private readonly Dictionary<EntityUid, float> _lightLevels = new();
+
+// this - the cache lives on the target; the tick it was computed on says whether it is still good
+[RegisterComponent, Access(typeof(NpcLightDetectionSystem))]
+public sealed partial class NpcLightLevelCacheComponent : Component
+{
+    [ViewVariables] public float Level;
+    [ViewVariables] public GameTick ComputedTick;
+}
+
+[Dependency] private EntityQuery<NpcLightLevelCacheComponent> _lightLevelCacheQuery = default!;
+
+if (_lightLevelCacheQuery.TryComp(targetUid, out var cacheComponent) && cacheComponent.ComputedTick == currentTick)
+    return cacheComponent.Level;
+// ...compute, then EnsureComp<NpcLightLevelCacheComponent>(targetUid) and store it.
+```
+
+This is about state *about* an entity. Two things that look similar are fine as they are:
+- **Transient work lists** — a set of uids queued this tick and drained in `Update`, like the deferred-check set in §6's reparenting entry. It is a to-do list, not state.
+- **Collections on a component** — a `Dictionary<EntityUid, T>` *inside* a component (an NPC's sightings keyed by target) is data belonging to the entity that owns the component, which is what components are for.
+
 **Subscribe with `[SubscribeLocalEvent]`, not a call in `Initialize` (C#)** — the engine generates the subscription from an attribute on the handler, inferring the event (and component) from the handler's signature. The class must be `partial`, because the generator emits an `AutoSubscriptions()` override into it:
 ```csharp
 // old
@@ -560,24 +585,21 @@ Sandbox violation: Access to method not allowed:
         System.Collections.Generic.Dictionary`2<!!0, !!1>, !!0, bool&)
 ```
 
-**The cascade is what makes this expensive to diagnose.** One violation takes the assembly down, which
-takes the integration pool down with it, and every unrelated test then fails with:
+**Only one test will tell you** (see `SandboxTest` below): everything else loads content without the check
+and passes. So a violation doesn't break a test run in any way you'd notice. It breaks a real client, at
+connect, with the error above.
 
-```
-SetUp : System.InvalidOperationException : Pool manager has not been initialized
-```
-
-A run that reports a hundred-odd failures across unrelated features, all of them `Pool manager has not
-been initialized`, has **one** cause, and it is not in any of the tests named. Find the single result
-that failed with something else - `TypeCheckFailedException` - and fix that. Running with
-`--logger "trx;LogFileName=..."` and grouping the results by message is the quick way to see that shape;
-`-v q` prints only the total and hides it entirely.
+A related shape: when a run reports a hundred-odd failures across unrelated features, all of them
+`SetUp : System.InvalidOperationException : Pool manager has not been initialized`, something failed while the
+integration pool was being set up, and it has **one** cause that isn't in any of the tests named. Find the single
+result that failed with something else. Running with `--logger "trx;LogFileName=..."` and grouping the results by
+message is the quick way to see that shape; `-v q` prints only the total and hides it entirely.
 
 The offenders are mostly the low-level performance conveniences: `CollectionsMarshal`, `Unsafe`,
 `MemoryMarshal`, most of `System.Runtime.InteropServices`, reflection that writes, and anything
-touching the filesystem or process directly. Plain `Dictionary`, `Span`, `System.Numerics` and
-`MathF` are all fine. If you are reaching for something to avoid a dictionary lookup or a struct copy
-in rendering code, the copy was almost certainly cheaper than finding this out:
+touching the filesystem or process directly. Plain `Dictionary`, `Span`, `MathF` and `System.Numerics`'
+`Vector2`/`Vector3`/`Vector4` are all fine. If you are reaching for something to avoid a dictionary lookup or a
+struct copy in rendering code, the copy was almost certainly cheaper than finding this out:
 
 ```csharp
 // not this - compiles everywhere, refused at load
@@ -590,8 +612,44 @@ entry.Value += 1;
 _map[key] = entry;
 ```
 
-Content.IntegrationTests is the cheapest way to find out, because loading the assemblies is the first
-thing it does - a single test from any fixture is enough to prove the sandbox accepted the build.
+**`SandboxTest` is the check; an ordinary integration test is not.** Pooled test pairs load content through
+`TestingModLoader`, whose `SetEnableSandboxing` does nothing, so every other test passes with a violation in the
+build. A `stackalloc` planted in `Content.Shared` leaves a normal pooled test green. Only
+`Content.IntegrationTests/Tests/Utility/SandboxTest.cs` runs the real checker: it starts its own client and calls
+`CheckSandboxed` on `Content.Client` and `Content.Shared`, which applies the whitelist (`Sandbox.yml`) *and*
+ILVerify. It takes about 20 seconds, so run it whenever you add an API you haven't seen content use before:
+
+```sh
+dotnet test Content.IntegrationTests/Content.IntegrationTests.csproj -c Debug --filter "FullyQualifiedName~SandboxTest"
+```
+
+A failure names each problem directly: `Sandbox violation: Access to type not allowed: ...` for the whitelist, and
+`ILVerify: Instruction cannot be verified., method: ..., Offset IL_...` for IL. The whitelist is
+`RobustToolbox/Robust.Shared/ContentPack/Sandbox.yml`, and it's worth a search before you rely on a BCL type.
+
+The rules come from two places, so nothing about a type's namespace predicts them:
+
+- **ILVerify** rejects `stackalloc` (even into a `Span<T>`), `unsafe` code and pointers. Content already notes
+  this (`AtmosphereSystem.Gases.cs`). Use `new T[n]` instead.
+- **The whitelist** is per type and often per member. Besides the ones above, these came up vendoring Concentus
+  (`Content.Klovn.Concentus/README.md`), and none of them warns at build time:
+  - `System.Buffer` (`BlockCopy`): use `Array.Copy`, which counts elements, not bytes.
+  - `System.Diagnostics.Debug` and `ConditionalAttribute`: use `DebugTools.Assert`, as `Solution.cs` notes.
+  - `System.Numerics.Vector<T>`.
+  - `System.Tuple`: value tuples are fine.
+  - `ArgumentNullException`: `ArgumentException` is fine.
+  - A *field* of type `MethodImplOptions`. `[MethodImpl(MethodImplOptions.AggressiveInlining)]` itself is fine,
+    since it compiles to method flags rather than a type reference.
+
+Two more are made by the compiler, so the source never names what it refuses. Both came up in the TTS Opus code
+(`KsTtsOpus.cs`):
+
+- **`"..."u8` literals** fail ILVerify. They compile to a pointer into the assembly's static data (`Found address of
+  '<PrivateImplementationDetails>...', Expected Native Int`). Build the bytes once instead, e.g.
+  `static readonly byte[] Magic = Encoding.ASCII.GetBytes("OggS")`.
+- **A non-empty collection expression that targets `List<T>`** (`Method([item])`, where the parameter is a
+  `List<T>`) compiles to `CollectionsMarshal.SetCount`, which is not whitelisted. Use `new List<T> { item }`.
+  Empty ones (`= []`) and ones that target arrays are fine.
 
 ### Only one system may subscribe to a given component and event pair
 
@@ -754,3 +812,82 @@ _pendingTransitChecks.Clear();
 
 Draining into a second list is not optional: a `foreach` over a set that the loop body can add to
 throws straight out of `Update`.
+
+### `Equals` on an enum boxes it
+
+An enum's `Equals` is inherited from `System.Enum`, a class, and takes an `object`. Calling it boxes both
+sides: two heap allocations, for what `==` does as a single integer compare. It reads identically, compiles
+clean, and returns the right answer, so nothing points at it; it only shows up as garbage.
+
+```csharp
+// not this - two boxes per call
+return Flags.Equals(other.Flags);
+
+// this - an integer compare, no allocation
+return Flags == other.Flags;
+```
+
+It matters wherever the comparison runs in bulk. `PathfindingData.Equals` did this, and it sits under every
+`PathPoly` dictionary lookup, so a single NPC tactical position search allocated about 230 KB of boxed
+`PathfindingBreadcrumbFlag`s - roughly 60% of everything it allocated, on a path every holding NPC runs each
+replan. The same goes for any `IEquatable<T>.Equals` or `GetHashCode` on a struct used as a dictionary key: it
+runs on every lookup, so an allocation in it multiplies by the size of the search.
+
+`==`, `!=` and bitwise tests (`(flags & Flag) != 0`) never box. Nor does `HasFlag` on current .NET, which the
+JIT turns into a bitwise test, but `&` says the same thing without relying on that.
+
+To find allocations like this, measure by type rather than guessing: `GC.GetTotalAllocatedBytes(precise: true)`
+around the work says *how much*, and an `EventListener` on `Microsoft-Windows-DotNETRuntime` (GC keyword `0x1`,
+`Verbose`) receives `GCAllocationTick` events naming the type being allocated, which says *what*. Both work in
+an integration test, which is not sandboxed.
+
+### A window's `MinSize` does not protect contents that wrap
+
+`BaseWindow` clamps a drag to `MinSize` and nothing else. It never asks the contents what they need. A fixed
+`MinSize` is fine for contents whose size doesn't depend on the window's, but wrapping text (`RichTextLabel`, or
+anything word-wrapped) gets *taller* as the window gets narrower. So a window can meet its minimum and still push
+whatever sits below the text out of the bottom. It isn't clipped visibly: those controls are laid out at zero height and
+simply vanish. The voice link window lost its buttons this way, at a size that looked like a sensible minimum when it
+was picked.
+
+Make the minimum follow the contents. The rows that can't wrap set the minimum width, and the minimum height is what
+the contents need *at the current width*. Recompute it on every resize and whenever a row's text changes:
+
+```csharp
+protected override void Resized()
+{
+    base.Resized();
+    UpdateMinimumSize();
+}
+
+private void UpdateMinimumSize()
+{
+    if (RootBox.Size.X <= 0f)
+        return; // not laid out yet
+
+    var marginSize = new Vector2(RootBox.Margin.SumHorizontal, RootBox.Margin.SumVertical);
+    var frameSize = Size - RootBox.Size - marginSize; // title bar and borders
+
+    var widestRow = 0f;
+    foreach (var row in _unwrappableRows) // buttons, single-line labels
+    {
+        row.Measure(Vector2Helpers.Infinity);
+        widestRow = MathF.Max(widestRow, row.DesiredSize.X);
+    }
+
+    // DesiredSize includes the margin.
+    RootBox.Measure(new Vector2(RootBox.Size.X + marginSize.X, float.PositiveInfinity));
+
+    MinSize = new Vector2(frameSize.X + marginSize.X + widestRow, frameSize.Y + RootBox.DesiredSize.Y);
+}
+```
+
+A `MinSize` bigger than the current `SetSize` wins at measure time, so the window grows back to fit by itself. Also set
+`SetSize` to match, so the next drag starts from the size actually shown. See `KsVoiceLinkWindow`.
+
+**Testing it has its own trap.** A squeezed control is laid out *and measured* at the squeezed size, so its `Size` and
+its `DesiredSize` agree with each other at zero. "Is it inside the window?" passes too, because a zero-height box sits
+inside anything. A test built on those passes with the bug present. Instead, compare each control against what it needs
+with room to spare: `Measure` it with unlimited height (and unlimited width, for anything that can't wrap), then check
+its shown size against that. `KsVoiceLinkWindowTests` does this. Layout runs in the headless client with real font
+metrics, so this works in an ordinary integration test.
