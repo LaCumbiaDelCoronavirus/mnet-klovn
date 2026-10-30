@@ -1,0 +1,39 @@
+# Fluidmos properties for reagents carried in pipes. Linked reagents' vapor is their atmos gas (molar mass from the gas);
+#     troutonConstant is the real ΔH_vap / (R Tb), which shapes the vapor-pressure curve.
+
+- type: !PartialOnly reagent
+  id: Water
+  fluidmos:
+    gas: WaterVapor
+    troutonConstant: 13.1
+
+- type: !PartialOnly reagent
+  id: Oxygen
+  fluidmos:
+    gas: Oxygen
+    troutonConstant: 9.1
+
+- type: !PartialOnly reagent
+  id: Nitrogen
+  fluidmos:
+    gas: Nitrogen
+    troutonConstant: 8.7
+
+- type: !PartialOnly reagent
+  id: NitrousOxide
+  fluidmos:
+    gas: NitrousOxide
+    troutonConstant: 10.7
+
+- type: !PartialOnly reagent
+  id: Ethanol
+  fluidmos:
+    molarMass: 46
+    troutonConstant: 13.2
+
+# A strong candidate for a WaterVapor-style link to the Ammonia gas, pending the maintainer's sign-off.
+- type: !PartialOnly reagent
+  id: Ammonia
+  fluidmos:
+    molarMass: 17
+    troutonConstant: 11.7

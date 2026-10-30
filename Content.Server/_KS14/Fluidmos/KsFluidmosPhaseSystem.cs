@@ -1,0 +1,345 @@
+using Content.Server.Atmos.EntitySystems;
+using Content.Shared._KS14.Fluidmos;
+using Content.Shared.Atmos;
+using Robust.Shared.Timing;
+
+namespace Content.Server._KS14.Fluidmos;
+
+/// <summary>
+///     Moves reagents between solid, liquid and vapor inside fluid-capable atmos mixtures, once per <c>React</c>.
+/// </summary>
+/// <remarks>
+///     <para>
+///         One explicit step per call, never iterating or recursing, so the cost per tick is bounded:
+///     </para>
+///     <list type="bullet">
+///         <item>
+///             Below the boiling point at the mixture's pressure, evaporation and condensation follow one signed
+///                 Hertz–Knudsen term against Raoult's-law equilibrium, capped so it never overshoots.
+///         </item>
+///         <item>
+///             Above it, liquid flashes, limited only by energy, down to that boiling point (and to equilibrium).
+///         </item>
+///         <item>
+///             Freezing and melting are energy-limited plateaus at the melting point; a solid with no liquid of its
+///                 own sublimes.
+///         </item>
+///         <item>
+///             Linked gases never condense above their critical temperature.
+///         </item>
+///     </list>
+///     <para>
+///         The temperature is recomputed from energy conservation, since a phase change also changes the heat
+///             capacity: a unit of liquid is its specific heat, while its vapor is its moles times its gas's molar heat.
+///     </para>
+/// </remarks>
+public sealed partial class KsFluidmosPhaseSystem : EntitySystem
+{
+    [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+    [Dependency] private KsFluidmosPropertiesSystem _propertiesSystem = default!;
+    [Dependency] private IGameTiming _gameTiming = default!;
+
+    /// <summary>
+    ///     The longest time step a single phase step takes, however long the mixture went unprocessed.
+    /// </summary>
+    private const float MaxStepSeconds = 2f;
+
+    /// <summary>
+    ///     Time step for a mixture's first phase step, which has no previous one to measure from.
+    /// </summary>
+    private const float FirstStepSeconds = 0.5f;
+
+    /// <summary>
+    ///     A step that moved the temperature less than this, and less than <see cref="SettledUnits"/> of any reagent,
+    ///         leaves the mixture settled.
+    /// </summary>
+    private const float SettledTemperature = 0.05f;
+
+    private const float SettledUnits = 0.001f;
+
+    /// <summary>
+    ///     Relative pressure change that wakes a settled mixture, such as gas merged in from outside.
+    /// </summary>
+    private const float SettledPressureFraction = 0.001f;
+
+    private readonly List<(KsFluidReagentKey Key, KsFluidReagentProperties Properties)> _entries = new();
+
+    /// <summary>
+    ///     One phase step for <paramref name="mixture"/>. Does nothing to mixtures that cannot hold fluid.
+    /// </summary>
+    public void UpdatePhases(GasMixture mixture, IGasMixtureHolder? holder)
+    {
+        if (mixture.Immutable || !mixture.FluidCapable)
+            return;
+
+        var temperature = mixture.Temperature;
+        var pressure = mixture.Pressure;
+        var fluid = mixture.Fluid;
+
+        if (fluid == null)
+        {
+            // A dry pipe only wakes for a linked gas past saturation, so pumped-in steam can condense.
+            if (!AnyLinkedGasCondenses(mixture, temperature))
+                return;
+
+            fluid = mixture.Fluid = new KsFluidMixture();
+        }
+        else if (fluid.PhaseSettled &&
+                 !fluid.CompositionChanged &&
+                 MathF.Abs(temperature - fluid.LastTemperature) < SettledTemperature &&
+                 MathF.Abs(pressure - fluid.LastPressure) <= SettledPressureFraction * MathF.Max(pressure, 1f))
+        {
+            return;
+        }
+
+        var now = _gameTiming.CurTime;
+        var deltaTime = fluid.LastPhaseTime is { } lastTime
+            ? MathF.Min((float)(now - lastTime).TotalSeconds, MaxStepSeconds)
+            : FirstStepSeconds;
+        fluid.LastPhaseTime = now;
+
+        GatherEntries(mixture, fluid);
+
+        var heatCapacity = _atmosphereSystem.GetHeatCapacity(mixture, applyScaling: false);
+        var freeVolume = mixture.FreeVolume;
+        var interfaceArea = mixture.Volume * KsFluidmos.PipeInterfaceAreaPerLiter;
+
+        // Raoult's law: each reagent's share of the liquid's moles, which solids don't count towards.
+        var liquidMoles = 0f;
+        foreach (var (key, properties) in _entries)
+        {
+            if (fluid.TryGetAmount(key, out var amount))
+                liquidMoles += amount.Liquid * properties.MolesPerUnit;
+        }
+
+        var unitsMoved = 0f;
+        var step = new PhaseStep(heatCapacity, temperature, pressure, freeVolume, interfaceArea, deltaTime, liquidMoles);
+
+        foreach (var (key, properties) in _entries)
+        {
+            fluid.TryGetAmount(key, out var amount);
+            var before = amount;
+
+            if (properties.Volatile)
+                Vaporise(mixture, ref step, properties, ref amount);
+
+            if (properties.Freezable)
+                Freeze(ref step, properties, ref amount);
+
+            var moved = MathF.Abs(amount.Liquid - before.Liquid) + MathF.Abs(amount.Solid - before.Solid) +
+                MathF.Abs(amount.Vapor - before.Vapor) / properties.MolesPerUnit;
+            if (moved <= 0f)
+                continue;
+
+            unitsMoved += moved;
+            fluid.SetAmount(key, amount);
+        }
+
+        mixture.Temperature = step.Temperature;
+
+        if (fluid.IsEmpty)
+        {
+            mixture.Fluid = null;
+            return;
+        }
+
+        fluid.LastTemperature = mixture.Temperature;
+        fluid.LastPressure = mixture.Pressure;
+        fluid.CompositionChanged = false;
+        fluid.PhaseSettled = MathF.Abs(mixture.Temperature - temperature) < SettledTemperature && unitsMoved < SettledUnits;
+    }
+
+    /// <summary>
+    ///     The volatile reagents to step: every entry, plus each linked gas present with no entry of its own.
+    /// </summary>
+    private void GatherEntries(GasMixture mixture, KsFluidMixture fluid)
+    {
+        _entries.Clear();
+
+        foreach (var key in fluid.Reagents.Keys)
+        {
+            if (_propertiesSystem.TryGetProperties(key.Prototype, out var properties))
+                _entries.Add((key, properties));
+        }
+
+        var byGas = _propertiesSystem.ByGas;
+        for (var gas = 0; gas < byGas.Length; gas++)
+        {
+            if (byGas[gas] is not { } properties || mixture.GetMoles(gas) <= KsFluidmos.MinVaporMoles)
+                continue;
+
+            var key = new KsFluidReagentKey(properties.Id, null);
+            if (!fluid.Reagents.ContainsKey(key))
+                _entries.Add((key, properties));
+        }
+    }
+
+    /// <summary>
+    ///     Whether any linked gas in a dry mixture is past saturation, below its critical temperature.
+    /// </summary>
+    private bool AnyLinkedGasCondenses(GasMixture mixture, float temperature)
+    {
+        var byGas = _propertiesSystem.ByGas;
+        for (var gas = 0; gas < byGas.Length; gas++)
+        {
+            if (byGas[gas] is not { } properties)
+                continue;
+
+            var moles = mixture.GetMoles(gas);
+            if (moles <= KsFluidmos.MinVaporMoles || temperature >= properties.CriticalTemperature || !properties.Volatile)
+                continue;
+
+            if (temperature < properties.MinActiveTemperature)
+                return true;
+
+            var partialPressure = moles * Atmospherics.R * temperature / mixture.Volume;
+            if (partialPressure > KsPhaseMath.SaturationPressure(properties.TroutonConstant, properties.BoilingPoint, temperature))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Evaporates or condenses one reagent, or sublimes its solid when it has no liquid.
+    /// </summary>
+    private void Vaporise(GasMixture mixture, ref PhaseStep step, KsFluidReagentProperties properties, ref KsFluidAmount amount)
+    {
+        var molesPerUnit = properties.MolesPerUnit;
+        var vaporMoles = properties.Linked ? mixture.GetMoles(properties.GasIndex) : amount.Vapor;
+        var temperature = step.Temperature;
+
+        // A solid with no liquid of its own sublimes, from its own phase.
+        var fromSolid = amount.Liquid <= 0f &&
+                        amount.Solid > 0f &&
+                        (!properties.Freezable || temperature < properties.MeltingPoint);
+        var sourceUnits = fromSolid ? amount.Solid : amount.Liquid;
+
+        if (sourceUnits <= 0f && vaporMoles <= 0f)
+            return;
+
+        var canCondense = temperature < properties.CriticalTemperature;
+        var latentHeat = fromSolid ? properties.LatentHeat + properties.FusionHeat : properties.LatentHeat;
+        var heatCapacityChange = properties.VaporHeatCapacityPerUnit - properties.SpecificHeat;
+        var maxLatentMoles = latentHeat > 0f
+            ? step.HeatCapacity * KsFluidmos.MaxPhaseDeltaT / latentHeat * molesPerUnit
+            : float.PositiveInfinity;
+        float moles;
+
+        if (temperature < properties.MinActiveTemperature)
+        {
+            // Its vapor pressure is negligible here: whatever vapor there is condenses.
+            if (vaporMoles <= 0f || !canCondense)
+                return;
+
+            moles = -MathF.Min(vaporMoles, maxLatentMoles);
+        }
+        else
+        {
+            var saturationPressure = KsPhaseMath.SaturationPressure(properties.TroutonConstant, properties.BoilingPoint, temperature);
+
+            // Its own phase when it has no liquid in the mixture yet: dissolving into another liquid is Henry's law,
+            //     which this does not model.
+            var moleFraction = !fromSolid && amount.Liquid > 0f && step.LiquidMoles > 0f
+                ? amount.Liquid * molesPerUnit / step.LiquidMoles
+                : 1f;
+
+            var equilibriumMoles = moleFraction * saturationPressure * step.FreeVolume / (Atmospherics.R * temperature);
+            var gap = equilibriumMoles - vaporMoles;
+            if (gap < 0f && !canCondense)
+                return;
+
+            var flashPoint = KsPhaseMath.BoilingPointAt(properties.TroutonConstant, properties.BoilingPoint, step.Pressure);
+            if (!fromSolid && gap > 0f && temperature > flashPoint && amount.Liquid > 0f)
+            {
+                // Flash: limited by energy, down to the boiling point at this pressure, and by equilibrium.
+                var units = KsPhaseMath.UnitsToReach(step.HeatCapacity, temperature, flashPoint, latentHeat, heatCapacityChange);
+                moles = MathF.Min(MathF.Max(units, 0f) * molesPerUnit, gap);
+            }
+            else
+            {
+                var partialPressure = vaporMoles * Atmospherics.R * temperature / step.FreeVolume;
+                var flux = KsPhaseMath.HertzKnudsenFlux(
+                    KsFluidmos.HertzKnudsenAlpha,
+                    moleFraction * saturationPressure - partialPressure,
+                    properties.InverseSqrtTwoPiMR,
+                    temperature);
+                moles = flux * step.InterfaceArea * step.DeltaTime;
+
+                // Never overshoot equilibrium, nor move more latent heat than the step allows.
+                moles = gap >= 0f ? MathF.Min(moles, gap) : MathF.Max(moles, gap);
+                moles = Math.Clamp(moles, -maxLatentMoles, maxLatentMoles);
+            }
+        }
+
+        moles = Math.Clamp(moles, -vaporMoles, sourceUnits * molesPerUnit);
+        if (moles == 0f || !float.IsFinite(moles))
+            return;
+
+        var changedUnits = moles / molesPerUnit;
+        step.Temperature = KsPhaseMath.TemperatureAfter(step.HeatCapacity, temperature, changedUnits, latentHeat, heatCapacityChange);
+        step.HeatCapacity += changedUnits * heatCapacityChange;
+
+        if (fromSolid)
+            amount.Solid -= changedUnits;
+        else
+            amount.Liquid -= changedUnits;
+
+        if (properties.Linked)
+            mixture.AdjustMoles(properties.GasIndex, moles);
+        else
+            amount.Vapor += moles;
+    }
+
+    /// <summary>
+    ///     Freezes liquid below the melting point, or melts solid above it, as far as the sensible heat pays for: the
+    ///         mixture sits at the melting point as a slurry until it has.
+    /// </summary>
+    private static void Freeze(ref PhaseStep step, KsFluidReagentProperties properties, ref KsFluidAmount amount)
+    {
+        var fusionHeat = properties.FusionHeat;
+        if (fusionHeat <= 0f)
+            return;
+
+        var temperature = step.Temperature;
+        var meltingPoint = properties.MeltingPoint;
+        float frozenUnits;
+
+        if (temperature < meltingPoint && amount.Liquid > 0f)
+            frozenUnits = MathF.Min(amount.Liquid, step.HeatCapacity * (meltingPoint - temperature) / fusionHeat);
+        else if (temperature > meltingPoint && amount.Solid > 0f)
+            frozenUnits = -MathF.Min(amount.Solid, step.HeatCapacity * (temperature - meltingPoint) / fusionHeat);
+        else
+            return;
+
+        // Freezing releases the heat of fusion; melting takes it. Solid and liquid share a specific heat.
+        step.Temperature = KsPhaseMath.TemperatureAfter(step.HeatCapacity, temperature, frozenUnits, -fusionHeat, heatCapacityChangePerUnit: 0f);
+        amount.Liquid -= frozenUnits;
+        amount.Solid += frozenUnits;
+    }
+
+    /// <summary>
+    ///     The state one phase step carries from reagent to reagent.
+    /// </summary>
+    private struct PhaseStep(
+        float heatCapacity,
+        float temperature,
+        float pressure,
+        float freeVolume,
+        float interfaceArea,
+        float deltaTime,
+        float liquidMoles)
+    {
+        /// <summary>
+        ///     Unscaled J/K, updated as each phase change alters it.
+        /// </summary>
+        public float HeatCapacity = heatCapacity;
+
+        public float Temperature = temperature;
+        public readonly float Pressure = pressure;
+        public readonly float FreeVolume = freeVolume;
+        public readonly float InterfaceArea = interfaceArea;
+        public readonly float DeltaTime = deltaTime;
+        public readonly float LiquidMoles = liquidMoles;
+    }
+}

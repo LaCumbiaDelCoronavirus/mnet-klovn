@@ -1,3 +1,4 @@
+using Content.Shared._KS14.Fluidmos;
 using Content.Shared.Atmos;
 using Content.Shared.Atmos.EntitySystems;
 using Content.Shared.Chemistry.Reagent;
@@ -29,14 +30,16 @@ public sealed partial class BoilTileEffect : KsTileEffect
 {
     [Dependency] private IPrototypeManager _prototypeManager = default!;
     [Dependency] private SharedAtmosphereSystem _atmosphereSystem = default!;
+    [Dependency] private KsFluidmosPropertiesSystem _fluidmosPropertiesSystem = default!;
 
     /// <summary>
-    ///     Energy, in joules, that boiling one unit takes out of the solution.
-    ///     The default is water's latent heat in proportion to its specific heat (2260 J/g over 4.18 J/(g K)), scaled
-    ///         to a specific heat of 1 J/(u K): boiling a unit cools the solution as much as warming 540 units by 1 K.
+    ///     Energy, in joules, that boiling one unit takes out of the solution. Null takes the reagent's Fluidmos latent
+    ///         heat (<see cref="KsPhaseMath.DefaultLatentHeat"/>), so pipes and puddles agree: for water that is its latent
+    ///         heat in proportion to its specific heat (2260 J/g over 4.18 J/(g K)), scaled to a specific heat of
+    ///         1 J/(u K), 540 J/u.
     /// </summary>
     [DataField]
-    public float LatentHeat = 540f;
+    public float? LatentHeat;
 
     /// <summary>
     ///     Most units that may boil off per second; boiling is otherwise limited only by the heat available.
@@ -51,7 +54,8 @@ public sealed partial class BoilTileEffect : KsTileEffect
     public Gas? Gas;
 
     /// <summary>
-    ///     Moles of gas each unit becomes. Null is one mole per molar mass in units, treating a unit as a gram.
+    ///     Moles of gas each unit becomes. Null is the reagent's Fluidmos moles per unit when it is linked to this gas,
+    ///         and otherwise one mole per molar mass in units, treating a unit as a gram.
     /// </summary>
     /// <remarks>
     ///     A reagent given more than that should have its specific heat matched to it (moles per unit times the gas's
@@ -78,11 +82,14 @@ public sealed partial class BoilTileEffect : KsTileEffect
         if (context.Solution is not { } solution ||
             context.Reagent is not { } reagent ||
             !_prototypeManager.TryIndex<ReagentPrototype>(reagent.Prototype, out var reagentPrototype) ||
-            reagentPrototype.BoilingPoint is not { } boilingPoint ||
-            LatentHeat <= 0f)
+            reagentPrototype.BoilingPoint is not { } boilingPoint)
             return false;
 
         if ((Gas ?? GetBoiledGas(reagentPrototype)) is not { } gas)
+            return false;
+
+        var latentHeat = GetLatentHeat(reagentPrototype);
+        if (latentHeat <= 0f)
             return false;
 
         var temperature = solution.Temperature;
@@ -93,7 +100,7 @@ public sealed partial class BoilTileEffect : KsTileEffect
         if (heatCapacity <= 0f || available <= 0f)
             return false;
 
-        var molesPerUnit = MolesPerUnit ?? 1f / _atmosphereSystem.GasMolarMasses[(int)gas];
+        var molesPerUnit = GetMolesPerUnit(reagentPrototype, gas);
         var maxUnits = MathF.Min(available, Rate * scale);
         var boiled = 0f;
 
@@ -102,12 +109,12 @@ public sealed partial class BoilTileEffect : KsTileEffect
         {
             // Boiling b units leaves (C - b c)(T - T') = b L, so this much brings the solution down to exactly the boiling point.
             var excessTemperature = temperature - boilingPoint;
-            var hotUnits = MathF.Min(maxUnits, excessTemperature * heatCapacity / (LatentHeat + excessTemperature * specificHeat));
+            var hotUnits = MathF.Min(maxUnits, excessTemperature * heatCapacity / (latentHeat + excessTemperature * specificHeat));
             boiled = RaiseBoil(tileRef, gas, hotUnits, molesPerUnit, specificHeat * temperature, latentEnergyPerUnitFromAir: 0f, Atmospherics.TCMB);
 
             // Temperature is intensive, so removing the boiled units afterwards leaves this in place.
             if (boiled > 0f)
-                solution.Temperature = temperature - boiled * LatentHeat / (heatCapacity - boiled * specificHeat);
+                solution.Temperature = temperature - boiled * latentHeat / (heatCapacity - boiled * specificHeat);
         }
 
         // Then whatever its own heat could not boil, with the latent heat from the air, which keeps the solution's
@@ -115,7 +122,7 @@ public sealed partial class BoilTileEffect : KsTileEffect
         if (Sublimate && boiled < maxUnits)
         {
             boiled += RaiseBoil(tileRef, gas, maxUnits - boiled, molesPerUnit, specificHeat * solution.Temperature,
-                latentEnergyPerUnitFromAir: LatentHeat, boilingPoint);
+                latentEnergyPerUnitFromAir: latentHeat, boilingPoint);
         }
 
         if (boiled <= 0f)
@@ -153,6 +160,34 @@ public sealed partial class BoilTileEffect : KsTileEffect
             Displace);
         EntityManager.EventBus.RaiseEvent(EventSource.Local, ref ev);
         return ev.BoiledUnits;
+    }
+
+    /// <summary>
+    ///     The latent heat per unit this effect boils with: its own, or the reagent's Fluidmos one.
+    /// </summary>
+    public float GetLatentHeat(ReagentPrototype reagentPrototype)
+    {
+        if (LatentHeat is { } latentHeat)
+            return latentHeat;
+
+        return _fluidmosPropertiesSystem.TryGetProperties(reagentPrototype.ID, out var properties)
+            ? properties.LatentHeat
+            : KsPhaseMath.DefaultLatentHeat(reagentPrototype.BoilingPoint ?? 0f, reagentPrototype.SpecificHeat);
+    }
+
+    /// <summary>
+    ///     Moles of <paramref name="gas"/> each boiled unit becomes: its own, the reagent's Fluidmos value when the reagent
+    ///         is linked to that gas, or a gram per unit.
+    /// </summary>
+    public float GetMolesPerUnit(ReagentPrototype reagentPrototype, Gas gas)
+    {
+        if (MolesPerUnit is { } molesPerUnit)
+            return molesPerUnit;
+
+        if (_fluidmosPropertiesSystem.TryGetProperties(reagentPrototype.ID, out var properties) && properties.GasIndex == (int)gas)
+            return properties.MolesPerUnit;
+
+        return KsPhaseMath.MolesPerUnit(_atmosphereSystem.GasMolarMasses[(int)gas]);
     }
 
     private Gas? GetBoiledGas(ReagentPrototype reagentPrototype)

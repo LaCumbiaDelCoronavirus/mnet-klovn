@@ -1,0 +1,50 @@
+# Van der Waals constants, used only as a thermal correction at throttles (Joule–Thomson) and for linked gases'
+#     critical temperature, 8a / (27 R b). a in kPa L²/mol², b in L/mol. A gas without them is ideal.
+
+- type: !PartialOnly gas
+  id: Nitrogen
+  ksVanDerWaalsA: 137
+  ksVanDerWaalsB: 0.0387
+
+- type: !PartialOnly gas
+  id: Oxygen
+  ksVanDerWaalsA: 138
+  ksVanDerWaalsB: 0.0319
+
+- type: !PartialOnly gas
+  id: CarbonDioxide
+  ksVanDerWaalsA: 364
+  ksVanDerWaalsB: 0.0427
+
+- type: !PartialOnly gas
+  id: WaterVapor
+  ksVanDerWaalsA: 554
+  ksVanDerWaalsB: 0.0305
+
+- type: !PartialOnly gas
+  id: NitrousOxide
+  ksVanDerWaalsA: 383
+  ksVanDerWaalsB: 0.0442
+
+- type: !PartialOnly gas
+  id: Ammonia
+  ksVanDerWaalsA: 425
+  ksVanDerWaalsB: 0.0371
+
+# Hydrogen's values: inverts at about 200 K, so it warms on throttling at room temperature.
+- type: !PartialOnly gas
+  id: Tritium
+  ksVanDerWaalsA: 24.8
+  ksVanDerWaalsB: 0.0266
+
+# Fictional: a heavy, sticky gas that cools strongly on throttling.
+- type: !PartialOnly gas
+  id: Plasma
+  ksVanDerWaalsA: 420
+  ksVanDerWaalsB: 0.045
+
+# Fictional coolant: the strongest Joule–Thomson cooling of any gas.
+- type: !PartialOnly gas
+  id: Frezon
+  ksVanDerWaalsA: 600
+  ksVanDerWaalsB: 0.050

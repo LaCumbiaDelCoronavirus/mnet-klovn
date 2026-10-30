@@ -141,6 +141,7 @@ namespace Content.Server.Atmos.EntitySystems
                 // transfer moles
                 NumericsHelpers.Multiply(source.Moles, fraction, buffer);
                 NumericsHelpers.Add(receiver.Moles, buffer);
+                KsDivideFluidInto(source, receiver, fraction); // KS14
             }
         }
 
@@ -159,7 +160,7 @@ namespace Content.Server.Atmos.EntitySystems
                 // Need at least 10 kPa difference to overcome friction in the mechanism.
                 return false;
 
-            if (!(mixture.TotalMoles > 0) || !(mixture.Temperature > 0)) return false;
+            if (!(mixture.TransferMoles /* KS14: TotalMoles -> TransferMoles, so pure-liquid pipes still flow */ > 0) || !(mixture.Temperature > 0)) return false;
 
             // We calculate the necessary moles to transfer with the ideal gas law.
             var pressureDelta = MathF.Min(targetPressure - outputStartingPressure, (inputStartingPressure - outputStartingPressure) / 2f);
@@ -191,7 +192,7 @@ namespace Content.Server.Atmos.EntitySystems
                 // No need to pump gas, we've reached the target.
                 return false;
 
-            if (!(mixture.TotalMoles > 0) || !(mixture.Temperature > 0)) return false;
+            if (!(mixture.TransferMoles /* KS14: TotalMoles -> TransferMoles, so pure-liquid pipes still flow */ > 0) || !(mixture.Temperature > 0)) return false;
 
             // We calculate the necessary moles to transfer with the ideal gas law.
             var transferMoles = pressureDelta * output.Volume / (mixture.Temperature * Atmospherics.R);
@@ -288,6 +289,7 @@ namespace Content.Server.Atmos.EntitySystems
         [PublicAPI]
         public override ReactionResult React(GasMixture mixture, IGasMixtureHolder? holder)
         {
+            if (mixture.FluidCapable) _ksFluidmosPhaseSystem.UpdatePhases(mixture, holder); // KS14: reagent phase changes
             var reaction = ReactionResult.NoReaction;
             var temperature = mixture.Temperature;
             var energy = GetThermalEnergy(mixture);

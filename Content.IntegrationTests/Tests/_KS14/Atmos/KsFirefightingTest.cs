@@ -11,6 +11,7 @@ using Content.Server.Chemistry.TileReactions;
 using Content.Server.Fluids.EntitySystems;
 using Content.Shared._KS14.Atmos.ChemicalFire;
 using Content.Shared._KS14.Atmos.FoamBlanket;
+using Content.Shared._KS14.Fluidmos;
 using Content.Shared._KS14.TileEffects;
 using Content.Shared._KS14.TileEffects.Effects;
 using Content.Shared.Atmos;
@@ -282,7 +283,10 @@ public sealed class KsFirefightingTest : GameTest
             var air = atmosphereSystem.GetTileMixture(gridUid, null, testMap.Tile.GridIndices, excite: true)!;
 
             var boilingPoint = protoMan.Index(WaterReagent).BoilingPoint!.Value;
-            var latentHeat = protoMan.Index(WaterReagent).KsTileEffects.OfType<BoilTileEffect>().Single().LatentHeat;
+            // Water's boil effect takes its latent heat from Fluidmos, so pipes and puddles agree.
+            Assert.That(entityManager.System<KsFluidmosPropertiesSystem>().TryGetProperties(WaterReagent, out var waterProperties));
+            var latentHeat = protoMan.Index(WaterReagent).KsTileEffects.OfType<BoilTileEffect>().Single().LatentHeat
+                ?? waterProperties!.LatentHeat;
 
             var volumeBefore = (float)solution.Volume;
             var energyBefore = solution.GetHeatCapacity(protoMan) * solution.Temperature

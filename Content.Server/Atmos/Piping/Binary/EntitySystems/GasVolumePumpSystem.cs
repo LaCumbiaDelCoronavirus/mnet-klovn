@@ -96,7 +96,7 @@ namespace Content.Server.Atmos.Piping.Binary.EntitySystems
             pump.LastMolesTransferred = removed.TotalMoles;
 
             _atmosphereSystem.Merge(outlet.Air, removed);
-            _ambientSoundSystem.SetAmbience(uid, removed.TotalMoles > 0f);
+            _ambientSoundSystem.SetAmbience(uid, removed.TransferMoles /* KS14: TotalMoles -> TransferMoles */ > 0f);
         }
 
         private void OnVolumePumpLeaveAtmosphere(EntityUid uid, GasVolumePumpComponent pump, ref AtmosDeviceDisabledEvent args)

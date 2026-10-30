@@ -44,7 +44,7 @@ public sealed partial class GasPressurePumpSystem : SharedGasPressurePumpSystem
             return; // No need to pump gas if target has been reached.
         }
 
-        if (inlet.Air.TotalMoles > 0 && inlet.Air.Temperature > 0)
+        if (inlet.Air.TransferMoles /* KS14: TotalMoles -> TransferMoles, so pure-liquid pipes still flow */ > 0 && inlet.Air.Temperature > 0)
         {
             // We calculate the necessary moles to transfer using our good ol' friend PV=nRT.
             var pressureDelta = ent.Comp.TargetPressure - outputStartingPressure;
@@ -52,7 +52,7 @@ public sealed partial class GasPressurePumpSystem : SharedGasPressurePumpSystem
 
             var removed = inlet.Air.Remove(transferMoles);
             _atmosphereSystem.Merge(outlet.Air, removed);
-            _ambientSoundSystem.SetAmbience(ent, removed.TotalMoles > 0f);
+            _ambientSoundSystem.SetAmbience(ent, removed.TransferMoles /* KS14: TotalMoles -> TransferMoles */ > 0f);
         }
     }
 }
