@@ -281,7 +281,7 @@ public sealed class KsFirefightingTest : GameTest
             solution.Temperature = HotPuddleTemperature;
             var air = atmosphereSystem.GetTileMixture(gridUid, null, testMap.Tile.GridIndices, excite: true)!;
 
-            var boilingPoint = protoMan.Index(WaterReagent).BoilingPoint!.Value + Atmospherics.T0C;
+            var boilingPoint = protoMan.Index(WaterReagent).BoilingPoint!.Value;
             var latentHeat = protoMan.Index(WaterReagent).KsTileEffects.OfType<BoilTileEffect>().Single().LatentHeat;
 
             var volumeBefore = (float)solution.Volume;

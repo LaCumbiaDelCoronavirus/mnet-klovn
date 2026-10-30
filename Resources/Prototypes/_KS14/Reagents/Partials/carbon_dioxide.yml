@@ -8,7 +8,7 @@
 #     and the spray's is raised further, as water's ExtinguishTileReaction energy is.
 - type: !PartialOnly reagent
   id: CarbonDioxide
-  boilingPoint: -78.5 # where it sublimes at one atmosphere
+  boilingPoint: 194.65 # where it sublimes at one atmosphere
   specificHeat: 15
   tileReactions:
   # Into a puddle it lands on first, which it then boils out of, cooling it.

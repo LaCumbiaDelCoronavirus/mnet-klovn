@@ -53,13 +53,13 @@ public sealed class KsCarbonDioxideTest : GameTest
 
     private const float SprayTemperature = 194f;
     /// <summary>
-    ///     Where carbon dioxide sublimes, in kelvin: its reagent's boiling point, which is in Celsius.
+    ///     Where carbon dioxide sublimes, in kelvin: its reagent's boiling point.
     /// </summary>
     private float SublimationPoint()
     {
         var boilingPoint = SProtoMan.Index(CarbonDioxideReagent).BoilingPoint;
         Assert.That(boilingPoint, Is.Not.Null, "Carbon dioxide has no boiling point, so it never sublimes.");
-        return boilingPoint!.Value + Atmospherics.T0C;
+        return boilingPoint!.Value;
     }
     private const int TicksPerSecond = 30;
 

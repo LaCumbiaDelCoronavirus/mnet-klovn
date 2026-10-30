@@ -73,9 +73,7 @@ public sealed partial class KsVaporizeTileReaction : KsTileReaction
             return FixedPoint2.Zero;
 
         var sourceTemperature = _puddleSystem.KsTileReactionSourceTemperature ?? Atmospherics.T20C;
-        var minimumTemperature = reagent.BoilingPoint is { } boilingPoint
-            ? boilingPoint + Atmospherics.T0C // BoilingPoint is in Celsius
-            : Atmospherics.TCMB;
+        var minimumTemperature = reagent.BoilingPoint ?? Atmospherics.TCMB;
 
         var units = _tileEffectAtmosSystem.TryChangePhase(
             tile.GridUid,

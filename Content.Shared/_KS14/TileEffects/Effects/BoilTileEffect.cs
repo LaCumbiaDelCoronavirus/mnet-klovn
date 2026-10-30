@@ -78,14 +78,13 @@ public sealed partial class BoilTileEffect : KsTileEffect
         if (context.Solution is not { } solution ||
             context.Reagent is not { } reagent ||
             !_prototypeManager.TryIndex<ReagentPrototype>(reagent.Prototype, out var reagentPrototype) ||
-            reagentPrototype.BoilingPoint is not { } boilingPointCelsius ||
+            reagentPrototype.BoilingPoint is not { } boilingPoint ||
             LatentHeat <= 0f)
             return false;
 
         if ((Gas ?? GetBoiledGas(reagentPrototype)) is not { } gas)
             return false;
 
-        var boilingPoint = boilingPointCelsius + Atmospherics.T0C;
         var temperature = solution.Temperature;
         var specificHeat = reagentPrototype.SpecificHeat;
         // Whatever an earlier effect of this reagent already claimed is removed afterwards, along with its heat capacity.

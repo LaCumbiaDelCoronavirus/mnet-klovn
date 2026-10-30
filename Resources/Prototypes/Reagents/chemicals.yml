@@ -5,8 +5,8 @@
   physicalDesc: reagent-physical-desc-acidic
   flavor: bitter
   color: "#AF14B7"
-  boilingPoint: 55.5
-  meltingPoint: -50.0
+  boilingPoint: 328.65 # KS14: 55.5 -> 328.65, Kelvin
+  meltingPoint: 223.15 # KS14: -50.0 -> 223.15, Kelvin
 
 - type: reagent
   id: Phenol
@@ -15,8 +15,8 @@
   physicalDesc: reagent-physical-desc-acidic
   flavor: bitter
   color: "#E7EA91"
-  boilingPoint: 55.5
-  meltingPoint: -50.0
+  boilingPoint: 328.65 # KS14: 55.5 -> 328.65, Kelvin
+  meltingPoint: 223.15 # KS14: -50.0 -> 223.15, Kelvin
   metabolisms:
     Bloodstream:
       effects:
@@ -32,8 +32,8 @@
   desc: reagent-desc-charcoal
   physicalDesc: reagent-physical-desc-porous
   color: "#22282b"
-  boilingPoint: 4200.0
-  meltingPoint: 3550.0
+  boilingPoint: 4473.15 # KS14: 4200.0 -> 4473.15, Kelvin
+  meltingPoint: 3823.15 # KS14: 3550.0 -> 3823.15, Kelvin
   metabolisms:
     Bloodstream:
       effects:
@@ -136,8 +136,8 @@
   desc: reagent-desc-hydroxide
   physicalDesc: reagent-physical-desc-alkaline
   color: "white"
-  boilingPoint: 1661.0
-  meltingPoint: 596.0
+  boilingPoint: 1934.15 # KS14: 1661.0 -> 1934.15, Kelvin
+  meltingPoint: 869.15 # KS14: 596.0 -> 869.15, Kelvin
 
 - type: reagent
   id: SodiumHydroxide
@@ -145,8 +145,8 @@
   desc: reagent-desc-sodium-hydroxide
   physicalDesc: reagent-physical-desc-alkaline
   color: "white"
-  boilingPoint: 1661.0
-  meltingPoint: 596.0
+  boilingPoint: 1934.15 # KS14: 1661.0 -> 1934.15, Kelvin
+  meltingPoint: 869.15 # KS14: 596.0 -> 869.15, Kelvin
   metabolisms:
     Bloodstream:
       effects:
@@ -168,8 +168,8 @@
   physicalDesc: reagent-physical-desc-crystalline
   flavor: metallic
   color: "#434b4d"
-  boilingPoint: 2962.0
-  meltingPoint: 1638.0
+  boilingPoint: 3235.15 # KS14: 2962.0 -> 3235.15, Kelvin
+  meltingPoint: 1911.15 # KS14: 1638.0 -> 1911.15, Kelvin
 
 - type: reagent
   id: SodiumPolyacrylate
