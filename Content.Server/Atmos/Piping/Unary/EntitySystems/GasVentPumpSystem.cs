@@ -37,6 +37,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
     {
         [Dependency] private ISharedAdminLogManager _adminLogger = default!;
         [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+        [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
         [Dependency] private DeviceNetworkSystem _deviceNetSystem = default!;
         [Dependency] private DeviceLinkSystem _signalSystem = default!;
         [Dependency] private NodeContainerSystem _nodeContainer = default!;
@@ -158,7 +159,11 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
                     transferMoles = MathF.Min(transferMoles, maxTransfer);
                 }
 
-                _atmosphereSystem.Merge(environment, pipe.Air.Remove(transferMoles));
+                // KS14 start: liquid and unlinked vapor leave as a puddle and smoke
+                var released = pipe.Air.Remove(transferMoles);
+                _ksFluidmosTileSystem.ReleaseToTile(uid, released);
+                _atmosphereSystem.Merge(environment, released);
+                // KS14 end
             }
             else if (vent.PumpDirection == VentPumpDirection.Siphoning && environment.Pressure > 0)
             {
@@ -189,6 +194,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
                 }
 
                 _atmosphereSystem.Merge(pipe.Air, environment.Remove(transferMoles));
+                _ksFluidmosTileSystem.AbsorbFromTile(uid, pipe.Air, fraction: 0f, smoke: false, puddleUnits: Content.Shared._KS14.Fluidmos.KsFluidmos.PuddleDrainRate * args.dt); // KS14: siphons drain the puddle
             }
         }
 

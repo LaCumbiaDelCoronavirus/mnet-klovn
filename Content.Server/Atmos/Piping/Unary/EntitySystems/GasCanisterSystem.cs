@@ -19,6 +19,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems;
 public sealed partial class GasCanisterSystem : SharedGasCanisterSystem
 {
     [Dependency] private AtmosphereSystem _atmos = default!;
+    [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
     [Dependency] private NodeContainerSystem _nodeContainer = default!;
     [Dependency] private Shared._KS14.Atmos.Piping.Unary.GasCanisterOverlayDataSystem _ksGasCanisterOverlayDataSystem = default!; // KS14
     [Dependency] private SharedAppearanceSystem _appearance = default!;
@@ -45,7 +46,10 @@ public sealed partial class GasCanisterSystem : SharedGasCanisterSystem
         var environment = _atmos.GetContainingMixture((uid, transform), false, true);
 
         if (environment is not null)
+        {
+            _ksFluidmosTileSystem.ReleaseToTile(uid, canister.Air); // KS14
             _atmos.Merge(environment, canister.Air);
+        }
 
         AdminLogger.Add(LogType.CanisterPurged, LogImpact.Medium, $"Canister {ToPrettyString(uid):canister} purged its contents of {canister.Air:gas} into the environment.");
         canister.Air.Clear();
@@ -157,7 +161,7 @@ public sealed partial class GasCanisterSystem : SharedGasCanisterSystem
     /// </summary>
     public void MixContainerWithPipeNet(GasMixture containerAir, GasMixture pipeNetAir)
     {
-        var buffer = new GasMixture(pipeNetAir.Volume + containerAir.Volume);
+        var buffer = new GasMixture(pipeNetAir.Volume + containerAir.Volume) { FluidCapable = true /* KS14: added */ };
 
         _atmos.Merge(buffer, pipeNetAir);
         _atmos.Merge(buffer, containerAir);

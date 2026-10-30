@@ -18,6 +18,7 @@ namespace Content.Server.Atmos.Piping.EntitySystems
     public sealed partial class AtmosUnsafeUnanchorSystem : EntitySystem
     {
         [Dependency] private AtmosphereSystem _atmosphere = default!;
+        [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
         [Dependency] private NodeGroupSystem _group = default!;
         [Dependency] private PopupSystem _popup = default!;
 
@@ -85,7 +86,7 @@ namespace Content.Server.Atmos.Piping.EntitySystems
             if (_atmosphere.GetContainingMixture(uid, true, true) is not { } environment)
                 environment = GasMixture.SpaceGas;
 
-            var buffer = new GasMixture();
+            var buffer = new GasMixture { FluidCapable = true /* KS14: added */ };
 
             foreach (var node in nodes.Nodes.Values)
             {
@@ -101,6 +102,7 @@ namespace Content.Server.Atmos.Piping.EntitySystems
                 }
             }
 
+            _ksFluidmosTileSystem.ReleaseToTile(uid, buffer); // KS14
             _atmosphere.Merge(environment, buffer);
         }
     }

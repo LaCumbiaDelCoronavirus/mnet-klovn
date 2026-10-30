@@ -30,6 +30,7 @@ namespace Content.Server._KS14.Atmos.EntitySystems;
 public sealed partial class GasPistonSystem : SharedGasPistonSystem
 {
     [Dependency] private IAdminLogManager _adminLogManager = default!;
+    [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _fluidmosTileSystem = default!;
     [Dependency] private NodeContainerSystem _nodeContainerSystem = default!;
     [Dependency] private AppearanceSystem _appearanceSystem = default!;
     [Dependency] private KsGenericSpriteFlickSystem _spriteFlickSystem = default!;
@@ -186,6 +187,7 @@ public sealed partial class GasPistonSystem : SharedGasPistonSystem
             return;
 
         var removedAir = air.RemoveRatio(entity.Comp.RemovedGasRatio);
+        _fluidmosTileSystem.ReleaseToTile(entity, removedAir);
         _atmosphereSystem.Merge(environmentAir, removedAir);
     }
 

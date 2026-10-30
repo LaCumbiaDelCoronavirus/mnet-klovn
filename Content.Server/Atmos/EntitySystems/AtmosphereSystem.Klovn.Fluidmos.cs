@@ -8,6 +8,7 @@ namespace Content.Server.Atmos.EntitySystems;
 public sealed partial class AtmosphereSystem
 {
     [Dependency] private KsFluidmosPhaseSystem _ksFluidmosPhaseSystem = default!;
+    [Dependency] private KsFluidmosTileSystem _ksFluidmosTileSystem = default!;
 
     /// <summary>
     ///     The fluid half of <see cref="DivideInto"/>: each receiver gets its volume's share of every phase, solids

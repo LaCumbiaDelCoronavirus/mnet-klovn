@@ -12,6 +12,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
     public sealed partial class GasPassiveVentSystem : EntitySystem
     {
         [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+        [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
         [Dependency] private NodeContainerSystem _nodeContainer = default!;
 
         public override void Initialize()
@@ -34,11 +35,12 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
             var inletAir = inlet.Air.RemoveRatio(1f);
             var envAir = environment.RemoveRatio(1f);
 
-            var mergeAir = new GasMixture(inletAir.Volume + envAir.Volume);
+            var mergeAir = new GasMixture(inletAir.Volume + envAir.Volume) { FluidCapable = true /* KS14: added */ };
             _atmosphereSystem.Merge(mergeAir, inletAir);
             _atmosphereSystem.Merge(mergeAir, envAir);
 
             _atmosphereSystem.Merge(inlet.Air, mergeAir.RemoveVolume(inletAir.Volume));
+            _ksFluidmosTileSystem.ReleaseToTile(uid, mergeAir); // KS14
             _atmosphereSystem.Merge(environment, mergeAir);
         }
     }

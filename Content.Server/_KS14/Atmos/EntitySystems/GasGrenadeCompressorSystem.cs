@@ -91,7 +91,11 @@ public sealed partial class GasGrenadeCompressorSystem : SharedGasGrenadeCompres
             }
         }
         else
+        {
             removed = inlet.Air.Remove(molesToTransfer);
+            // Grenades hold gas only.
+            removed.ReturnFluidTo(inlet.Air);
+        }
 
         _atmosphereSystem.Merge(grenadeAir, removed);
         UpdateUserInterface(entity);

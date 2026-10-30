@@ -13,6 +13,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
     public sealed partial class GasOutletInjectorSystem : EntitySystem
     {
         [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+        [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
         [Dependency] private SharedAppearanceSystem _appearance = default!;
         [Dependency] private NodeContainerSystem _nodeContainer = default!;
 
@@ -73,6 +74,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
             var ratio = MathF.Min(1f, timeDelta * injector.TransferRate * _atmosphereSystem.PumpSpeedup() / inlet.Air.Volume);
             var removed = inlet.Air.RemoveRatio(ratio);
 
+            _ksFluidmosTileSystem.ReleaseToTile(uid, removed); // KS14
             _atmosphereSystem.Merge(environment, removed);
         }
     }

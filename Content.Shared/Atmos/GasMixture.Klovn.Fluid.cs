@@ -90,6 +90,22 @@ public sealed partial class GasMixture
     }
 
     /// <summary>
+    ///     Gives this mixture's fluid back to <paramref name="origin"/>, for draws that must take gas only (internals, gas
+    ///         grenades), and leaves this mixture unable to hold fluid.
+    /// </summary>
+    public void ReturnFluidTo(GasMixture origin)
+    {
+        if (Fluid is { } fluid && !fluid.IsEmpty)
+        {
+            origin.Fluid ??= new KsFluidMixture(fluid.Count);
+            origin.Fluid.Add(fluid);
+        }
+
+        Fluid = null;
+        FluidCapable = false;
+    }
+
+    /// <summary>
     ///     The fluid half of <see cref="RemoveRatio"/>.
     /// </summary>
     private void KsSplitFluid(GasMixture removed, float ratio, bool includeLiquid)

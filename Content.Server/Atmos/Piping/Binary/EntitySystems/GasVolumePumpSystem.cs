@@ -21,6 +21,7 @@ namespace Content.Server.Atmos.Piping.Binary.EntitySystems
     public sealed partial class GasVolumePumpSystem : SharedGasVolumePumpSystem
     {
         [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+        [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
         [Dependency] private UserInterfaceSystem _userInterfaceSystem = default!;
         [Dependency] private SharedAmbientSoundSystem _ambientSoundSystem = default!;
         [Dependency] private NodeContainerSystem _nodeContainer = default!;
@@ -89,6 +90,7 @@ namespace Content.Server.Atmos.Piping.Binary.EntitySystems
                 if (tile != null)
                 {
                     var leaked = removed.RemoveRatio(pump.LeakRatio);
+                    _ksFluidmosTileSystem.ReleaseToTile(uid, leaked); // KS14
                     _atmosphereSystem.Merge(tile, leaked);
                 }
             }

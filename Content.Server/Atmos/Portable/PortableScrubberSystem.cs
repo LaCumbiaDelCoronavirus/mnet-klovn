@@ -23,6 +23,7 @@ namespace Content.Server.Atmos.Portable
         [Dependency] private GasCanisterSystem _canisterSystem = default!;
         [Dependency] private GasPortableSystem _gasPortableSystem = default!;
         [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+        [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
         [Dependency] private TransformSystem _transformSystem = default!;
         [Dependency] private IAdminLogManager _adminLogger = default!;
         [Dependency] private AmbientSoundSystem _ambientSound = default!;
@@ -74,6 +75,14 @@ namespace Content.Server.Atmos.Portable
             var environment = _atmosphereSystem.GetTileMixture(grid, args.Map, position, true);
 
             var running = Scrub(timeDelta, component, environment);
+
+            // KS14 start: smoke is drawn in with the air
+            if (running && component.KsScrubAerosols && environment != null)
+            {
+                var smokeFraction = MathF.Min(1f, timeDelta * component.TransferRate * _atmosphereSystem.PumpSpeedup() / environment.Volume);
+                _ksFluidmosTileSystem.AbsorbFromTile(uid, component.Air, smokeFraction, smoke: true, puddleUnits: 0f);
+            }
+            // KS14 end
 
             UpdateAppearance(uid, false, running);
             // We scrub once to see if we can and set the animation
@@ -127,7 +136,10 @@ namespace Content.Server.Atmos.Portable
             var environment = _atmosphereSystem.GetContainingMixture(uid, false, true);
 
             if (environment != null)
+            {
+                _ksFluidmosTileSystem.ReleaseToTile(uid, component.Air); // KS14
                 _atmosphereSystem.Merge(environment, component.Air);
+            }
 
             _adminLogger.Add(LogType.CanisterPurged, LogImpact.Medium, $"Portable scrubber {ToPrettyString(uid):canister} purged its contents of {component.Air} into the environment.");
             component.Air.Clear();

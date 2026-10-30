@@ -99,6 +99,11 @@ public static class KsFluidmos
     public const float SpillThresholdUnits = 1f;
 
     /// <summary>
+    ///     Units per second a siphoning vent pump drains from the puddle on its tile.
+    /// </summary>
+    public const float PuddleDrainRate = 5f;
+
+    /// <summary>
     ///     Units of unlinked vapor a device buffers before releasing them as smoke.
     /// </summary>
     public const float SmokeThresholdUnits = 0.5f;

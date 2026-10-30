@@ -29,6 +29,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
     {
         [Dependency] private ISharedAdminLogManager _adminLogger = default!;
         [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+        [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
         [Dependency] private DeviceNetworkSystem _deviceNetSystem = default!;
         [Dependency] private NodeContainerSystem _nodeContainer = default!;
         [Dependency] private SharedAmbientSoundSystem _ambientSoundSystem = default!;
@@ -70,6 +71,14 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
             var environment = _atmosphereSystem.GetTileMixture(grid, args.Map, position, true);
 
             Scrub(timeDelta, scrubber, environment, outlet);
+
+            // KS14 start: smoke is drawn in with the air
+            if (scrubber.KsScrubAerosols && environment != null)
+            {
+                var smokeFraction = MathF.Min(1f, timeDelta * scrubber.TransferRate * _atmosphereSystem.PumpSpeedup() / environment.Volume);
+                _ksFluidmosTileSystem.AbsorbFromTile(uid, outlet.Air, smokeFraction, smoke: true, puddleUnits: 0f);
+            }
+            // KS14 end
 
             if (!scrubber.WideNet)
                 return;
