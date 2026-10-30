@@ -39,7 +39,10 @@ public sealed class KsFluidReagentProperties
     /// </summary>
     public float BoilingPoint { get; init; }
 
-    public float TroutonConstant { get; init; }
+    /// <summary>
+    ///     The saturation-pressure curve's <c>k = ΔS_vap / R</c>. Never derived from <see cref="LatentHeat"/>.
+    /// </summary>
+    public float VaporizationEntropy { get; init; }
 
     /// <summary>
     ///     J per unit.

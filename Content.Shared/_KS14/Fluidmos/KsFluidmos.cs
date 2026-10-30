@@ -49,15 +49,15 @@ public static class KsFluidmos
     public const float DefaultMolarMass = 100f;
 
     /// <summary>
-    ///     Clausius–Clapeyron's dimensionless <c>ΔH_vap / (R T_b)</c> for a reagent that sets none: Trouton's rule
-    ///         (about 88 J/(mol K) over R).
+    ///     Default <c>k = ΔS_vap / R</c>, dimensionless, for a reagent that sets none: Trouton's rule, 88 J/(mol K).
+    ///         Sets the steepness of the saturation-pressure curve and nothing else.
     /// </summary>
     /// <remarks>
-    ///     This shapes the vapor-pressure curve only. It is the real molar value, independent of the game-scale latent
-    ///         heat per unit, which is what the energy accounting uses: on the game's 1 J/(K u) scale a per-unit heat
-    ///         cannot also give the real curve.
+    ///     A real, per-mole value. Never derive it from the game-scale <see cref="LatentHeatRatio"/> latent heat per
+    ///         unit: that gives water <c>k ≈ 3.1</c> and a <c>Psat(293 K)</c> near 43 kPa instead of about 2.3, so rooms
+    ///         would hold roughly 20 times too much humidity.
     /// </remarks>
-    public const float DefaultTroutonConstant = 10.6f;
+    public const float DefaultVaporizationEntropy = 10.6f;
 
     /// <summary>
     ///     Hertz–Knudsen evaporation/condensation coefficient inside pipes. A tuning knob, not a physical constant: set so a
@@ -82,8 +82,8 @@ public static class KsFluidmos
     public const float MaxPhaseDeltaT = 5f;
 
     /// <summary>
-    ///     Default latent heat of vaporisation per unit, as a multiple of <c>BoilingPoint * SpecificHeat</c>: Trouton's
-    ///         rule on the game scale, calibrated to give water exactly <c>BoilTileEffect</c>'s 540 J/u.
+    ///     Default latent heat of vaporisation per unit, as a multiple of <c>BoilingPoint * SpecificHeat</c>, calibrated
+    ///         to give water exactly <c>BoilTileEffect</c>'s 540 J/u. Game-scale energy only; never used for the curve.
     /// </summary>
     public const float LatentHeatRatio = 540f / 373.15f;
 

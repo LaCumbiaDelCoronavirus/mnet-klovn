@@ -206,7 +206,7 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
                 return true;
 
             var partialPressure = moles * Atmospherics.R * temperature / mixture.Volume;
-            if (partialPressure > KsPhaseMath.SaturationPressure(properties.TroutonConstant, properties.BoilingPoint, temperature))
+            if (partialPressure > KsPhaseMath.SaturationPressure(properties.VaporizationEntropy, properties.BoilingPoint, temperature))
                 return true;
         }
 
@@ -249,7 +249,7 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
         }
         else
         {
-            var saturationPressure = KsPhaseMath.SaturationPressure(properties.TroutonConstant, properties.BoilingPoint, temperature);
+            var saturationPressure = KsPhaseMath.SaturationPressure(properties.VaporizationEntropy, properties.BoilingPoint, temperature);
 
             // Its own phase when it has no liquid in the mixture yet: dissolving into another liquid is Henry's law,
             //     which this does not model.
@@ -262,7 +262,7 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
             if (gap < 0f && !canCondense)
                 return;
 
-            var flashPoint = KsPhaseMath.BoilingPointAt(properties.TroutonConstant, properties.BoilingPoint, step.Pressure);
+            var flashPoint = KsPhaseMath.BoilingPointAt(properties.VaporizationEntropy, properties.BoilingPoint, step.Pressure);
             if (!fromSolid && gap > 0f && temperature > flashPoint && amount.Liquid > 0f)
             {
                 // Flash: limited by energy, down to the boiling point at this pressure, and by equilibrium.

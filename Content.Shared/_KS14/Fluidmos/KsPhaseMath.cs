@@ -8,7 +8,8 @@ namespace Content.Shared._KS14.Fluidmos;
 /// <remarks>
 ///     One vapor-pressure curve everywhere: Clausius–Clapeyron anchored at the reagent's boiling point at one
 ///         atmosphere, <c>Psat = P0 exp(k (1 - Tb / T))</c>, where <c>k = ΔH_vap / (R Tb)</c> is the reagent's
-///         Trouton constant.
+///         vaporization entropy <c>ΔS_vap / R</c>: a real per-mole value, separate from the game-scale latent heat
+///         that sets how much energy a phase change moves.
 /// </remarks>
 public static class KsPhaseMath
 {
@@ -25,22 +26,22 @@ public static class KsPhaseMath
     /// <summary>
     ///     Saturation vapor pressure, in kPa, at <paramref name="temperature"/>.
     /// </summary>
-    public static float SaturationPressure(float troutonConstant, float boilingPoint, float temperature)
+    public static float SaturationPressure(float vaporizationEntropy, float boilingPoint, float temperature)
     {
         if (temperature <= 0f)
             return 0f;
 
-        var exponent = Math.Clamp(troutonConstant * (1f - boilingPoint / temperature), -50f, 20f);
+        var exponent = Math.Clamp(vaporizationEntropy * (1f - boilingPoint / temperature), -50f, 20f);
         return ReferencePressure * MathF.Exp(exponent);
     }
 
     /// <summary>
     ///     Boiling point, in kelvin, at <paramref name="pressure"/> kPa: the inverse of <see cref="SaturationPressure"/>.
     /// </summary>
-    public static float BoilingPointAt(float troutonConstant, float boilingPoint, float pressure)
+    public static float BoilingPointAt(float vaporizationEntropy, float boilingPoint, float pressure)
     {
         pressure = MathF.Max(pressure, MinimumBoilingPressure);
-        var inverse = 1f / boilingPoint - MathF.Log(pressure / ReferencePressure) / (troutonConstant * boilingPoint);
+        var inverse = 1f / boilingPoint - MathF.Log(pressure / ReferencePressure) / (vaporizationEntropy * boilingPoint);
         // Only reachable at absurd pressures; past it the curve has no boiling point left.
         return inverse > 0f ? 1f / inverse : float.PositiveInfinity;
     }
@@ -49,10 +50,10 @@ public static class KsPhaseMath
     ///     Temperature at which the saturation pressure falls to <see cref="KsFluidmos.MinActivePressure"/>, below which
     ///         a reagent is treated as not evaporating.
     /// </summary>
-    public static float MinActiveTemperature(float troutonConstant, float boilingPoint)
+    public static float MinActiveTemperature(float vaporizationEntropy, float boilingPoint)
     {
         var logRatio = MathF.Log(KsFluidmos.MinActivePressure / ReferencePressure);
-        return boilingPoint / (1f - logRatio / troutonConstant);
+        return boilingPoint / (1f - logRatio / vaporizationEntropy);
     }
 
     /// <summary>

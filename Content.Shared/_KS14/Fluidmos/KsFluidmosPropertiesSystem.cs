@@ -85,7 +85,7 @@ public sealed partial class KsFluidmosPropertiesSystem : EntitySystem
 
         var molarMass = gasPrototype?.MolarMass ?? data?.MolarMass ?? KsFluidmos.DefaultMolarMass;
         var molesPerUnit = data?.MolesPerUnit ?? KsPhaseMath.MolesPerUnit(molarMass);
-        var troutonConstant = data?.TroutonConstant ?? KsFluidmos.DefaultTroutonConstant;
+        var vaporizationEntropy = data?.VaporizationEntropy ?? KsFluidmos.DefaultVaporizationEntropy;
 
         var boilingPoint = reagentPrototype.BoilingPoint ?? 0f;
         var isVolatile = reagentPrototype.BoilingPoint != null && boilingPoint < KsFluidmos.NonVolatileBoilingPoint;
@@ -111,9 +111,9 @@ public sealed partial class KsFluidmosPropertiesSystem : EntitySystem
             VaporHeatCapacityPerUnit = gasPrototype != null ? molesPerUnit * gasPrototype.MolarHeatCapacity : specificHeat,
             Volatile = isVolatile,
             BoilingPoint = boilingPoint,
-            TroutonConstant = troutonConstant,
+            VaporizationEntropy = vaporizationEntropy,
             LatentHeat = data?.LatentHeat ?? KsPhaseMath.DefaultLatentHeat(boilingPoint, specificHeat),
-            MinActiveTemperature = isVolatile ? KsPhaseMath.MinActiveTemperature(troutonConstant, boilingPoint) : float.PositiveInfinity,
+            MinActiveTemperature = isVolatile ? KsPhaseMath.MinActiveTemperature(vaporizationEntropy, boilingPoint) : float.PositiveInfinity,
             Freezable = freezable,
             MeltingPoint = meltingPoint,
             FusionHeat = data?.FusionHeat ?? KsPhaseMath.DefaultFusionHeat(meltingPoint, specificHeat),

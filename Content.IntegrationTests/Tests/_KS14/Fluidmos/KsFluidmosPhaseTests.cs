@@ -58,7 +58,7 @@ public sealed class KsFluidmosPhaseTests : GameTest
 
     private static float EquilibriumVaporMoles(KsFluidReagentProperties properties, GasMixture mixture)
     {
-        var saturationPressure = KsPhaseMath.SaturationPressure(properties.TroutonConstant, properties.BoilingPoint, mixture.Temperature);
+        var saturationPressure = KsPhaseMath.SaturationPressure(properties.VaporizationEntropy, properties.BoilingPoint, mixture.Temperature);
         return saturationPressure * mixture.FreeVolume / (Atmospherics.R * mixture.Temperature);
     }
 
@@ -162,7 +162,7 @@ public sealed class KsFluidmosPhaseTests : GameTest
             pressurised.Fluid.AddLiquid(WaterKey, 200f);
             AddHeadspace(pressurised, pressure: 1000f);
 
-            var flashPoint = KsPhaseMath.BoilingPointAt(water.TroutonConstant, water.BoilingPoint, pressurised.Pressure);
+            var flashPoint = KsPhaseMath.BoilingPointAt(water.VaporizationEntropy, water.BoilingPoint, pressurised.Pressure);
             Assert.That(flashPoint, Is.GreaterThan(hotTemperature), "The test's pressure doesn't raise the boiling point enough.");
 
             Step(phaseSystem, gameTiming, open);

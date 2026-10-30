@@ -36,11 +36,13 @@ public sealed partial class KsFluidmosReagentData
     public float? MolesPerUnit;
 
     /// <summary>
-    ///     Shape of the vapor-pressure curve, <c>ΔH_vap / (R Tb)</c> in real molar terms. Defaults to
-    ///         <see cref="KsFluidmos.DefaultTroutonConstant"/>.
+    ///     The vapor-pressure curve's steepness, <c>k = ΔS_vap / R</c> (dimensionless, real and per mole). Defaults to
+    ///         Trouton's rule, <see cref="KsFluidmos.DefaultVaporizationEntropy"/>; set it from the real heat of
+    ///         vaporization, <c>ΔH_vap / (R Tb)</c>, for reagents that break the rule. Never derived from
+    ///         <see cref="LatentHeat"/>.
     /// </summary>
     [DataField]
-    public float? TroutonConstant;
+    public float? VaporizationEntropy;
 
     /// <summary>
     ///     The atmos gas this reagent's vapor is. Its vapor then lives in the mixture's gas moles, spreads across tiles as
