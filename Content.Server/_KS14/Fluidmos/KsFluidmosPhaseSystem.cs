@@ -62,6 +62,11 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
     /// </summary>
     private const float SettledPressureFraction = 0.001f;
 
+    /// <summary>
+    ///     Most entries whose amounts a step keeps on the stack; more than this goes to the heap.
+    /// </summary>
+    private const int MaxStackEntries = 32;
+
     private readonly List<(KsFluidReagentKey Key, KsFluidReagentProperties Properties)> _entries = new();
 
     /// <summary>
@@ -104,20 +109,27 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
         var freeVolume = mixture.FreeVolume;
         var interfaceArea = mixture.Volume * KsFluidmos.PipeInterfaceAreaPerLiter;
 
+        // Each entry's amounts, read once. A mixture holds a handful of reagents, so this lives on the stack.
+        var entryCount = _entries.Count;
+        var amounts = entryCount <= MaxStackEntries
+            ? stackalloc KsFluidAmount[entryCount]
+            : new KsFluidAmount[entryCount];
+
         // Raoult's law: each reagent's share of the liquid's moles, which solids don't count towards.
         var liquidMoles = 0f;
-        foreach (var (key, properties) in _entries)
+        for (var i = 0; i < entryCount; i++)
         {
-            if (fluid.TryGetAmount(key, out var amount))
-                liquidMoles += amount.Liquid * properties.MolesPerUnit;
+            fluid.TryGetAmount(_entries[i].Key, out amounts[i]);
+            liquidMoles += amounts[i].Liquid * _entries[i].Properties.MolesPerUnit;
         }
 
         var unitsMoved = 0f;
         var step = new PhaseStep(heatCapacity, temperature, pressure, freeVolume, interfaceArea, deltaTime, liquidMoles);
 
-        foreach (var (key, properties) in _entries)
+        for (var i = 0; i < entryCount; i++)
         {
-            fluid.TryGetAmount(key, out var amount);
+            var (key, properties) = _entries[i];
+            ref var amount = ref amounts[i];
             var before = amount;
 
             if (properties.Volatile)
@@ -145,7 +157,7 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
 
         fluid.LastTemperature = mixture.Temperature;
         fluid.LastPressure = mixture.Pressure;
-        fluid.CompositionChanged = false;
+        fluid.MarkPhaseStepped();
         fluid.PhaseSettled = MathF.Abs(mixture.Temperature - temperature) < SettledTemperature && unitsMoved < SettledUnits;
     }
 
@@ -156,8 +168,9 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
     {
         _entries.Clear();
 
-        foreach (var key in fluid.Reagents.Keys)
+        for (var i = 0; i < fluid.Reagents.Count; i++)
         {
+            var key = fluid.Reagents.GetKey(i);
             if (_propertiesSystem.TryGetProperties(key.Prototype, out var properties))
                 _entries.Add((key, properties));
         }

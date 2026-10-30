@@ -113,7 +113,7 @@ namespace Content.Server.Atmos.EntitySystems
             }
 
             float? sourceHeatCapacity = null;
-            var buffer = new float[Atmospherics.AdjustedNumberOfGases];
+            Span<float> buffer = stackalloc float[Atmospherics.AdjustedNumberOfGases]; // KS14: new float[] -> stackalloc, server-only so no sandbox
 
             foreach (var receiver in receivers)
             {

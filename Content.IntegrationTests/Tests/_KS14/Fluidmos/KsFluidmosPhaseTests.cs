@@ -37,6 +37,15 @@ public sealed class KsFluidmosPhaseTests : GameTest
     }
 
     /// <summary>
+    ///     Fills the gas left over by the liquid with nitrogen at one atmosphere, so the liquid evaporates at its surface
+    ///         rather than flashing, as it would into vacuum.
+    /// </summary>
+    private static void AddHeadspace(GasMixture mixture, float pressure = Atmospherics.OneAtmosphere)
+    {
+        mixture.AdjustMoles(Gas.Nitrogen, pressure * mixture.FreeVolume / (Atmospherics.R * mixture.Temperature));
+    }
+
+    /// <summary>
     ///     Runs one phase step as if <paramref name="seconds"/> had passed since the last.
     /// </summary>
     private static void Step(KsFluidmosPhaseSystem phaseSystem, IGameTiming gameTiming, GasMixture mixture, float seconds = StepSeconds)
@@ -69,6 +78,7 @@ public sealed class KsFluidmosPhaseTests : GameTest
             var mixture = MakePipe(startTemperature);
             mixture.Fluid = new KsFluidMixture();
             mixture.Fluid.AddLiquid(WaterKey, 100f);
+            AddHeadspace(mixture);
 
             var energyBefore = atmosphereSystem.GetHeatCapacity(mixture, applyScaling: false) * mixture.Temperature;
 
@@ -142,14 +152,15 @@ public sealed class KsFluidmosPhaseTests : GameTest
             // Above water's boiling point at one atmosphere.
             var hotTemperature = water!.BoilingPoint + 20f;
 
+            // Mostly liquid, so the open pipe's flash is limited by equilibrium and its own heat, not the gas's.
             var open = MakePipe(hotTemperature);
             open.Fluid = new KsFluidMixture();
-            open.Fluid.AddLiquid(WaterKey, 100f);
+            open.Fluid.AddLiquid(WaterKey, 200f);
 
             var pressurised = MakePipe(hotTemperature);
             pressurised.Fluid = new KsFluidMixture();
-            pressurised.Fluid.AddLiquid(WaterKey, 100f);
-            pressurised.AdjustMoles(Gas.Nitrogen, 1000f * NodeVolume / (Atmospherics.R * hotTemperature));
+            pressurised.Fluid.AddLiquid(WaterKey, 200f);
+            AddHeadspace(pressurised, pressure: 1000f);
 
             var flashPoint = KsPhaseMath.BoilingPointAt(water.TroutonConstant, water.BoilingPoint, pressurised.Pressure);
             Assert.That(flashPoint, Is.GreaterThan(hotTemperature), "The test's pressure doesn't raise the boiling point enough.");
@@ -178,6 +189,7 @@ public sealed class KsFluidmosPhaseTests : GameTest
             var mixture = MakePipe(coldTemperature);
             mixture.Fluid = new KsFluidMixture();
             mixture.Fluid.AddLiquid(WaterKey, 100f);
+            AddHeadspace(mixture);
 
             var energyBefore = atmosphereSystem.GetHeatCapacity(mixture, applyScaling: false) * mixture.Temperature;
             Step(phaseSystem, gameTiming, mixture);
@@ -246,6 +258,9 @@ public sealed class KsFluidmosPhaseTests : GameTest
 
             // Far past what its vapor-pressure curve would hold, but above its critical temperature.
             var supercritical = MakePipe(nitrogen.CriticalTemperature + 5f);
+            // Already carrying fluid, so the phase step itself decides, not the dry-pipe check in front of it.
+            supercritical.Fluid = new KsFluidMixture();
+            supercritical.Fluid.AddLiquid(WaterKey, 1f);
             supercritical.AdjustMoles(Gas.Nitrogen, 50000f * NodeVolume / (Atmospherics.R * supercritical.Temperature));
 
             // The same just below its boiling point.
@@ -260,7 +275,8 @@ public sealed class KsFluidmosPhaseTests : GameTest
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(supercritical.Fluid, Is.Null, "Nitrogen condensed above its critical temperature.");
+                Assert.That(supercritical.Fluid?.TryGetAmount(NitrogenKey, out _) == true, Is.False,
+                    "Nitrogen condensed above its critical temperature.");
                 Assert.That(cold.Fluid?.TryGetAmount(NitrogenKey, out var liquid) == true && liquid.Liquid > 0f,
                     "Nitrogen below its boiling point never condensed.");
             }

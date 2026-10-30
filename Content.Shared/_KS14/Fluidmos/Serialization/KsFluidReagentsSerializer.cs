@@ -22,8 +22,8 @@ namespace Content.Shared._KS14.Fluidmos.Serialization;
 ///     Each entry takes <c>reagent</c>, and optionally <c>solid</c>, <c>liquid</c>, <c>vapor</c> (moles) and <c>data</c>.
 /// </summary>
 public sealed class KsFluidReagentsSerializer :
-    ITypeSerializer<Dictionary<KsFluidReagentKey, KsFluidAmount>, SequenceDataNode>,
-    ITypeCopyCreator<Dictionary<KsFluidReagentKey, KsFluidAmount>>
+    ITypeSerializer<KsFluidReagentTable, SequenceDataNode>,
+    ITypeCopyCreator<KsFluidReagentTable>
 {
     private const string ReagentKey = "reagent";
     private const string SolidKey = "solid";
@@ -68,15 +68,15 @@ public sealed class KsFluidReagentsSerializer :
         return new ValidatedSequenceNode(list);
     }
 
-    public Dictionary<KsFluidReagentKey, KsFluidAmount> Read(
+    public KsFluidReagentTable Read(
         ISerializationManager serializationManager,
         SequenceDataNode node,
         IDependencyCollection dependencies,
         SerializationHookContext hookCtx,
         ISerializationContext? context = null,
-        ISerializationManager.InstantiationDelegate<Dictionary<KsFluidReagentKey, KsFluidAmount>>? instanceProvider = null)
+        ISerializationManager.InstantiationDelegate<KsFluidReagentTable>? instanceProvider = null)
     {
-        var reagents = instanceProvider != null ? instanceProvider() : new Dictionary<KsFluidReagentKey, KsFluidAmount>();
+        var reagents = instanceProvider != null ? instanceProvider() : new KsFluidReagentTable(node.Sequence.Count);
 
         foreach (var element in node.Sequence)
         {
@@ -88,13 +88,12 @@ public sealed class KsFluidReagentsSerializer :
                 data = serializationManager.Read<List<ReagentData>>(dataNode, hookCtx, context, notNullableOverride: true);
 
             var key = new KsFluidReagentKey(reagentNode.Value, KsReagentDataSet.From(data));
-            reagents.TryGetValue(key, out var amount);
+            reagents.TryGetAmount(key, out var amount);
             amount.Solid += ReadAmount(serializationManager, mapping, SolidKey, hookCtx, context);
             amount.Liquid += ReadAmount(serializationManager, mapping, LiquidKey, hookCtx, context);
             amount.Vapor += ReadAmount(serializationManager, mapping, VaporKey, hookCtx, context);
 
-            if (!amount.IsEmpty)
-                reagents[key] = amount;
+            reagents.Set(key, amount);
         }
 
         return reagents;
@@ -115,7 +114,7 @@ public sealed class KsFluidReagentsSerializer :
 
     public DataNode Write(
         ISerializationManager serializationManager,
-        Dictionary<KsFluidReagentKey, KsFluidAmount> value,
+        KsFluidReagentTable value,
         IDependencyCollection dependencies,
         bool alwaysWrite = false,
         ISerializationContext? context = null)
@@ -145,14 +144,14 @@ public sealed class KsFluidReagentsSerializer :
         return sequence;
     }
 
-    public Dictionary<KsFluidReagentKey, KsFluidAmount> CreateCopy(
+    public KsFluidReagentTable CreateCopy(
         ISerializationManager serializationManager,
-        Dictionary<KsFluidReagentKey, KsFluidAmount> source,
+        KsFluidReagentTable source,
         IDependencyCollection dependencies,
         SerializationHookContext hookCtx,
         ISerializationContext? context = null)
     {
-        // Keys are immutable (their data sets included), so a shallow copy is a full one.
-        return new Dictionary<KsFluidReagentKey, KsFluidAmount>(source);
+        // Keys are immutable (their data sets included), so copying the arrays is a full copy.
+        return source.Clone();
     }
 }

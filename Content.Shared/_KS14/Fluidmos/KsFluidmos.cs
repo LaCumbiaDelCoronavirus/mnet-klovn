@@ -118,9 +118,4 @@ public static class KsFluidmos
     ///         not oscillate.
     /// </summary>
     public const float SupersaturationMargin = 0.05f;
-
-    /// <summary>
-    ///     Mixtures recount their cached totals from scratch after this many incremental changes, against float drift.
-    /// </summary>
-    public const int OperationsPerRecount = 16;
 }

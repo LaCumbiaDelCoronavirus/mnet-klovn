@@ -152,30 +152,36 @@ public sealed class KsFluidMixtureTests : GameTest
             var fluid = MakePipeMixture(waterUnits: 17f, ethanolUnits: 3f, ethanolVaporMoles: 0.05f, iceUnits: 2f).Fluid!;
             var other = MakePipeMixture(waterUnits: 5f, ethanolUnits: 9f, ethanolVaporMoles: 0.3f, iceUnits: 1f).Fluid!;
 
-            // Enough incremental operations to cross a recount, with the heat capacity cached throughout.
+            // Merges and splits, with the heat capacity cached throughout so the merges carry it across.
             fluid.GetHeatCapacity(propertiesSystem);
             other.GetHeatCapacity(propertiesSystem);
-            for (var i = 0; i < KsFluidmos.OperationsPerRecount + 3; i++)
+            for (var i = 0; i < 20; i++)
             {
                 fluid.Add(other, 0.1f);
                 fluid.Add(fluid.RemoveRatio(0.3f));
+                fluid.Multiply(0.99f);
             }
 
-            var cachedLiquid = fluid.LiquidUnits;
-            var cachedVapor = fluid.VaporMoles;
-            var cachedSolid = fluid.SolidUnits;
             var cachedHeatCapacity = fluid.GetHeatCapacity(propertiesSystem);
 
-            var fresh = fluid.Clone();
-            fresh.Recount();
-            fresh.InvalidateHeatCapacity();
+            var liquid = 0f;
+            var vapor = 0f;
+            var solid = 0f;
+            foreach (var (_, amount) in fluid.Reagents)
+            {
+                liquid += amount.Liquid;
+                vapor += amount.Vapor;
+                solid += amount.Solid;
+            }
+
+            fluid.InvalidateHeatCapacity();
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(cachedLiquid, Is.EqualTo(fresh.LiquidUnits).Within(Tolerance));
-                Assert.That(cachedVapor, Is.EqualTo(fresh.VaporMoles).Within(Tolerance));
-                Assert.That(cachedSolid, Is.EqualTo(fresh.SolidUnits).Within(Tolerance));
-                Assert.That(cachedHeatCapacity, Is.EqualTo(fresh.GetHeatCapacity(propertiesSystem)).Within(Tolerance));
+                Assert.That(fluid.LiquidUnits, Is.EqualTo(liquid).Within(Tolerance));
+                Assert.That(fluid.VaporMoles, Is.EqualTo(vapor).Within(Tolerance));
+                Assert.That(fluid.SolidUnits, Is.EqualTo(solid).Within(Tolerance));
+                Assert.That(cachedHeatCapacity, Is.EqualTo(fluid.GetHeatCapacity(propertiesSystem)).Within(Tolerance));
             }
         });
     }
