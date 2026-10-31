@@ -1,0 +1,100 @@
+# Fluidmos devices: getting reagents into and out of pipes, splitting them by phase, and refrigeration.
+#     Sprites are borrowed and tinted until there is art.
+
+- type: entity
+  parent: GasUnaryBase
+  id: KsFluidPort
+  name: fluid port
+  description: A pipe fitting with a small tank. Pour reagents in to feed them into the pipe as liquid, or switch it to draw the pipe's liquid out.
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    sprite: Structures/Piping/Atmospherics/gascanisterport.rsi
+    layers:
+    - sprite: Structures/Piping/Atmospherics/pipe.rsi
+      state: pipeUnaryConnectors
+      map: [ "enum.PipeVisualLayers.Pipe" ]
+    - state: gasCanisterPort
+      map: [ "enum.SubfloorLayers.FirstLayer" ]
+      color: "#6fb8ff"
+  - type: SubFloorHide
+    visibleLayers:
+    - enum.SubfloorLayers.FirstLayer
+  - type: Appearance
+  - type: PipeColorVisuals
+  - type: SolutionManager
+    solutions:
+    - SolutionKsFluidPort
+  - type: RefillableSolution
+    solution: fluidport
+  - type: DrainableSolution
+    solution: fluidport
+  - type: ExaminableSolution
+    solution: fluidport
+  - type: KsFluidPort
+
+- type: entity
+  parent: Solution
+  id: SolutionKsFluidPort
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Solution
+    id: fluidport
+    solution:
+      maxVol: 300
+
+- type: entity
+  parent: GasTrinaryBase
+  id: KsPhaseSeparator
+  name: phase separator
+  description: Pumps gas and vapor out of one side and lets liquid out of the other. Put a heater ahead of it and it is a still.
+  placement:
+    mode: SnapgridCenter
+  components:
+  - type: SubFloorHide
+    visibleLayers:
+    - enum.SubfloorLayers.FirstLayer
+  - type: Sprite
+    sprite: Structures/Piping/Atmospherics/gasfilter.rsi
+    layers:
+    - sprite: Structures/Piping/Atmospherics/pipe.rsi
+      state: pipeTrinaryConnectors
+      map: [ "enum.PipeVisualLayers.Pipe" ]
+    - state: gasFilterOn
+      map: [ "enum.SubfloorLayers.FirstLayer" ]
+      color: "#6fb8ff"
+  - type: Appearance
+  - type: PipeColorVisuals
+  - type: KsPhaseSeparator
+
+- type: entity
+  parent: GasBinaryBase
+  id: KsExpansionValve
+  name: expansion valve
+  description: Lets liquid refrigerant through to the low side, where it flashes and chills. Can hold a set superheat by itself.
+  placement:
+    mode: AlignAtmosPipeLayers
+  components:
+  - type: SubFloorHide
+    visibleLayers:
+    - enum.SubfloorLayers.FirstLayer
+  - type: Sprite
+    sprite: Structures/Piping/Atmospherics/pump.rsi
+    layers:
+    - sprite: Structures/Piping/Atmospherics/pipe.rsi
+      state: pipeStraight
+      map: [ "enum.PipeVisualLayers.Pipe" ]
+    - state: pumpPassiveGate
+      map: [ "enum.SubfloorLayers.FirstLayer" ]
+      color: "#6fb8ff"
+  - type: AtmosPipeLayers
+    spriteRsiPaths: {}
+  - type: Appearance
+  - type: PipeColorVisuals
+  - type: ActivatableUI
+    key: enum.KsExpansionValveUiKey.Key
+  - type: UserInterface
+    interfaces:
+      enum.KsExpansionValveUiKey.Key:
+        type: KsExpansionValveBoundUserInterface
+  - type: KsExpansionValve
