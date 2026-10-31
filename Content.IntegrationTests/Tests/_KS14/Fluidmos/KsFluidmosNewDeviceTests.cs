@@ -192,6 +192,78 @@ public sealed class KsFluidmosNewDeviceTests : GameTest
         });
     }
 
+    [Test]
+    public async Task ThermostaticValveHoldsItsSuperheat()
+    {
+        var server = Pair.Server;
+        var valveUid = await SpawnDevice(ExpansionValvePrototype);
+        var nodeContainerSystem = server.System<NodeContainerSystem>();
+        var propertiesSystem = server.System<KsFluidmosPropertiesSystem>();
+        var phaseSystem = server.System<KsFluidmosPhaseSystem>();
+        var gameTiming = server.ResolveDependency<Robust.Shared.Timing.IGameTiming>();
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(nodeContainerSystem.TryGetNodes(valveUid, "inlet", "outlet", out PipeNode? inlet, out PipeNode? outlet));
+            Assert.That(propertiesSystem.TryGetProperties(WaterReagent, out var water));
+            var valve = server.EntMan.GetComponent<KsExpansionValveComponent>(valveUid);
+            SetThermostatic(server.EntMan, valveUid, valve);
+            server.EntMan.EventBus.RaiseLocalEvent(valveUid, new Content.Shared._KS14.Fluidmos.Devices.KsExpansionValveSetOpeningMessage(0f));
+
+            // An evaporator: a heat load the valve is sized for, and a compressor's suction holding it at a low pressure.
+            //      Started shut, as a flooded start has to boil its pool off first, which tells nothing about the control.
+            const float lowPressure = 5f;
+            const float heatLoad = 20000f;
+            const float deltaTime = 0.5f;
+            var boilingPoint = KsPhaseMath.BoilingPointAt(water!.VaporizationEntropy, water.BoilingPoint, lowPressure);
+            outlet!.Air.Clear();
+            outlet.Air.Temperature = boilingPoint + 20f;
+            outlet.Air.AdjustMoles(Gas.WaterVapor, lowPressure * outlet.Air.Volume / (Atmospherics.R * outlet.Air.Temperature));
+
+            var superheats = new List<float>();
+            for (var step = 0; step < 1200; step++)
+            {
+                // The high side: warm liquid under pressure, as a condenser's receiver would hold it.
+                SetGas(inlet!.Air, 3f * Atmospherics.OneAtmosphere, 310f);
+                inlet.Air.Fluid = new KsFluidMixture();
+                inlet.Air.Fluid.AddLiquid(WaterKey, 1000f);
+
+                Update(server.EntMan, valveUid, deltaTime);
+
+                var heatCapacity = server.System<Content.Server.Atmos.EntitySystems.AtmosphereSystem>().GetHeatCapacity(outlet.Air, applyScaling: false);
+                if (heatCapacity > 0f)
+                    outlet.Air.Temperature += heatLoad * deltaTime / heatCapacity;
+
+                if (outlet.Air.Fluid != null)
+                    outlet.Air.Fluid.LastPhaseTime = gameTiming.CurTime - TimeSpan.FromSeconds(deltaTime);
+                phaseSystem.UpdatePhases(outlet.Air, holder: null);
+
+                var targetMoles = lowPressure * outlet.Air.FreeVolume / (Atmospherics.R * outlet.Air.Temperature);
+                var excess = outlet.Air.GetMoles(Gas.WaterVapor) - targetMoles;
+                if (excess > 0f)
+                    outlet.Air.AdjustMoles(Gas.WaterVapor, -excess);
+
+                superheats.Add(outlet.Air.Temperature - KsPhaseMath.BoilingPointAt(water.VaporizationEntropy, water.BoilingPoint, outlet.Air.Pressure));
+            }
+
+            // Settled over the second half: on the setpoint on average, and never far off it.
+            var settled = superheats.GetRange(superheats.Count / 2, superheats.Count - superheats.Count / 2);
+            var mean = 0f;
+            var worst = 0f;
+            foreach (var superheat in settled)
+            {
+                mean += superheat / settled.Count;
+                worst = MathF.Max(worst, MathF.Abs(superheat - valve.SuperheatSetpoint));
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(mean, Is.EqualTo(valve.SuperheatSetpoint).Within(1f), "The thermostatic valve didn't hold its superheat on average.");
+                Assert.That(worst, Is.LessThan(4f), "The thermostatic valve swung far off its setpoint.");
+            }
+        });
+    }
+
     private static void SetThermostatic(IEntityManager entityManager, EntityUid valveUid, KsExpansionValveComponent valve)
     {
         // Through the window's own message, as a player would.
