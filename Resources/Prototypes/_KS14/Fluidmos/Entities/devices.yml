@@ -5,7 +5,7 @@
   parent: GasUnaryBase
   id: KsFluidPort
   name: fluid port
-  description: A pipe fitting with a small tank. Pour reagents in to feed them into the pipe as liquid, or switch it to draw the pipe's liquid out.
+  description: A pipe fitting with a small tank. Pour reagents in, or plumb them in, to feed them into the pipe as liquid; or switch it to draw the pipe's liquid out, for plumbing to take.
   components:
   - type: Sprite
     drawdepth: FloorObjects
@@ -31,6 +31,32 @@
     solution: fluidport
   - type: ExaminableSolution
     solution: fluidport
+  # Where Fluidmos meets plumbing, and the only place: the tank is both a plumbing inlet and outlet on one plumbing node,
+  #     and the port's mode gates which (KsFluidPortSystem). This replaces the inherited NodeContainer, so the pipe node
+  #     is restated.
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:PipeNode
+        nodeGroupID: Pipe
+        pipeDirection: South
+      plumbing:
+        !type:PlumbingNode
+        nodeGroupID: Plumbing
+        pipeDirection: TNorth
+  - type: PlumbingDevice
+    updateInterval: 2
+  - type: PlumbingInlet
+    solutionName: fluidport
+    inletNames:
+    - plumbing
+  - type: PlumbingOutlet
+    solutionName: fluidport
+    outletNames:
+    - plumbing
+    enabled: false # Injecting by default; extracting enables it
+  - type: PlumbingConnectorAppearance
+    offset: 0.09375
   - type: KsFluidPort
 
 - type: entity
