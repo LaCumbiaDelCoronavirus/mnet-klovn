@@ -117,6 +117,19 @@ public sealed partial class KsFluidmosTileSystem : EntitySystem
     }
 
     /// <summary>
+    ///     Queues a reagent condensed out of a tile's air to spill onto the tile's puddle on the next update, outside atmos
+    ///         processing (<see cref="KsCondensationReaction"/>).
+    /// </summary>
+    public void QueueCondensate(EntityUid gridUid, Vector2i indices, ProtoId<Content.Shared.Chemistry.Reagent.ReagentPrototype> reagent, float units, float temperature)
+    {
+        if (units <= 0f || !_gridQuery.TryComp(gridUid, out var gridComponent))
+            return;
+
+        var liquid = new Solution(reagent, FixedPoint2.New(units)) { Temperature = temperature };
+        _pendingSpills.Add((_mapSystem.GridTileToLocal(gridUid, gridComponent, indices), liquid, new Solution()));
+    }
+
+    /// <summary>
     ///     Queues a mixture's fluid to spill at <paramref name="coordinates"/> on the next update, for callers that must
     ///         not spawn, such as a pipe net losing a deleted pipe.
     /// </summary>
