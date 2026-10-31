@@ -12,6 +12,9 @@ using Content.Shared.Atmos.Components;
 using Content.Shared.Chemistry.Components;
 using Content.Shared.Chemistry.EntitySystems;
 using Content.Shared.Chemistry.Reagent;
+using Content.Shared.Damage;
+using Content.Shared.Damage.Prototypes;
+using Content.Shared.Damage.Systems;
 using Content.Shared.FixedPoint;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Prototypes;
@@ -34,6 +37,8 @@ public sealed class KsFluidmosDeviceTests : GameTest
     private static readonly EntProtoId PassiveVentPrototype = "GasPassiveVent";
     private static readonly EntProtoId PipePrototype = "GasPipeStraight";
     private static readonly EntProtoId OxygenTankPrototype = "OxygenTankFilled";
+    private static readonly EntProtoId WaterCanisterPrototype = "KsFluidmosCanisterWater";
+    private static readonly ProtoId<DamageTypePrototype> BluntDamage = "Blunt";
 
     private static readonly KsFluidReagentKey WaterKey = new(WaterReagent, null);
     private static readonly KsFluidReagentKey EthanolKey = new(EthanolReagent, null);
@@ -208,6 +213,52 @@ public sealed class KsFluidmosDeviceTests : GameTest
         {
             Assert.That(PuddleHas(testMap, WaterReagent), "A deleted pipe's liquid vanished instead of spilling.");
             Assert.That(AnySmokeHas(EthanolReagent), "A deleted pipe's unlinked vapor vanished instead of becoming smoke.");
+        });
+    }
+
+    [TestCase(350f)]
+    [TestCase(10000f)]
+    public async Task BrokenCanisterSpillsItsLiquid(float damage)
+    {
+        var server = Pair.Server;
+        var testMap = await CreateBreathableTestMap();
+        EntityUid canisterUid = default;
+
+        await server.WaitPost(() => canisterUid = server.EntMan.SpawnEntity(WaterCanisterPrototype, testMap.GridCoords));
+        await server.WaitRunTicks(5);
+
+        await server.WaitPost(() =>
+        {
+            var damageSpecifier = new DamageSpecifier(server.ProtoMan.Index(BluntDamage), FixedPoint2.New(damage));
+            server.System<DamageableSystem>().TryChangeDamage(canisterUid, damageSpecifier, ignoreResistances: true);
+        });
+        await server.WaitRunTicks(5);
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(server.EntMan.Deleted(canisterUid), "The canister didn't break.");
+            Assert.That(PuddleHas(testMap, WaterReagent), "A broken canister's liquid vanished instead of spilling.");
+        });
+    }
+
+    [Test]
+    public async Task DestroyedGasTankSpillsItsFluid()
+    {
+        var server = Pair.Server;
+        var testMap = await CreateBreathableTestMap();
+
+        await server.WaitPost(() =>
+        {
+            var tankUid = server.EntMan.SpawnEntity(OxygenTankPrototype, testMap.GridCoords);
+            FillWithFluid(server.EntMan.GetComponent<GasTankComponent>(tankUid).Air);
+            server.EntMan.DeleteEntity(tankUid);
+        });
+        await server.WaitRunTicks(2);
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(PuddleHas(testMap, WaterReagent), "A destroyed gas tank's liquid vanished instead of spilling.");
+            Assert.That(AnySmokeHas(EthanolReagent), "A destroyed gas tank's unlinked vapor vanished instead of becoming smoke.");
         });
     }
 

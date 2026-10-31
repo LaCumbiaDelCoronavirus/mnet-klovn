@@ -26,7 +26,7 @@ public sealed partial class KsExpansionValveWindow : DefaultWindow
     {
         RobustXamlLoader.Load(this);
 
-        OpeningSlider.OnValueChanged += range => OpeningLabel.Text = Loc.GetString("ks-expansion-valve-ui-percent", ("percent", MathF.Round(range.Value)));
+        OpeningSlider.OnValueChanged += range => OpeningLabel.Text = Loc.GetString("ks-expansion-valve-ui-percent", ("percent", $"{range.Value:0}"));
         OpeningSlider.OnKeyBindUp += _ => OpeningSet?.Invoke(OpeningSlider.Value / 100f);
         ThermostaticCheckBox.OnToggled += args => ThermostaticSet?.Invoke(args.Pressed);
         SuperheatSetpoint.OnValueChanged += args => SuperheatSet?.Invoke(args.Value);
@@ -37,7 +37,7 @@ public sealed partial class KsExpansionValveWindow : DefaultWindow
         if (!OpeningSlider.Grabbed)
         {
             OpeningSlider.SetValueWithoutEvent(state.Opening * 100f);
-            OpeningLabel.Text = Loc.GetString("ks-expansion-valve-ui-percent", ("percent", MathF.Round(state.Opening * 100f)));
+            OpeningLabel.Text = Loc.GetString("ks-expansion-valve-ui-percent", ("percent", $"{state.Opening * 100f:0}"));
         }
 
         // Thermostatic mode moves the opening itself.
@@ -47,11 +47,11 @@ public sealed partial class KsExpansionValveWindow : DefaultWindow
             SuperheatSetpoint.Value = state.SuperheatSetpoint;
 
         VaporFractionLabel.Text = float.IsFinite(state.VaporFraction)
-            ? Loc.GetString("ks-expansion-valve-ui-vapor-fraction", ("percent", MathF.Round(state.VaporFraction * 100f)))
+            ? Loc.GetString("ks-expansion-valve-ui-vapor-fraction", ("percent", $"{state.VaporFraction * 100f:0.#}"))
             : Loc.GetString("ks-expansion-valve-ui-no-refrigerant");
         SuperheatLabel.Text = float.IsFinite(state.Superheat)
-            ? Loc.GetString("ks-expansion-valve-ui-superheat", ("kelvin", MathF.Round(state.Superheat, 1)))
+            ? Loc.GetString("ks-expansion-valve-ui-superheat", ("kelvin", $"{state.Superheat:0.0}"))
             : string.Empty;
-        FlowRateLabel.Text = Loc.GetString("ks-expansion-valve-ui-flow-rate", ("units", MathF.Round(state.FlowRate, 1)));
+        FlowRateLabel.Text = Loc.GetString("ks-expansion-valve-ui-flow-rate", ("units", $"{state.FlowRate:0.##}"));
     }
 }

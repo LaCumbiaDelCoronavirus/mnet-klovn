@@ -134,10 +134,10 @@ namespace Content.Server.Atmos.Portable
         private void OnDestroyed(EntityUid uid, PortableScrubberComponent component, DestructionEventArgs args)
         {
             var environment = _atmosphereSystem.GetContainingMixture(uid, false, true);
+            _ksFluidmosTileSystem.ReleaseToTile(uid, component.Air); // KS14: puddles need no tile air, and the Clear below would destroy the fluid
 
             if (environment != null)
             {
-                _ksFluidmosTileSystem.ReleaseToTile(uid, component.Air); // KS14
                 _atmosphereSystem.Merge(environment, component.Air);
             }
 

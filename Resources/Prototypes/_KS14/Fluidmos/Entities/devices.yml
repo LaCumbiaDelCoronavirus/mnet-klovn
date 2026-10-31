@@ -47,7 +47,7 @@
   parent: GasTrinaryBase
   id: KsPhaseSeparator
   name: phase separator
-  description: Pumps gas and vapor out of one side and lets liquid out of the other. Put a heater ahead of it and it is a still.
+  description: Pumps gas and vapor out straight through and pushes liquid out from the side. Put a heater ahead of it and it is a still.
   placement:
     mode: SnapgridCenter
   components:
@@ -66,6 +66,7 @@
   - type: Appearance
   - type: PipeColorVisuals
   - type: KsPhaseSeparator
+    targetPressure: 4500
 
 - type: entity
   parent: GasBinaryBase

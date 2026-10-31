@@ -71,7 +71,7 @@ public sealed partial class KsFluidListControl : BoxContainer
     {
         _table.AddChild(new Label
         {
-            Text = units >= KsFluidEntry.MinUnits ? Loc.GetString("ks-fluid-list-units", ("units", MathF.Round(units, 2))) : "-",
+            Text = units >= KsFluidEntry.MinUnits ? Loc.GetString("ks-fluid-list-units", ("units", $"{units:0.##}")) : "-",
             Align = Label.AlignMode.Right,
         });
     }

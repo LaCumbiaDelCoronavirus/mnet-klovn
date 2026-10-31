@@ -45,10 +45,10 @@ public sealed partial class GasCanisterSystem : SharedGasCanisterSystem
             return;
 
         var environment = _atmos.GetContainingMixture((uid, transform), false, true);
+        _ksFluidmosTileSystem.ReleaseToTile(uid, canister.Air); // KS14: puddles need no tile air, and the Clear below would destroy the fluid
 
         if (environment is not null)
         {
-            _ksFluidmosTileSystem.ReleaseToTile(uid, canister.Air); // KS14
             _atmos.Merge(environment, canister.Air);
         }
 

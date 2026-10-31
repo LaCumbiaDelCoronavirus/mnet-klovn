@@ -119,6 +119,47 @@ public sealed partial class KsFluidmosTileSystem : EntitySystem
     }
 
     /// <summary>
+    ///     Spills a deleted canister's fluid where it stood. Breaking one dumps its air through
+    ///         <c>DumpCanisterBehavior</c>, but a hard enough blow skips that threshold and only deletes it, and only the gas
+    ///         would otherwise reach the room. On termination rather than shutdown, while it is still on its grid.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnCanisterTerminating(Entity<Content.Shared.Atmos.Piping.Unary.Components.GasCanisterComponent> entity, ref EntityTerminatingEvent args)
+    {
+        SpillContainedFluid(entity.Owner, entity.Comp.Air);
+    }
+
+    [SubscribeLocalEvent]
+    private void OnGasTankTerminating(Entity<Content.Shared.Atmos.Components.GasTankComponent> entity, ref EntityTerminatingEvent args)
+    {
+        SpillContainedFluid(entity.Owner, entity.Comp.Air);
+    }
+
+    [SubscribeLocalEvent]
+    private void OnPortableScrubberTerminating(Entity<Content.Server.Atmos.Portable.PortableScrubberComponent> entity, ref EntityTerminatingEvent args)
+    {
+        SpillContainedFluid(entity.Owner, entity.Comp.Air);
+    }
+
+    /// <summary>
+    ///     Queues whatever fluid a dying container still holds to spill on its tile, carried or not. Nothing is spilled if
+    ///         its grid or map is going too, as at round end.
+    /// </summary>
+    private void SpillContainedFluid(EntityUid containerUid, GasMixture? air)
+    {
+        if (air?.Fluid is not { IsEmpty: false } fluid)
+            return;
+
+        air.Fluid = null;
+        var transformComponent = Transform(containerUid);
+        if (TerminatingOrDeleted(transformComponent.MapUid) ||
+            transformComponent.GridUid is { } gridUid && TerminatingOrDeleted(gridUid))
+            return;
+
+        QueueSpill(_transformSystem.GetMoverCoordinates(containerUid, transformComponent), fluid, air.Temperature);
+    }
+
+    /// <summary>
     ///     Queues a reagent condensed out of a tile's air to spill onto the tile's puddle on the next update, outside atmos
     ///         processing (<see cref="KsCondensationReaction"/>).
     /// </summary>
