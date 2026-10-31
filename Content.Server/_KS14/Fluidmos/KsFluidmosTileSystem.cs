@@ -2,6 +2,7 @@ using Content.Server.Atmos.EntitySystems;
 using Content.Server.Fluids.EntitySystems;
 using Content.Shared.NodeContainer.NodeGroups;
 using Content.Server.NodeContainer.Nodes;
+using Content.Shared._KS14.TileEffects;
 using Content.Shared.NodeContainer;
 using Content.Shared._KS14.Fluidmos;
 using Content.Shared.Atmos;
@@ -184,6 +185,36 @@ public sealed partial class KsFluidmosTileSystem : EntitySystem
 
         if (totalHeatCapacity > 0f)
             mixture.Temperature = (mixtureHeatCapacity * mixture.Temperature + solutionHeatCapacity * solution.Temperature) / totalHeatCapacity;
+    }
+
+    /// <summary>
+    ///     Vapor a puddle boiled off as smoke (<c>BoilTileEffect</c>'s smoke mode), held per tile until there is a puff's
+    ///         worth: a transient work list, emptied as each tile reaches it.
+    /// </summary>
+    private readonly Dictionary<(EntityUid GridUid, Vector2i Tile), Solution> _boiledSmoke = new();
+
+    [SubscribeLocalEvent]
+    private void OnBoiledToSmoke(ref KsTileEffectSmokeEvent args)
+    {
+        if (args.Units <= 0f || !_gridQuery.TryComp(args.GridUid, out var gridComponent))
+            return;
+
+        var key = (args.GridUid, args.Tile);
+        if (!_boiledSmoke.TryGetValue(key, out var vapor))
+            _boiledSmoke[key] = vapor = new Solution();
+
+        var boiled = new Solution();
+        boiled.AddReagent(args.Reagent, FixedPoint2.New(args.Units));
+        boiled.Temperature = args.Temperature;
+        vapor.AddSolution(boiled, ProtoMan);
+        args.Handled = true;
+
+        if (vapor.Volume < FixedPoint2.New(KsFluidmos.SmokeThresholdUnits))
+            return;
+
+        _boiledSmoke.Remove(key);
+        var coordinates = _mapSystem.GridTileToLocal(args.GridUid, gridComponent, args.Tile);
+        _pendingSpills.Add((coordinates, new Solution(), vapor));
     }
 
     [SubscribeLocalEvent]

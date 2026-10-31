@@ -37,3 +37,48 @@
   fluidmos:
     molarMass: 17
     vaporizationEntropy: 11.7
+
+# Cryo puddles boil off into their gas, limited by the heat available, and evaporate below their boiling point.
+- type: !PartialOnly reagent
+  id: Oxygen
+  tileEffects:
+  - !type:BoilTileEffect
+    evaporate: true
+
+- type: !PartialOnly reagent
+  id: Nitrogen
+  tileEffects:
+  - !type:BoilTileEffect
+    evaporate: true
+
+- type: !PartialOnly reagent
+  id: NitrousOxide
+  tileEffects:
+  - !type:BoilTileEffect
+    evaporate: true
+
+# Volatile reagents with no gas boil off a hot puddle as smoke. WeldingFuel is left out: its acetylene boiling point
+#     (188 K) would boil every room-temperature fuel puddle away into smoke, and chemfires burn those puddles.
+- type: !PartialOnly reagent
+  id: Ethanol
+  tileEffects:
+  - !type:BoilTileEffect
+    smoke: true
+
+- type: !PartialOnly reagent
+  id: Chlorine
+  tileEffects:
+  - !type:BoilTileEffect
+    smoke: true
+
+- type: !PartialOnly reagent
+  id: Ammonia
+  tileEffects:
+  - !type:BoilTileEffect
+    smoke: true
+
+- type: !PartialOnly reagent
+  id: SpaceCleaner
+  tileEffects:
+  - !type:BoilTileEffect
+    smoke: true

@@ -66,10 +66,17 @@ public static class KsFluidmos
     public const float HertzKnudsenAlpha = 0.0013f;
 
     /// <summary>
-    ///     Hertz–Knudsen coefficient for a puddle evaporating into its tile, calibrated so water on a dry room-temperature
-    ///         tile dries about as fast as upstream evaporation dried it.
+    ///     Hertz–Knudsen coefficient for a puddle evaporating into its tile, calibrated so a tile-covering water puddle on
+    ///         a dry 293 K tile at one atmosphere dries at upstream's 0.3 u/s (EvaporationAmount 1 times water's
+    ///         evaporationSpeed 0.3): that is 0.0167 mol/s, over a flux of about 171 mol/(m² s) per unit of α.
     /// </summary>
-    public const float PuddleHertzKnudsenAlpha = 0.00002f;
+    public const float PuddleHertzKnudsenAlpha = 0.000097f;
+
+    /// <summary>
+    ///     Volume, in units, at which a puddle covers its whole tile, for its evaporating area. The same reference the
+    ///         puddle–air heat exchange uses for its coverage.
+    /// </summary>
+    public const float PuddleReferenceVolume = 20f;
 
     /// <summary>
     ///     Liquid–gas interface area, in m² per litre of mixture volume (0.5 m² per 200 L pipe node).
