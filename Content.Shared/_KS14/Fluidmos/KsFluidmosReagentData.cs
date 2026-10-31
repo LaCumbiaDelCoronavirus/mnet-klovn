@@ -20,6 +20,15 @@ public sealed partial class KsFluidmosReagentData
     ///     Latent heat of vaporisation, in joules per unit, on the game's specific-heat scale. Defaults to
     ///         <see cref="KsPhaseMath.DefaultLatentHeat"/>.
     /// </summary>
+    /// <remarks>
+    ///     <para>This is an offset measured from 0 K, not the heat moved at the boiling point. Both
+    ///         <see cref="KsPhaseMath.TemperatureAfter"/> and <c>BoilTileEffect</c> keep energy as <c>C T</c> on each side,
+    ///         with the vapor carrying its own heat capacity, so the energy a phase change effectively moves at
+    ///         temperature <c>T</c> is <c>L + (C_vap - C_liq) T</c>, where <c>C_vap</c> is the vapor's heat capacity per
+    ///         unit. For water that is about 995 J/u at its boiling point, not 540.</para>
+    ///
+    ///     <para>Left so on purpose: firefighting was tuned against it, and pipes and puddles agree with each other.</para>
+    /// </remarks>
     [DataField]
     public float? LatentHeat;
 
