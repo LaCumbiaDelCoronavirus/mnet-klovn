@@ -8,9 +8,10 @@ namespace Content.Shared._KS14.Fluidmos;
 public static class KsFluidmos
 {
     /// <summary>
-    ///     Litres of atmos volume one unit of liquid or solid takes up, for displacement.
+    ///     Litres of atmos volume one unit of liquid or solid takes up, for displacement (1u = 5 mL). A 200 L node holds
+    ///         40,000u, so displacement and the hydraulic term are safety nets, not something normal play meets.
     /// </summary>
-    public const float LitersPerUnit = 0.75f;
+    public const float LitersPerUnit = 0.005f;
 
     /// <summary>
     ///     Units of liquid or solid below which an amount is dropped, as <see cref="Atmospherics.GasMinMoles"/> is for gas.
@@ -32,6 +33,12 @@ public static class KsFluidmos
     ///         <see cref="MinFreeVolumeFraction"/>. Makes pumps stop feeding a full net, and overpressure mechanics fire.
     /// </summary>
     public const float HydraulicStiffness = 5000f;
+
+    /// <summary>
+    ///     Most kPa the hydraulic term may add. Overfill is unbounded (a deleted pipe shrinks its net, a merge never checks
+    ///         capacity), and an infinite pressure becomes NaN in the transfer helpers that divide by it.
+    /// </summary>
+    public const float MaxHydraulicPressure = 10f * Atmospherics.MaxOutputPressure;
 
     /// <summary>
     ///     How many moles a unit of liquid counts as in a transfer: tunes how fast liquid flows with the gas.

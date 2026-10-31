@@ -243,6 +243,36 @@ public sealed class KsFluidMixtureTests : GameTest
     }
 
     [Test]
+    public async Task HydraulicPressureIsCappedHoweverOverfull()
+    {
+        var server = Pair.Server;
+
+        await server.WaitAssertion(() =>
+        {
+            var mixture = MakePipeMixture(waterUnits: 0f, ethanolUnits: 0f, ethanolVaporMoles: 0f, iceUnits: 0f);
+            var waterKey = new KsFluidReagentKey(WaterReagent, null);
+            // Liquid filling the whole volume, and then as much again: 100% overfull.
+            mixture.Fluid!.AddLiquid(waterKey, 2f * mixture.Volume / KsFluidmos.LitersPerUnit);
+
+            // Past the floor, the gas sits in the floor's volume whatever the overfill.
+            var gasPressure = mixture.TotalMoles * Atmospherics.R * mixture.Temperature
+                              / (mixture.Volume * KsFluidmos.MinFreeVolumeFraction);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(float.IsFinite(mixture.Pressure), Is.True, "A 100% overfull mixture's pressure is not finite.");
+                Assert.That(mixture.Pressure - gasPressure,
+                    Is.LessThanOrEqualTo(KsFluidmos.MaxHydraulicPressure * (1f + Tolerance)),
+                    "The hydraulic term was not capped.");
+            }
+
+            // An overfill whose uncapped term overflows a float still gives a finite pressure.
+            mixture.Fluid.AddLiquid(waterKey, 3e38f);
+            Assert.That(float.IsFinite(mixture.Pressure), Is.True, "An absurdly overfull mixture's pressure is not finite.");
+        });
+    }
+
+    [Test]
     public async Task PropertyTableHasTheSeedLinksAndValidGasConstants()
     {
         var server = Pair.Server;

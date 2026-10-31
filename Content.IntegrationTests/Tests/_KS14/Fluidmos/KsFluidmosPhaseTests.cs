@@ -152,14 +152,16 @@ public sealed class KsFluidmosPhaseTests : GameTest
             // Above water's boiling point at one atmosphere.
             var hotTemperature = water!.BoilingPoint + 20f;
 
-            // Mostly liquid, so the open pipe's flash is limited by equilibrium and its own heat, not the gas's.
+            // Enough liquid that the open pipe's flash, limited by the liquid's own heat, dwarfs what evaporates through the
+            //      surface in one step, which is all the pressurised pipe may do.
+            const float waterUnits = 2000f;
             var open = MakePipe(hotTemperature);
             open.Fluid = new KsFluidMixture();
-            open.Fluid.AddLiquid(WaterKey, 200f);
+            open.Fluid.AddLiquid(WaterKey, waterUnits);
 
             var pressurised = MakePipe(hotTemperature);
             pressurised.Fluid = new KsFluidMixture();
-            pressurised.Fluid.AddLiquid(WaterKey, 200f);
+            pressurised.Fluid.AddLiquid(WaterKey, waterUnits);
             AddHeadspace(pressurised, pressure: 1000f);
 
             var flashPoint = KsPhaseMath.BoilingPointAt(water.VaporizationEntropy, water.BoilingPoint, pressurised.Pressure);

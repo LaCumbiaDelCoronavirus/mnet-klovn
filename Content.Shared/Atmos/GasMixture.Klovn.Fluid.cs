@@ -68,7 +68,8 @@ public sealed partial class GasMixture
         var condensedVolume = fluid.CondensedUnits * KsFluidmos.LitersPerUnit;
         var fullVolume = Volume * (1f - KsFluidmos.MinFreeVolumeFraction);
         if (condensedVolume > fullVolume)
-            pressure += KsFluidmos.HydraulicStiffness * (condensedVolume - fullVolume) / Volume * 100f;
+            pressure += MathF.Min(KsFluidmos.HydraulicStiffness * (condensedVolume - fullVolume) / Volume * 100f,
+                KsFluidmos.MaxHydraulicPressure);
 
         return pressure;
     }
