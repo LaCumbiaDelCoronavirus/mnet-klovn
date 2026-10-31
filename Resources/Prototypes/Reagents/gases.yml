@@ -82,8 +82,8 @@
   flavor: bitter
   color: "#7e009e"
   recognizable: true
-  boilingPoint: 145.85 # KS14: -127.3 -> 145.85, Kelvin. Random values picked between the actual values for CO2 and O2
-  meltingPoint: 86.75 # KS14: -186.4 -> 86.75, Kelvin
+  boilingPoint: 352 # KS14: -127.3 -> 352, Kelvin; tritiated ethanol
+  meltingPoint: 159 # KS14: -186.4 -> 159, Kelvin; tritiated ethanol
   tileReactions:
   - !type:FlammableTileReaction
     temperatureMultiplier: 1.5
@@ -126,6 +126,8 @@
   - Engineering
   flavor: bitter
   color: "#66ff33"
+  boilingPoint: 25 # KS14: added, Kelvin
+  meltingPoint: 20.6 # KS14: added, Kelvin
   tileReactions:
   - !type:FlammableTileReaction
     temperatureMultiplier: 2.0

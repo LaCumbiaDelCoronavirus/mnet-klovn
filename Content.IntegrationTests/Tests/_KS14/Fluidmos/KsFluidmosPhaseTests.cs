@@ -24,6 +24,11 @@ public sealed class KsFluidmosPhaseTests : GameTest
     private static readonly KsFluidReagentKey WaterKey = new(WaterReagent, null);
     private static readonly KsFluidReagentKey NitrogenKey = new(NitrogenReagent, null);
 
+    private static readonly ProtoId<ReagentPrototype> PlasmaReagent = "Plasma";
+    private static readonly ProtoId<ReagentPrototype> TritiumReagent = "Tritium";
+    private static readonly KsFluidReagentKey PlasmaKey = new(PlasmaReagent, null);
+    private static readonly KsFluidReagentKey TritiumKey = new(TritiumReagent, null);
+
     /// <summary>
     ///     A pipe node's volume, which the Hertz–Knudsen tuning targets.
     /// </summary>
@@ -281,6 +286,76 @@ public sealed class KsFluidmosPhaseTests : GameTest
                     "Nitrogen condensed above its critical temperature.");
                 Assert.That(cold.Fluid?.TryGetAmount(NitrogenKey, out var liquid) == true && liquid.Liquid > 0f,
                     "Nitrogen below its boiling point never condensed.");
+            }
+        });
+    }
+
+    [Test]
+    public async Task PlasmaIsALiquidAndTritiumVaporises()
+    {
+        var server = Pair.Server;
+        var phaseSystem = server.System<KsFluidmosPhaseSystem>();
+        var propertiesSystem = server.System<KsFluidmosPropertiesSystem>();
+        var gameTiming = server.ResolveDependency<IGameTiming>();
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(propertiesSystem.TryGetProperties(PlasmaReagent, out var plasma));
+            Assert.That(propertiesSystem.TryGetProperties(TritiumReagent, out var tritium));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(plasma!.Linked, Is.False, "Plasma is linked, so it would condense out of the station's air.");
+                Assert.That(tritium!.Linked, Is.False, "Tritium is linked.");
+                Assert.That(plasma.Volatile, "Liquid plasma never vaporises.");
+                Assert.That(tritium.Volatile, "Liquid tritium never vaporises.");
+            }
+
+            // Room temperature: plasma evaporates only up to its vapor pressure and stays mostly liquid.
+            const float plasmaUnits = 1000f;
+            var room = MakePipe(Atmospherics.T20C);
+            room.Fluid = new KsFluidMixture();
+            room.Fluid.AddLiquid(PlasmaKey, plasmaUnits);
+            AddHeadspace(room);
+
+            // Past its boiling point at one atmosphere: it boils, down to the boiling point.
+            var hotTemperature = plasma.BoilingPoint + 20f;
+            var hot = MakePipe(hotTemperature);
+            hot.Fluid = new KsFluidMixture();
+            hot.Fluid.AddLiquid(PlasmaKey, plasmaUnits);
+            AddHeadspace(hot);
+
+            var cryogenic = MakePipe(Atmospherics.T20C);
+            cryogenic.Fluid = new KsFluidMixture();
+            cryogenic.Fluid.AddLiquid(TritiumKey, 10f);
+            AddHeadspace(cryogenic);
+
+            for (var i = 0; i < 20; i++)
+            {
+                Step(phaseSystem, gameTiming, room);
+                Step(phaseSystem, gameTiming, hot);
+                Step(phaseSystem, gameTiming, cryogenic);
+            }
+
+            Assert.That(room.Fluid!.TryGetAmount(PlasmaKey, out var roomPlasma));
+            Assert.That(hot.Fluid!.TryGetAmount(PlasmaKey, out var hotPlasma));
+            cryogenic.Fluid!.TryGetAmount(TritiumKey, out var cryogenicTritium);
+            var roomBoiledUnits = room.Fluid.VaporMoles / plasma.MolesPerUnit;
+            var hotBoiledUnits = hot.Fluid.VaporMoles / plasma.MolesPerUnit;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(roomPlasma.Liquid, Is.GreaterThan(0.8f * plasmaUnits), "Plasma did not stay liquid at room temperature.");
+                Assert.That(hotBoiledUnits, Is.GreaterThan(roomBoiledUnits), "Plasma past its boiling point did not boil.");
+                Assert.That(hotPlasma.Vapor, Is.GreaterThan(0f), "Boiling plasma made no vapor to release as smoke.");
+                Assert.That(hot.Temperature, Is.LessThan(hotTemperature), "Boiling plasma did not cool.");
+                Assert.That(cryogenicTritium.Liquid, Is.LessThan(0.01f), "Liquid tritium at room temperature did not vaporise.");
+                Assert.That(cryogenicTritium.Vapor, Is.GreaterThan(0f), "Tritium vaporised into nothing.");
+
+                foreach (var mixture in new[] { room, hot, cryogenic })
+                {
+                    Assert.That(mixture.GetMoles(Gas.Plasma), Is.Zero, "Plasma reagent made plasma gas.");
+                    Assert.That(mixture.GetMoles(Gas.Tritium), Is.Zero, "Tritium reagent made tritium gas.");
+                }
             }
         });
     }
