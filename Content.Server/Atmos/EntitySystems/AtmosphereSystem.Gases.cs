@@ -150,7 +150,7 @@ namespace Content.Server.Atmos.EntitySystems
         ///     If the output mixture is null, then this is being released into space.
         ///     It can't transfer air to a mixture with higher pressure.
         /// </summary>
-        public bool ReleaseGasTo(GasMixture mixture, GasMixture? output, float targetPressure)
+        public bool ReleaseGasTo(GasMixture mixture, GasMixture? output, float targetPressure, bool ksThrottle = false /* KS14: added, true applies Joule-Thomson; tile-to-tile flow leaves it off */)
         {
             var outputStartingPressure = output?.Pressure ?? 0;
             var inputStartingPressure = mixture.Pressure;
@@ -168,6 +168,9 @@ namespace Content.Server.Atmos.EntitySystems
 
             // And now we transfer the gas.
             var removed = mixture.Remove(transferMoles);
+
+            if (ksThrottle) // KS14
+                _ksTransferThermoSystem.Apply(removed, inputStartingPressure, outputStartingPressure, doesWork: false); // KS14
 
             if (output != null)
                 Merge(output, removed);
@@ -198,7 +201,9 @@ namespace Content.Server.Atmos.EntitySystems
             var transferMoles = pressureDelta * output.Volume / (mixture.Temperature * Atmospherics.R);
 
             // And now we transfer the gas.
+            var ksInputPressure = mixture.Pressure; // KS14
             var removed = mixture.Remove(transferMoles);
+            _ksTransferThermoSystem.Apply(removed, ksInputPressure, outputStartingPressure, doesWork: true); // KS14
             Merge(output, removed);
             return true;
         }
@@ -206,7 +211,7 @@ namespace Content.Server.Atmos.EntitySystems
         /// <summary>
         ///     Scrubs specified gases from a gas mixture into a <see cref="destination"/> gas mixture.
         /// </summary>
-        public void ScrubInto(GasMixture mixture, GasMixture destination, IReadOnlyCollection<Gas> filterGases)
+        public void ScrubInto(GasMixture mixture, GasMixture destination, IReadOnlyCollection<Gas> filterGases, float? ksInletPressure = null, GasMixture? ksHeatSink = null /* KS14: added, compresses what is scrubbed from this pressure, shedding heat into the sink */)
         {
             var buffer = new GasMixture(mixture.Volume) { Temperature = mixture.Temperature };
 
@@ -215,6 +220,9 @@ namespace Content.Server.Atmos.EntitySystems
                 buffer.AdjustMoles(gas, mixture.GetMoles(gas));
                 mixture.SetMoles(gas, 0f);
             }
+
+            if (ksInletPressure is { } ksPressure) // KS14
+                _ksTransferThermoSystem.Apply(buffer, ksPressure, destination.Pressure, doesWork: true, heatSink: ksHeatSink); // KS14
 
             Merge(destination, buffer);
         }

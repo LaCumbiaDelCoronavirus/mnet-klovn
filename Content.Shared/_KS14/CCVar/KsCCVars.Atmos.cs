@@ -78,4 +78,20 @@ public sealed partial class KsCCVars
     [CVarControl(AdminFlags.Debug)]
     public static readonly CVarDef<float> AtmosFlameSpreadRate =
         CVarDef.Create("klovn.atmos.flame_spread_rate", 6f, CVar.SERVERONLY);
+
+    /// <summary>
+    ///     Isentropic efficiency of atmos pumps, from 0 to 1: a pump compressing gas heats it by the ideal adiabatic rise
+    ///         over this. Lower is hotter.
+    /// </summary>
+    [CVarControl(AdminFlags.Debug)]
+    public static readonly CVarDef<float> AtmosPumpEfficiency =
+        CVarDef.Create("klovn.atmos.pump_efficiency", 0.7f, CVar.SERVERONLY);
+
+    /// <summary>
+    ///     Share of a pump's compression heat that goes into the gas it moves. 0 turns compression heating off; 1 is
+    ///         physical. The balance knob for pump heat.
+    /// </summary>
+    [CVarControl(AdminFlags.Debug)]
+    public static readonly CVarDef<float> AtmosPumpCompressionHeatFraction =
+        CVarDef.Create("klovn.atmos.pump_compression_heat_fraction", 1f, CVar.SERVERONLY);
 }

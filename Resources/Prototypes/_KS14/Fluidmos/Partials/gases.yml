@@ -31,17 +31,19 @@
   ksVanDerWaalsA: 425
   ksVanDerWaalsB: 0.0371
 
-# Hydrogen's values: inverts at about 200 K, so it warms on throttling at room temperature.
+# Hydrogen's values: inverts at about 200 K, so it warms on throttling at room temperature. Its atmos heat capacity
+#     (10) is below the physical floor of 1.5 R, so its heat capacity ratio is set to real T2's instead of derived.
 - type: !PartialOnly gas
   id: Tritium
   ksVanDerWaalsA: 24.8
   ksVanDerWaalsB: 0.0266
+  ksHeatCapacityRatio: 1.40
 
-# Fictional: a heavy, sticky gas that cools strongly on throttling.
+# Ethanol's real values (lore: tritiated ethanol): cools strongly on throttling.
 - type: !PartialOnly gas
   id: Plasma
-  ksVanDerWaalsA: 420
-  ksVanDerWaalsB: 0.045
+  ksVanDerWaalsA: 1256
+  ksVanDerWaalsB: 0.0871
 
 # Fictional coolant: the strongest Joule–Thomson cooling of any gas.
 - type: !PartialOnly gas

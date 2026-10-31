@@ -14,4 +14,12 @@ public sealed partial class GasPrototype
     /// </summary>
     [DataField]
     public float? KsVanDerWaalsB;
+
+    /// <summary>
+    ///     Overrides the heat capacity ratio that compression heat derives from <see cref="MolarHeatCapacity"/>
+    ///         (<c>1 + R / Cv</c>), for a gas whose atmos heat capacity is below the physical floor. Upstream's
+    ///         <c>HeatCapacityRatio</c> contradicts its own heat capacities, so it isn't used.
+    /// </summary>
+    [DataField]
+    public float? KsHeatCapacityRatio;
 }

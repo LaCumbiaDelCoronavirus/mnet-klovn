@@ -19,7 +19,7 @@ namespace Content.Shared.Atmos
         public static GasMixture SpaceGas => new() {Volume = Atmospherics.CellVolume, Temperature = Atmospherics.TCMB, Immutable = true};
 
         // No access, to ensure immutable mixtures are never accidentally mutated.
-        [Access(typeof(SharedAtmosphereSystem), typeof(SharedAtmosDebugOverlaySystem), typeof(GasEnumerator), Other = AccessPermissions.None)]
+        [Access(typeof(SharedAtmosphereSystem), typeof(SharedAtmosDebugOverlaySystem), typeof(GasEnumerator), typeof(Content.Shared._KS14.Atmos.KsGasThermoSystem) /* KS14: added, reads moles for transfer thermodynamics */, Other = AccessPermissions.None)]
         [DataField(customTypeSerializer: typeof(GasArraySerializer))]
         public float[] Moles = new float[Atmospherics.AdjustedNumberOfGases];
 
@@ -199,9 +199,9 @@ namespace Content.Shared.Atmos
             return removed;
         }
 
-        public GasMixture RemoveVolume(float vol)
+        public GasMixture RemoveVolume(float vol, bool includeLiquid = true /* KS14: added */)
         {
-            return RemoveRatio(vol / Volume);
+            return RemoveRatio(vol / Volume, includeLiquid /* KS14: added */);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

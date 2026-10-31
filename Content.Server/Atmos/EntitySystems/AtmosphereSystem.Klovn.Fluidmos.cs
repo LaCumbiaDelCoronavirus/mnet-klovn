@@ -1,3 +1,4 @@
+using Content.Server._KS14.Atmos;
 using Content.Server._KS14.Fluidmos;
 using Content.Shared._KS14.Fluidmos;
 using Content.Shared.Atmos;
@@ -9,6 +10,7 @@ public sealed partial class AtmosphereSystem
 {
     [Dependency] private KsFluidmosPhaseSystem _ksFluidmosPhaseSystem = default!;
     [Dependency] private KsFluidmosTileSystem _ksFluidmosTileSystem = default!;
+    [Dependency] private KsTransferThermoSystem _ksTransferThermoSystem = default!;
 
     /// <summary>
     ///     The fluid half of <see cref="DivideInto"/>: each receiver gets its volume's share of every phase, solids

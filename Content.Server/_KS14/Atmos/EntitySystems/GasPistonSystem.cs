@@ -37,6 +37,7 @@ public sealed partial class GasPistonSystem : SharedGasPistonSystem
     [Dependency] private DamageableSystem _damageableSystem = default!;
     [Dependency] private AudioSystem _audioSystem = default!;
     [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+    [Dependency] private KsTransferThermoSystem _transferThermoSystem = default!;
     [Dependency] private PhysicsSystem _physicsSystem = default!;
     [Dependency] private ThrowingSystem _throwingSystem = default!;
     [Dependency] private EntityLookupSystem _entityLookupSystem = default!;
@@ -186,7 +187,9 @@ public sealed partial class GasPistonSystem : SharedGasPistonSystem
             _atmosphereSystem.GetContainingMixture(entity.Owner, excite: true) is not { } environmentAir)
             return;
 
+        var chamberPressure = air.Pressure;
         var removedAir = air.RemoveRatio(entity.Comp.RemovedGasRatio);
+        _transferThermoSystem.Apply(removedAir, chamberPressure, environmentAir.Pressure, doesWork: true, heatSink: environmentAir);
         _fluidmosTileSystem.ReleaseToTile(entity, removedAir);
         _atmosphereSystem.Merge(environmentAir, removedAir);
     }

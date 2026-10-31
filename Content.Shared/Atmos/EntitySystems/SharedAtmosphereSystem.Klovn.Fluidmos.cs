@@ -19,6 +19,15 @@ public abstract partial class SharedAtmosphereSystem
     }
 
     /// <summary>
+    ///     A mixture's heat capacity from its gas alone, leaving out any fluid it carries.
+    /// </summary>
+    public float KsGetGasHeatCapacity(GasMixture mixture, bool applyScaling)
+    {
+        var scale = GetHeatCapacityCalculation(mixture.Moles, mixture.Immutable);
+        return applyScaling ? scale : scale * HeatScale;
+    }
+
+    /// <summary>
     ///     The fluid half of <see cref="Merge"/>. A receiver that cannot hold fluid (a tile, say) must never be handed any:
     ///         every route from a device into a tile detaches it first. Reaching here means one did not, so this asserts
     ///         in Debug, logs, and drops the fluid.

@@ -21,6 +21,7 @@ namespace Content.Server.Atmos.Piping.Binary.EntitySystems
     public sealed partial class GasVolumePumpSystem : SharedGasVolumePumpSystem
     {
         [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
+        [Dependency] private Content.Server._KS14.Atmos.KsTransferThermoSystem _ksTransferThermoSystem = default!; // KS14
         [Dependency] private Content.Server._KS14.Fluidmos.KsFluidmosTileSystem _ksFluidmosTileSystem = default!; // KS14
         [Dependency] private UserInterfaceSystem _userInterfaceSystem = default!;
         [Dependency] private SharedAmbientSoundSystem _ambientSoundSystem = default!;
@@ -81,6 +82,7 @@ namespace Content.Server.Atmos.Piping.Binary.EntitySystems
             // `RemoveRatio` method
             var removedRatio = Math.Min(transferRatio, limitRatio);
             var removed = inlet.Air.RemoveRatio(removedRatio);
+            _ksTransferThermoSystem.Apply(removed, inputStartingPressure, outputStartingPressure, doesWork: true, deviceUid: uid); // KS14
 
             // Some of the gas from the mixture leaks when overclocked.
             if (pump.Overclocked)

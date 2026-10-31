@@ -60,12 +60,22 @@ public sealed partial class GasMixture
     /// </summary>
     private float KsFluidPressure(KsFluidMixture fluid)
     {
+        return KsPressureWithCondensedUnits(fluid.CondensedUnits);
+    }
+
+    /// <summary>
+    ///     What <see cref="Pressure"/> would be if this mixture held <paramref name="condensedUnits"/> of liquid and solid,
+    ///         with its gas, vapor and temperature unchanged. For flows that must not overshoot.
+    /// </summary>
+    public float KsPressureWithCondensedUnits(float condensedUnits)
+    {
         if (Volume <= 0)
             return 0f;
 
-        var pressure = (TotalMoles + fluid.VaporMoles) * Atmospherics.R * Temperature / FreeVolume;
+        var condensedVolume = condensedUnits * KsFluidmos.LitersPerUnit;
+        var freeVolume = MathF.Max(Volume - condensedVolume, Volume * KsFluidmos.MinFreeVolumeFraction);
+        var pressure = (TotalMoles + (Fluid?.VaporMoles ?? 0f)) * Atmospherics.R * Temperature / freeVolume;
 
-        var condensedVolume = fluid.CondensedUnits * KsFluidmos.LitersPerUnit;
         var fullVolume = Volume * (1f - KsFluidmos.MinFreeVolumeFraction);
         if (condensedVolume > fullVolume)
             pressure += MathF.Min(KsFluidmos.HydraulicStiffness * (condensedVolume - fullVolume) / Volume * 100f,

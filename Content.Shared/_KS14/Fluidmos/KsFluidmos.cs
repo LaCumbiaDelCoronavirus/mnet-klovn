@@ -46,6 +46,12 @@ public static class KsFluidmos
     public const float LiquidPseudoMolesPerUnit = 0.1f;
 
     /// <summary>
+    ///     Default orifice conductance of a passive device for liquid, in units per second per √kPa: 100 kPa across a
+    ///         gate moves 100 u/s.
+    /// </summary>
+    public const float DefaultLiquidConductance = 10f;
+
+    /// <summary>
     ///     Grams in a unit, for mole counts. The same convention <c>BoilTileEffect</c> uses.
     /// </summary>
     public const float GramsPerUnit = 1f;
