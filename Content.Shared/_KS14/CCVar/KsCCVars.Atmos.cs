@@ -88,10 +88,11 @@ public sealed partial class KsCCVars
         CVarDef.Create("klovn.atmos.pump_efficiency", 0.7f, CVar.SERVERONLY);
 
     /// <summary>
-    ///     Share of a pump's compression heat that goes into the gas it moves. 0 turns compression heating off; 1 is
-    ///         physical. The balance knob for pump heat.
+    ///     Share of a pump's compression heat that stays in the gas it moves, as if through an aftercooler; the rest goes
+    ///         into the pump's tile air, so no heat is created or destroyed. 1 keeps it all in the gas. The balance knob
+    ///         for pump heat: the default leaves pumped gas a little warm and the pump's room warmer.
     /// </summary>
     [CVarControl(AdminFlags.Debug)]
     public static readonly CVarDef<float> AtmosPumpCompressionHeatFraction =
-        CVarDef.Create("klovn.atmos.pump_compression_heat_fraction", 1f, CVar.SERVERONLY);
+        CVarDef.Create("klovn.atmos.pump_compression_heat_fraction", 0.1f, CVar.SERVERONLY);
 }

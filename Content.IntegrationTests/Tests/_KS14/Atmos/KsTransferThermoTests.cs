@@ -105,6 +105,8 @@ public sealed class KsTransferThermoTests : GameTest
     public async Task PumpingUphillHeatsByTheAdiabaticRise()
     {
         var server = Pair.Server;
+        // The physics itself: every joule of the work in the gas. Shedding the rest is its own test.
+        await OverrideCVar(Side.Server, KsCCVars.AtmosPumpCompressionHeatFraction, 1f);
         var atmosphereSystem = server.System<AtmosphereSystem>();
         var gasThermoSystem = server.System<KsGasThermoSystem>();
         var configurationManager = server.ResolveDependency<IConfigurationManager>();
@@ -182,6 +184,8 @@ public sealed class KsTransferThermoTests : GameTest
     public async Task PlasmaStaysBelowIgnitionButAnOxygenPremixIgnites()
     {
         var server = Pair.Server;
+        // At the physical fraction: the worst case, with every joule of the work in the gas.
+        await OverrideCVar(Side.Server, KsCCVars.AtmosPumpCompressionHeatFraction, 1f);
         var atmosphereSystem = server.System<AtmosphereSystem>();
         var gasThermoSystem = server.System<KsGasThermoSystem>();
         var transferThermoSystem = server.System<KsTransferThermoSystem>();
