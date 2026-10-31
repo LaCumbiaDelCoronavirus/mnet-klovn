@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Linq;
 using Content.IntegrationTests.Fixtures;
 using Content.Server._KS14.Fluidmos;
@@ -33,6 +34,7 @@ public sealed class KsFluidPortPlumbingTests : GameTest
 {
     private static readonly ProtoId<ReagentPrototype> WaterReagent = "Water";
     private static readonly KsFluidReagentKey WaterKey = new(WaterReagent, null);
+    private static readonly ProtoId<ReagentPrototype> BloodReagent = "Blood";
 
     private static readonly EntProtoId FluidPortPrototype = "KsFluidPort";
     private static readonly EntProtoId PlumbingInputPrototype = "PlumbingInput";
@@ -333,6 +335,51 @@ public sealed class KsFluidPortPlumbingTests : GameTest
                 Assert.That(arrived, Is.GreaterThan(0f), "The tank's liquid never reached the second pipe.");
                 Assert.That(PipeWater(extractingUid) + held + arrived, Is.EqualTo(startUnits).Within(1f),
                     "Water was made or lost between the pipes.");
+            }
+        });
+    }
+
+    [Test]
+    public async Task BloodKeepsItsDnaThroughPlumbingAndThePipe()
+    {
+        var server = Pair.Server;
+        var (portUid, inputUid) = await SpawnPortAndMachine(PlumbingInputPrototype, KsFluidPortMode.Inject);
+        var blood = new ReagentId(BloodReagent, new List<ReagentData> { new DnaData { DNA = "GATTACA" } });
+        const float units = 10f;
+        EntityUid consumerUid = default;
+
+        // Plumbing -> port -> pipe.
+        await server.WaitPost(() =>
+        {
+            MachineSolution(inputUid, "input").AddReagent(blood, FixedPoint2.New(units));
+            Pipe(portUid).Air.AdjustMoles(Gas.Nitrogen, 10f);
+        });
+        await RunPlumbing();
+
+        await server.WaitPost(() =>
+        {
+            UpdatePort(server.EntMan, portUid, deltaTime: 10f);
+            Assert.That(Pipe(portUid).Air.Fluid?.TryGetAmount(KsFluidReagentKey.From(blood), out var piped) == true && piped.Liquid >= units - 0.02f,
+                "Plumbed blood reached the pipe without its DNA.");
+
+            // Pipe -> port -> plumbing: a tank takes the input's place, and the port turns round.
+            server.EntMan.DeleteEntity(inputUid);
+            var northCoordinates = server.EntMan.GetComponent<TransformComponent>(portUid).Coordinates.Offset(Vector2i.Up);
+            consumerUid = server.EntMan.SpawnEntity(PlumbingTankPrototype, northCoordinates);
+            server.System<SharedTransformSystem>().SetLocalRotation(consumerUid, Angle.FromDegrees(180));
+            server.System<KsFluidPortSystem>().SetMode((portUid, server.EntMan.GetComponent<KsFluidPortComponent>(portUid)), KsFluidPortMode.Extract);
+            UpdatePort(server.EntMan, portUid, deltaTime: 10f);
+        });
+        await RunPlumbing();
+
+        await server.WaitAssertion(() =>
+        {
+            var consumer = MachineSolution(consumerUid, "tank");
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That((float)consumer.GetReagentQuantity(blood), Is.EqualTo(units).Within(0.02f),
+                    "Blood that crossed plumbing, the pipe and plumbing again lost its DNA.");
+                Assert.That((float)consumer.GetReagentQuantity(new ReagentId(BloodReagent, null)), Is.Zero, "Some of the blood was made generic.");
             }
         });
     }

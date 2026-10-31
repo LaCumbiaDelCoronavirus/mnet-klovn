@@ -20,7 +20,7 @@ namespace Content.Server._KS14.Fluidmos.Devices;
 /// </summary>
 /// <remarks>
 ///     Plumbing solutions have no phase step, so hot pipe liquid pulled into plumbing stays liquid at its temperature.
-///         Starlight's pulls also strip reagent data, so blood leaving or entering by plumbing loses its DNA.
+///         Reagent data crosses both ways, so blood keeps its DNA.
 /// </remarks>
 public sealed partial class KsFluidPortSystem : EntitySystem
 {
