@@ -26,8 +26,11 @@
   ksVanDerWaalsA: 383
   ksVanDerWaalsB: 0.0442
 
+# Upstream's molar mass of 44 is a copy-paste (real: 17). Linked ammonia takes its gas's molar mass for its moles per
+#     unit, and the only other reader is KS spacing thrust.
 - type: !PartialOnly gas
   id: Ammonia
+  molarMass: 17
   ksVanDerWaalsA: 425
   ksVanDerWaalsB: 0.0371
 

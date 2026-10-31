@@ -41,3 +41,13 @@
   effects:
   - !type:KsCondensationReaction
     gas: NitrousOxide
+
+- type: gasReaction
+  id: KsCondensationAmmonia
+  priority: 600
+  maximumTemperature: 408.25
+  minimumRequirements:
+    Ammonia: 0.05
+  effects:
+  - !type:KsCondensationReaction
+    gas: Ammonia

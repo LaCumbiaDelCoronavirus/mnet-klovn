@@ -26,6 +26,8 @@ public sealed class KsFluidMixtureTests : GameTest
     private static readonly ProtoId<ReagentPrototype> EthanolReagent = "Ethanol";
     private static readonly ProtoId<ReagentPrototype> BloodReagent = "Blood";
     private static readonly ProtoId<GasPrototype> WaterVaporGas = "WaterVapor";
+    private static readonly ProtoId<GasPrototype> AmmoniaGas = "Ammonia";
+    private static readonly ProtoId<ReagentPrototype> AmmoniaReagent = "Ammonia";
 
     private const float Tolerance = 0.01f;
 
@@ -286,6 +288,18 @@ public sealed class KsFluidMixtureTests : GameTest
                 Assert.That(propertiesSystem.TryGetProperties(WaterReagent, out var water));
                 Assert.That(water!.MolesPerUnit, Is.EqualTo(KsPhaseMath.MolesPerUnit(server.ProtoMan.Index(WaterVaporGas).MolarMass)));
                 Assert.That(water.LatentHeat, Is.EqualTo(KsPhaseMath.DefaultLatentHeat(water.BoilingPoint, water.SpecificHeat)).Within(Tolerance));
+
+                // Ammonia is linked, and its gas's molar mass is corrected by a partial that keeps the rest of upstream's.
+                var ammoniaGas = server.ProtoMan.Index(AmmoniaGas);
+                Assert.That(propertiesSystem.ByGas[(int)Gas.Ammonia]?.Id, Is.EqualTo(AmmoniaReagent), "Ammonia isn't linked to its gas.");
+                Assert.That(ammoniaGas.MolarMass, Is.EqualTo(17f), "The ammonia gas partial no longer sets its real molar mass.");
+                Assert.That(ammoniaGas.Reagent, Is.EqualTo(AmmoniaReagent.Id), "The ammonia gas partial lost upstream's reagent.");
+                Assert.That(ammoniaGas.GasOverlaySprite, Is.Not.Null, "The ammonia gas partial lost upstream's overlay.");
+                Assert.That(propertiesSystem.TryGetProperties(AmmoniaReagent, out var ammonia));
+                Assert.That(ammonia!.MolesPerUnit, Is.EqualTo(KsPhaseMath.MolesPerUnit(ammoniaGas.MolarMass)), "Linked ammonia doesn't take its gas's molar mass.");
+                // Why it is linked: a pressure pump can compress it to condense at room temperature.
+                Assert.That(KsPhaseMath.SaturationPressure(ammonia.VaporizationEntropy, ammonia.BoilingPoint, Atmospherics.T20C),
+                    Is.LessThan(Atmospherics.MaxOutputPressure), "Ammonia no longer condenses within a pressure pump's reach at room temperature.");
 
                 foreach (var gasPrototype in server.ProtoMan.EnumeratePrototypes<GasPrototype>())
                 {
