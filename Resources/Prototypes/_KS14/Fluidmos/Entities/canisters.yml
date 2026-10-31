@@ -11,6 +11,7 @@
       volume: 1500
       moles:
         Nitrogen: 62.37 # One atmosphere at 20 C
+        WaterVapor: 1.7412 # Saturated over the water, so it doesn't evaporate and chill the canister
       temperature: 293.15
       fluid:
         reagents:
