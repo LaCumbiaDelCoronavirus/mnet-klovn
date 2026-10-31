@@ -64,3 +64,21 @@ public record struct KsTileEffectSmokeEvent(
     /// </summary>
     public bool Handled;
 }
+
+/// <summary>
+///     Raised by <see cref="Effects.FreezeTileEffect"/>: units of a reagent froze out of a solution, and go into the
+///         tile's ice sheet at <paramref name="Temperature"/>. Only the server can make the sheet.
+/// </summary>
+[ByRefEvent]
+public record struct KsTileEffectFreezeEvent(
+    EntityUid GridUid,
+    Vector2i Tile,
+    Content.Shared.Chemistry.Reagent.ReagentId Reagent,
+    float Units,
+    float Temperature)
+{
+    /// <summary>
+    ///     Whether anyone took the ice.
+    /// </summary>
+    public bool Handled;
+}

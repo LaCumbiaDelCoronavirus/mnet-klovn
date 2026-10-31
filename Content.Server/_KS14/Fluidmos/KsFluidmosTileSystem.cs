@@ -24,6 +24,7 @@ public sealed partial class KsFluidmosTileSystem : EntitySystem
 {
     [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
     [Dependency] private KsFluidmosPropertiesSystem _propertiesSystem = default!;
+    [Dependency] private Ice.KsIceSheetSystem _iceSheetSystem = default!;
     [Dependency] private PuddleSystem _puddleSystem = default!;
     [Dependency] private SmokeSystem _smokeSystem = default!;
     [Dependency] private SharedMapSystem _mapSystem = default!;
@@ -84,7 +85,8 @@ public sealed partial class KsFluidmosTileSystem : EntitySystem
             return;
 
         var bufferComponent = EnsureComp<KsFluidmosTileBufferComponent>(deviceUid);
-        TakeAll(fluid, released.Temperature, bufferComponent.Liquid, bufferComponent.Vapor);
+        var solid = TakeAll(fluid, released.Temperature, bufferComponent.Liquid, bufferComponent.Vapor);
+        _iceSheetSystem.AddIce(Transform(deviceUid).Coordinates, solid);
 
         var spillLiquid = bufferComponent.Liquid.Volume >= FixedPoint2.New(KsFluidmos.SpillThresholdUnits);
         var spillVapor = bufferComponent.Vapor.Volume >= FixedPoint2.New(KsFluidmos.SmokeThresholdUnits);
@@ -140,7 +142,8 @@ public sealed partial class KsFluidmosTileSystem : EntitySystem
 
         var liquid = new Solution();
         var vapor = new Solution();
-        TakeAll(fluid, temperature, liquid, vapor);
+        var solid = TakeAll(fluid, temperature, liquid, vapor);
+        _iceSheetSystem.AddIce(coordinates, solid);
         _pendingSpills.Add((coordinates, liquid, vapor));
     }
 
@@ -241,19 +244,24 @@ public sealed partial class KsFluidmosTileSystem : EntitySystem
     }
 
     /// <summary>
-    ///     Moves every phase of <paramref name="fluid"/> into solutions at <paramref name="temperature"/>: liquid and solid
-    ///         into <paramref name="liquid"/>, unlinked vapor into <paramref name="vapor"/>.
+    ///     Moves every phase of <paramref name="fluid"/> into solutions at <paramref name="temperature"/>: liquid into
+    ///         <paramref name="liquid"/>, unlinked vapor into <paramref name="vapor"/>, and the solid out as the result.
     /// </summary>
-    private void TakeAll(KsFluidMixture fluid, float temperature, Solution liquid, Solution vapor)
+    /// <returns>The solid, for the tile's ice sheet.</returns>
+    private Solution TakeAll(KsFluidMixture fluid, float temperature, Solution liquid, Solution vapor)
     {
         var condensed = fluid.TakeLiquidAsSolution(fluid.LiquidUnits);
-        condensed.AddSolution(fluid.TakeSolidAsSolution(), ProtoMan);
         condensed.Temperature = temperature;
         liquid.AddSolution(condensed, ProtoMan);
+
+        var solid = fluid.TakeSolidAsSolution();
+        solid.Temperature = temperature;
 
         var evaporated = fluid.TakeVaporAsSolution(fluid.VaporMoles, _propertiesSystem);
         evaporated.Temperature = temperature;
         vapor.AddSolution(evaporated, ProtoMan);
+
+        return solid;
     }
 
     private static Solution SplitAll(Solution solution)

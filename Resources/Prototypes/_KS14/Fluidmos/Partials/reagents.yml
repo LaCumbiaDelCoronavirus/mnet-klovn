@@ -82,3 +82,26 @@
   tileEffects:
   - !type:BoilTileEffect
     smoke: true
+
+# Puddles colder than their melting point freeze into the tile's ice sheet (FreezeTileEffect).
+- type: !PartialOnly reagent
+  id: Water
+  tileEffects:
+  - !type:FreezeTileEffect { }
+
+# Blood freezes a little below water.
+- type: !PartialOnly reagent
+  id: Blood
+  meltingPoint: 272.65
+  tileEffects:
+  - !type:FreezeTileEffect { }
+
+- type: !PartialOnly reagent
+  id: Oxygen
+  tileEffects:
+  - !type:FreezeTileEffect { }
+
+- type: !PartialOnly reagent
+  id: Nitrogen
+  tileEffects:
+  - !type:FreezeTileEffect { }

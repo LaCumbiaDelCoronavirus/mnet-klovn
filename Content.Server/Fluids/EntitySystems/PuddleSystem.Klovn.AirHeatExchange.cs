@@ -24,6 +24,7 @@ public sealed partial class PuddleSystem
     [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
     [Dependency] private IConfigurationManager _configurationManager = default!;
     [Dependency] private KsFoamBlanketSystem _foamBlanketSystem = default!;
+    [Dependency] private Content.Server._KS14.Fluidmos.Ice.KsIceSheetSystem _iceSheetSystem = default!;
 
     /// <summary>
     ///     <see cref="KsCCVars.AtmosPuddleEmissivity"/>.
@@ -99,6 +100,9 @@ public sealed partial class PuddleSystem
         }
 
         _pendingAirHeatExchanges.Clear();
+
+        // Ice sheets in the same pass, with the same conductance and coverage, now that the puddles are done.
+        _iceSheetSystem.UpdateHeatExchange(deltaTime, AirHeatExchangeConductance, AirHeatExchangeReferenceVolume, _puddleEmissivity);
     }
 
     private void ExchangeHeatWithAir(Entity<PuddleComponent> puddle, Entity<GridAtmosphereComponent?, GasTileOverlayComponent?> grid, Vector2i indices, float deltaTime)
