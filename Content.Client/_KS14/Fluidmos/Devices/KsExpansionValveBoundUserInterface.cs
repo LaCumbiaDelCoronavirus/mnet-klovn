@@ -15,8 +15,8 @@ public sealed class KsExpansionValveBoundUserInterface(EntityUid owner, Enum uiK
 
         _window = this.CreateWindow<KsExpansionValveWindow>();
         _window.OpeningSet += opening => SendMessage(new KsExpansionValveSetOpeningMessage(opening));
-        _window.ThermostaticSet += thermostatic => SendMessage(new KsExpansionValveSetThermostaticMessage(thermostatic));
-        _window.SuperheatSet += superheat => SendMessage(new KsExpansionValveSetSuperheatMessage(superheat));
+        _window.AutomaticSet += automatic => SendMessage(new KsExpansionValveSetAutomaticMessage(automatic));
+        _window.PressureSet += pressure => SendMessage(new KsExpansionValveSetPressureMessage(pressure));
     }
 
     protected override void UpdateState(BoundUserInterfaceState state)

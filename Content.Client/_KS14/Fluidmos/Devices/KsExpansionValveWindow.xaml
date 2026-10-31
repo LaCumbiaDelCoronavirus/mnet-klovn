@@ -8,14 +8,14 @@
             <Slider Name="OpeningSlider" MinValue="0" MaxValue="100" HorizontalExpand="True"/>
             <Label Name="OpeningLabel" MinWidth="50" Align="Right"/>
         </BoxContainer>
-        <CheckBox Name="ThermostaticCheckBox" Text="{Loc ks-expansion-valve-ui-thermostatic}"/>
+        <CheckBox Name="AutomaticCheckBox" Text="{Loc ks-expansion-valve-ui-automatic}"/>
         <BoxContainer Orientation="Horizontal" SeparationOverride="8">
-            <Label Text="{Loc ks-expansion-valve-ui-superheat-setpoint}" MinWidth="120"/>
-            <FloatSpinBox Name="SuperheatSetpoint" HorizontalExpand="True" Align="Center"/>
+            <Label Text="{Loc ks-expansion-valve-ui-pressure-setpoint}" MinWidth="120"/>
+            <FloatSpinBox Name="PressureSetpoint" HorizontalExpand="True" Align="Center"/>
         </BoxContainer>
         <PanelContainer StyleClasses="LowDivider"/>
         <Label Name="VaporFractionLabel"/>
-        <Label Name="SuperheatLabel"/>
+        <Label Name="OutletLabel"/>
         <Label Name="FlowRateLabel"/>
     </BoxContainer>
 </DefaultWindow>

@@ -8,7 +8,7 @@ using Robust.Client.UserInterface.XAML;
 namespace Content.Client._KS14.Fluidmos.Devices;
 
 /// <summary>
-///     Sets an expansion valve's opening or thermostatic superheat, and shows what crosses it.
+///     Sets an expansion valve's opening or the outlet pressure it holds, and shows what crosses it.
 /// </summary>
 [GenerateTypedNameReferences]
 public sealed partial class KsExpansionValveWindow : DefaultWindow
@@ -18,9 +18,9 @@ public sealed partial class KsExpansionValveWindow : DefaultWindow
     /// </summary>
     public event Action<float>? OpeningSet;
 
-    public event Action<bool>? ThermostaticSet;
+    public event Action<bool>? AutomaticSet;
 
-    public event Action<float>? SuperheatSet;
+    public event Action<float>? PressureSet;
 
     public KsExpansionValveWindow()
     {
@@ -28,8 +28,8 @@ public sealed partial class KsExpansionValveWindow : DefaultWindow
 
         OpeningSlider.OnValueChanged += range => OpeningLabel.Text = Loc.GetString("ks-expansion-valve-ui-percent", ("percent", $"{range.Value:0}"));
         OpeningSlider.OnKeyBindUp += _ => OpeningSet?.Invoke(OpeningSlider.Value / 100f);
-        ThermostaticCheckBox.OnToggled += args => ThermostaticSet?.Invoke(args.Pressed);
-        SuperheatSetpoint.OnValueChanged += args => SuperheatSet?.Invoke(args.Value);
+        AutomaticCheckBox.OnToggled += args => AutomaticSet?.Invoke(args.Pressed);
+        PressureSetpoint.OnValueChanged += args => PressureSet?.Invoke(args.Value);
     }
 
     public void UpdateState(KsExpansionValveBoundUserInterfaceState state)
@@ -40,17 +40,19 @@ public sealed partial class KsExpansionValveWindow : DefaultWindow
             OpeningLabel.Text = Loc.GetString("ks-expansion-valve-ui-percent", ("percent", $"{state.Opening * 100f:0}"));
         }
 
-        // Thermostatic mode moves the opening itself.
-        OpeningSlider.Disabled = state.Thermostatic;
-        ThermostaticCheckBox.Pressed = state.Thermostatic;
-        if (!SuperheatSetpoint.HasKeyboardFocus())
-            SuperheatSetpoint.Value = state.SuperheatSetpoint;
+        // Automatic mode moves the opening itself.
+        OpeningSlider.Disabled = state.Automatic;
+        AutomaticCheckBox.Pressed = state.Automatic;
+        if (!PressureSetpoint.HasKeyboardFocus())
+            PressureSetpoint.Value = state.PressureSetpoint;
 
         VaporFractionLabel.Text = float.IsFinite(state.VaporFraction)
             ? Loc.GetString("ks-expansion-valve-ui-vapor-fraction", ("percent", $"{state.VaporFraction * 100f:0.#}"))
             : Loc.GetString("ks-expansion-valve-ui-no-refrigerant");
-        SuperheatLabel.Text = float.IsFinite(state.Superheat)
-            ? Loc.GetString("ks-expansion-valve-ui-superheat", ("kelvin", $"{state.Superheat:0.0}"))
+        OutletLabel.Text = float.IsFinite(state.OutletBoilingPoint)
+            ? Loc.GetString("ks-expansion-valve-ui-outlet",
+                ("pressure", $"{state.OutletPressure:0.#}"),
+                ("kelvin", $"{state.OutletBoilingPoint:0.#}"))
             : string.Empty;
         FlowRateLabel.Text = Loc.GetString("ks-expansion-valve-ui-flow-rate", ("units", $"{state.FlowRate:0.##}"));
     }

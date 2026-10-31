@@ -190,7 +190,11 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
     /// <summary>
     ///     Whether any linked gas in a dry mixture is past saturation, below its critical temperature.
     /// </summary>
-    private bool AnyLinkedGasCondenses(GasMixture mixture, float temperature)
+    /// <param name="linePressure">
+    ///     The pressure a packet flows at, which sets its partial pressures by mole fraction. Without it, they come from
+    ///         the mixture's own volume.
+    /// </param>
+    private bool AnyLinkedGasCondenses(GasMixture mixture, float temperature, float? linePressure = null)
     {
         var byGas = _propertiesSystem.ByGas;
         for (var gas = 0; gas < byGas.Length; gas++)
@@ -205,7 +209,9 @@ public sealed partial class KsFluidmosPhaseSystem : EntitySystem
             if (temperature < properties.MinActiveTemperature)
                 return true;
 
-            var partialPressure = moles * Atmospherics.R * temperature / mixture.Volume;
+            var partialPressure = linePressure is { } pressure
+                ? pressure * moles / mixture.TotalMoles
+                : moles * Atmospherics.R * temperature / mixture.Volume;
             if (partialPressure > KsPhaseMath.SaturationPressure(properties.VaporizationEntropy, properties.BoilingPoint, temperature))
                 return true;
         }

@@ -114,7 +114,8 @@ public sealed partial class KsTransferThermoSystem : EntitySystem
             return 0f;
 
         heatSink ??= deviceUid is { } uid ? _atmosphereSystem.GetContainingMixture(uid, excite: true) : null;
-        if (heatSink == null || heatSink.Immutable)
+        // Vacuum takes none. Space reports a heat capacity even empty, so moles decide it.
+        if (heatSink == null || heatSink.TotalMoles <= 0f)
             return 0f;
 
         // Atmos's own energy is scaled, so the unscaled work goes in over the unscaled heat capacity.
@@ -122,7 +123,10 @@ public sealed partial class KsTransferThermoSystem : EntitySystem
         if (sinkHeatCapacity <= 0f)
             return 0f;
 
-        heatSink.Temperature += heat / sinkHeatCapacity;
+        // An immutable mixture with air in it (a planet's atmosphere) is a bath that takes any heat unchanged, as it does a
+        //      radiator's.
+        if (!heatSink.Immutable)
+            heatSink.Temperature += heat / sinkHeatCapacity;
         return heat;
     }
 }

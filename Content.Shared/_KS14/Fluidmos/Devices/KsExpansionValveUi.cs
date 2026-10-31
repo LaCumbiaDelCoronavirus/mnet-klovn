@@ -9,16 +9,17 @@ public enum KsExpansionValveUiKey : byte
 }
 
 /// <summary>
-///     What the expansion valve's window shows. <see cref="Superheat"/> and <see cref="VaporFraction"/> are NaN while
-///         there is no refrigerant to measure.
+///     What the expansion valve's window shows. <see cref="OutletBoilingPoint"/> and <see cref="VaporFraction"/> are NaN
+///         while there is no refrigerant to measure.
 /// </summary>
 [Serializable, NetSerializable]
 public sealed class KsExpansionValveBoundUserInterfaceState(
     float opening,
-    bool thermostatic,
-    float superheatSetpoint,
+    bool automatic,
+    float pressureSetpoint,
     float vaporFraction,
-    float superheat,
+    float outletPressure,
+    float outletBoilingPoint,
     float flowRate) : BoundUserInterfaceState
 {
     /// <summary>
@@ -26,22 +27,24 @@ public sealed class KsExpansionValveBoundUserInterfaceState(
     /// </summary>
     public readonly float Opening = opening;
 
-    public readonly bool Thermostatic = thermostatic;
+    public readonly bool Automatic = automatic;
 
     /// <summary>
-    ///     Kelvin above its boiling point the thermostatic mode holds the outlet at.
+    ///     kPa automatic mode holds the outlet at.
     /// </summary>
-    public readonly float SuperheatSetpoint = superheatSetpoint;
+    public readonly float PressureSetpoint = pressureSetpoint;
 
     /// <summary>
     ///     Share of the liquid crossing the valve that flashes to vapor, from 0 to 1.
     /// </summary>
     public readonly float VaporFraction = vaporFraction;
 
+    public readonly float OutletPressure = outletPressure;
+
     /// <summary>
-    ///     Kelvin the outlet sits above the refrigerant's boiling point at the outlet pressure.
+    ///     The refrigerant's boiling point, in kelvin, at the outlet's pressure.
     /// </summary>
-    public readonly float Superheat = superheat;
+    public readonly float OutletBoilingPoint = outletBoilingPoint;
 
     /// <summary>
     ///     Units of liquid per second.
@@ -56,13 +59,13 @@ public sealed class KsExpansionValveSetOpeningMessage(float opening) : BoundUser
 }
 
 [Serializable, NetSerializable]
-public sealed class KsExpansionValveSetThermostaticMessage(bool thermostatic) : BoundUserInterfaceMessage
+public sealed class KsExpansionValveSetAutomaticMessage(bool automatic) : BoundUserInterfaceMessage
 {
-    public readonly bool Thermostatic = thermostatic;
+    public readonly bool Automatic = automatic;
 }
 
 [Serializable, NetSerializable]
-public sealed class KsExpansionValveSetSuperheatMessage(float superheat) : BoundUserInterfaceMessage
+public sealed class KsExpansionValveSetPressureMessage(float pressure) : BoundUserInterfaceMessage
 {
-    public readonly float Superheat = superheat;
+    public readonly float Pressure = pressure;
 }

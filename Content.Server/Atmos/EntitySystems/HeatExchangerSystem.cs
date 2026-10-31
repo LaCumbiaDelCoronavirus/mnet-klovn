@@ -123,6 +123,8 @@ public sealed partial class HeatExchangerSystem : EntitySystem
             _atmosphereSystem.AddHeat(environment, dE);
         }
 
+        KsExchangePhases(comp, xfer, n > 0 ? inlet.Air.Pressure : outlet.Air.Pressure, hasEnv ? environment : null, radTemp, a0, dt); // KS14: condensing and boiling inside the radiator
+
         if (n > 0)
             _atmosphereSystem.Merge(outlet.Air, xfer);
         else
