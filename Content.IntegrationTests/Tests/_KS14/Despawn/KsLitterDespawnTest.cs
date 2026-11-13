@@ -30,6 +30,7 @@ public sealed class KsLitterDespawnTest : InteractionTest
     private readonly EntProtoId _ballisticGun = "KsTestLitterBallisticGun";
     private readonly EntProtoId _table = "KsTestLitterTable";
     private readonly EntProtoId _unit = "KsTestLitterUnit";
+    private readonly EntProtoId _armedMob = "KsTestLitterArmedMob";
 
     // Short, so a test waits seconds rather than minutes. The rule's own defaults are what the real prototype sets.
     private const float CasingDelay = 2f;
@@ -76,6 +77,14 @@ public sealed class KsLitterDespawnTest : InteractionTest
   - type: Transform
     anchored: true
   - type: PlaceableSurface
+
+- type: entity
+  id: KsTestLitterArmedMob
+  components:
+  - type: MobState
+  - type: Gun
+  - type: BallisticAmmoProvider
+    proto: CartridgePistol
 
 - type: entity
   id: KsTestLitterUnit
@@ -145,6 +154,22 @@ public sealed class KsLitterDespawnTest : InteractionTest
 
         await RunSeconds(ItemDelay + DissolveSlack);
         Assert.That(Gone(gunUid), Is.False, "A gun in someone's hand dissolved.");
+    }
+
+    /// <summary>
+    ///     Something with a gun of its own that nobody can carry, a mob that spits or a machine with a gun built in, is
+    ///         not a gun left on the floor, however long it stands there.
+    /// </summary>
+    [Test]
+    public async Task ArmedMobOnTheFloorStays()
+    {
+        await Server.WaitPost(StartRule);
+        EntityUid mobUid = default;
+        await Server.WaitPost(() => mobUid = SEntMan.SpawnEntity(_armedMob, SEntMan.GetCoordinates(TargetCoords)));
+
+        await RunSeconds(ItemDelay + DissolveSlack);
+        Assert.That(Gone(mobUid), Is.False, "A mob with a gun of its own dissolved as a gun left on the floor.");
+        Assert.That(SEntMan.HasComponent<KsLitterTimerComponent>(mobUid), Is.False, "A mob with a gun of its own was timed as litter.");
     }
 
     [Test]

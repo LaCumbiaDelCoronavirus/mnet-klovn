@@ -3,6 +3,7 @@ using Content.Server._KS14.FieldCommander;
 using Content.Server.GameTicking.Rules;
 using Content.Shared._KS14.Despawn;
 using Content.Shared.GameTicking.Components;
+using Content.Shared.Item;
 using Content.Shared.Mobs;
 using Content.Shared.Placeable;
 using Content.Shared.Weapons.Ranged;
@@ -25,6 +26,7 @@ public sealed partial class KsLitterDespawnSystem : GameRuleSystem<KsLitterDespa
     [Dependency] private MapSystem _mapSystem = default!;
     [Dependency] private TransformSystem _transformSystem = default!;
     [Dependency] private EntityQuery<KsLitterTimerComponent> _timerQuery = default!;
+    [Dependency] private EntityQuery<ItemComponent> _itemQuery = default!;
     [Dependency] private EntityQuery<GunComponent> _gunQuery = default!;
     [Dependency] private EntityQuery<BallisticAmmoProviderComponent> _ballisticQuery = default!;
     [Dependency] private EntityQuery<MagazineAmmoProviderComponent> _magazineQuery = default!;
@@ -76,7 +78,10 @@ public sealed partial class KsLitterDespawnSystem : GameRuleSystem<KsLitterDespa
     private void OnParentChanged(ref EntParentChangedMessage args)
     {
         var uid = args.Entity;
-        var isLitterItem = _gunQuery.HasComp(uid) || _ballisticQuery.HasComp(uid) || _magazineQuery.HasComp(uid);
+        // Only something that can be carried is litter: a mob or a machine with a gun of its own (a hivebot, a mech,
+        //      a turret off its mount) lies on the floor all its life, and is not to dissolve for it.
+        var isLitterItem = _itemQuery.HasComp(uid) &&
+            (_gunQuery.HasComp(uid) || _ballisticQuery.HasComp(uid) || _magazineQuery.HasComp(uid));
         var hasTimer = _timerQuery.TryComp(uid, out var timerComponent) && timerComponent.Kind == KsLitterKind.Item;
 
         if (!isLitterItem && !hasTimer)
