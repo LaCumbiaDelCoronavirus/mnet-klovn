@@ -34,7 +34,6 @@ namespace Content.Shared._KS14.RayCollision;
 public sealed partial class KsRayCollisionSystem : EntitySystem
 {
     [Dependency] private RayCastSystem _rayCastSystem = default!;
-    [Dependency] private SharedPhysicsSystem _physicsSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
 
     [Dependency] private EntityQuery<FixturesComponent> _fixturesQuery = default!;
@@ -100,14 +99,17 @@ public sealed partial class KsRayCollisionSystem : EntitySystem
         var enumerator = EntityQueryEnumerator<KsRayCollisionComponent, PhysicsComponent, FixturesComponent, TransformComponent>();
         while (enumerator.MoveNext(out var uid, out var rayCollisionComponent, out var physicsComponent, out var fixturesComponent, out var transformComponent))
         {
+            var step = physicsComponent.LinearVelocity * frameTime;
             if (!physicsComponent.CanCollide ||
                 transformComponent.MapID == MapId.Nullspace ||
+                step.LengthSquared() < 0.0001f ||
                 !fixturesComponent.Fixtures.TryGetValue(rayCollisionComponent.Fixture, out var fixture))
+            {
+                // Not on its way anywhere: whatever it hit was this flight's, and the next (an arrow pulled out and shot again)
+                //      may hit the same things.
+                rayCollisionComponent.SweptHits.Clear();
                 continue;
-
-            var step = physicsComponent.LinearVelocity * frameTime;
-            if (step.LengthSquared() < 0.0001f)
-                continue;
+            }
 
             var origin = _transformSystem.GetWorldPosition(transformComponent);
 

@@ -20,8 +20,9 @@ public sealed partial class KsRayCollisionComponent : Component
     public string Fixture = string.Empty;
 
     /// <summary>
-    ///     What the look ahead has already had it collide with. Physics may yet start a contact with any of them, a step later,
-    ///         which is not a second collision: see <see cref="KsRayCollisionSystem.WasSwept"/>.
+    ///     What the look ahead has had it collide with on its way. Physics may yet start a contact with any of them, a step
+    ///         later, which is not a second collision: see <see cref="KsRayCollisionSystem.WasSwept"/>. Forgotten once it is
+    ///         no longer on its way: at rest, in a container, or without its fixture.
     /// </summary>
     [ViewVariables]
     public readonly List<EntityUid> SweptHits = new();
