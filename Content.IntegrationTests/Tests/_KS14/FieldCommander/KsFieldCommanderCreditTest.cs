@@ -547,6 +547,37 @@ public sealed class KsFieldCommanderCreditTest : GameTest
     }
 
     /// <summary>
+    ///     Friendly fire that has healed over is forgotten: a defender hurt by their own side, patched up to full and
+    ///         then killed by something else costs nobody anything. Left unhealed, the same hit is charged.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task HealedFriendlyFireIsNotChargedToALaterDeath(bool healed)
+    {
+        var server = Pair.Server;
+        var (testMap, ruleUid, playerBody, _) = await SetUpUnit();
+        var teamkillPoints = 0;
+
+        await server.WaitPost(() =>
+        {
+            var victimUid = server.EntMan.SpawnAtPosition(_defender, new EntityCoordinates(testMap.Grid, 4.5f, 0.5f));
+            teamkillPoints = server.EntMan.GetComponent<KsFieldCommanderRuleComponent>(ruleUid).TeamkillPoints;
+            Assert.That(teamkillPoints, Is.LessThan(0));
+
+            Hurt(victimUid, playerBody, 3);
+            if (healed)
+                Hurt(victimUid, null, -3);
+
+            Hurt(victimUid, null, 10); // the world
+            Assert.That(server.EntMan.GetComponent<MobStateComponent>(victimUid).CurrentState, Is.EqualTo(MobState.Dead));
+        });
+
+        await server.WaitAssertion(() =>
+            Assert.That(GetPoints(ruleUid, Pair.Player!.UserId), Is.EqualTo(healed ? 0 : teamkillPoints),
+                healed ? "the friendly fire had healed over before they died" : "the friendly fire was still on them as they died"));
+    }
+
+    /// <summary>
     ///     A signal names the signaller that sent it; whatever it sets off is credited to the person who pressed it.
     /// </summary>
     [Test]

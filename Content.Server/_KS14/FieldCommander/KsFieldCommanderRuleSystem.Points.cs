@@ -139,7 +139,9 @@ public sealed partial class KsFieldCommanderRuleSystem
     private void OnMobStateChanged(MobStateChangedEvent args)
     {
         if (args.NewMobState != MobState.Dead ||
-            !TryComp<KsFieldCommanderDamageLedgerComponent>(args.Target, out var ledgerComponent))
+            !TryComp<KsFieldCommanderDamageLedgerComponent>(args.Target, out var ledgerComponent) ||
+            // A unit's ledger is paid and wiped by RewardUnitKill, whichever of the two handlers hears of the death first.
+            HasComp<KsFieldCommanderUnitComponent>(args.Target))
             return;
 
         var query = QueryActiveRules();
@@ -152,7 +154,18 @@ public sealed partial class KsFieldCommanderRuleSystem
         }
 
         // Paid out: whoever brings them back starts with a clean slate.
-        RemCompDeferred<KsFieldCommanderDamageLedgerComponent>(args.Target);
+        WipeLedger((args.Target, ledgerComponent));
+    }
+
+    /// <summary>
+    ///     Empties a ledger and takes it off its entity. Emptied as well as taken off: a component removed this way is
+    ///         still stored, and still found, until the tick ends, and a death later in the same tick must not be paid
+    ///         from it.
+    /// </summary>
+    private void WipeLedger(Entity<KsFieldCommanderDamageLedgerComponent> ledger)
+    {
+        ledger.Comp.Damage.Clear();
+        RemCompDeferred<KsFieldCommanderDamageLedgerComponent>(ledger.Owner);
     }
 
     /// <summary>
@@ -184,9 +197,14 @@ public sealed partial class KsFieldCommanderRuleSystem
     [SubscribeLocalEvent(before: [typeof(MobThresholdSystem)])]
     private void OnDefenderDamageChanged(EntityUid defenderUid, ScenarioFactionMemberComponent factionMemberComponent, DamageChangedEvent args)
     {
-        if (!_damageableSystem.GetAllDamage((defenderUid, args.Damageable)).AnyPositive())
+        // Every hit on every member of every faction comes through here, so the cheap answers come first: only
+        //      healing can leave them unhurt, and only a ledger can be wiped. GetAllDamage copies the whole dictionary.
+        if (!args.DamageIncreased)
         {
-            RemCompDeferred<KsFieldCommanderDamageLedgerComponent>(defenderUid);
+            if (TryComp<KsFieldCommanderDamageLedgerComponent>(defenderUid, out var healedLedgerComponent) &&
+                !_damageableSystem.GetAllDamage((defenderUid, args.Damageable)).AnyPositive())
+                WipeLedger((defenderUid, healedLedgerComponent));
+
             return;
         }
 
@@ -234,6 +252,9 @@ public sealed partial class KsFieldCommanderRuleSystem
             return;
 
         PayShares(rule, ledgerComponent, GetKillPoints(rule.Comp, rule.Comp.Assets[unit.Comp.AssetIndex]), KillReason, AssistReason, Name(unit));
+
+        // Paid out: a unit brought back and killed again is a new kill.
+        WipeLedger((unit.Owner, ledgerComponent));
     }
 
     /// <summary>
