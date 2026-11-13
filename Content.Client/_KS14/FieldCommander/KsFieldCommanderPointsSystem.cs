@@ -28,6 +28,14 @@ public sealed partial class KsFieldCommanderPointsSystem : EntitySystem
     [ViewVariables]
     public KsFieldCommanderPointsChangedEvent? LastChange { get; private set; }
 
+    /// <summary>
+    ///     The wave line as last formatted, and what it was formatted from, the language included.
+    /// </summary>
+    private string? _waveText;
+    private System.Globalization.CultureInfo? _waveTextCulture;
+    private int _waveTextWave;
+    private int? _waveTextSecondsLeft;
+
     public override void Shutdown()
     {
         base.Shutdown();
@@ -76,23 +84,39 @@ public sealed partial class KsFieldCommanderPointsSystem : EntitySystem
             !_waveStatusQuery.TryComp(mapUid, out var statusComponent))
             return null;
 
-        if (statusComponent.NextWaveTime is not { } nextWaveTime)
+        // Null for no wave scheduled. Whole seconds: the line only changes when one of these does.
+        int? secondsLeft = statusComponent.NextWaveTime is { } nextWaveTime
+            ? (int)Math.Ceiling(Math.Max(0d, (nextWaveTime - _gameTiming.CurTime).TotalSeconds))
+            : null;
+
+        // This runs every frame, and formatting a localised string every frame is a waste.
+        var culture = Loc.DefaultCulture;
+        if (_waveText != null &&
+            _waveTextWave == statusComponent.Wave &&
+            _waveTextSecondsLeft == secondsLeft &&
+            ReferenceEquals(_waveTextCulture, culture))
+            return _waveText;
+
+        _waveTextCulture = culture;
+        _waveTextWave = statusComponent.Wave;
+        _waveTextSecondsLeft = secondsLeft;
+        _waveText = FormatWaveText(statusComponent.Wave, secondsLeft);
+        return _waveText;
+    }
+
+    private string FormatWaveText(int wave, int? secondsLeft)
+    {
+        if (secondsLeft is not { } seconds)
         {
-            return statusComponent.Wave > 0
-                ? Loc.GetString("ks-fieldcommander-wave-status-none", ("wave", statusComponent.Wave))
+            return wave > 0
+                ? Loc.GetString("ks-fieldcommander-wave-status-none", ("wave", wave))
                 : Loc.GetString("ks-fieldcommander-wave-status-idle");
         }
 
-        var time = FormatCountdown(nextWaveTime - _gameTiming.CurTime);
-        return statusComponent.Wave > 0
-            ? Loc.GetString("ks-fieldcommander-wave-status", ("wave", statusComponent.Wave), ("time", time))
+        var time = $"{seconds / 60}:{seconds % 60:00}";
+        return wave > 0
+            ? Loc.GetString("ks-fieldcommander-wave-status", ("wave", wave), ("time", time))
             : Loc.GetString("ks-fieldcommander-wave-status-first", ("time", time));
-    }
-
-    private static string FormatCountdown(TimeSpan remaining)
-    {
-        var seconds = (int)Math.Ceiling(Math.Max(0d, remaining.TotalSeconds));
-        return $"{seconds / 60}:{seconds % 60:00}";
     }
 
     /// <summary>
