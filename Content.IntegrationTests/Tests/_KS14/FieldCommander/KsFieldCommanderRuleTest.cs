@@ -425,6 +425,8 @@ public sealed class KsFieldCommanderRuleTest : GameTest
             var commanderComponent = server.EntMan.GetComponent<KsFieldCommanderRuleComponent>(commanderUid);
             Assert.That(commanderComponent.EndlessVoteRunning, Is.True, "taking the uplink should open the vote on endless mode");
             Assert.That(voteManager.ActiveVotes.Count(), Is.EqualTo(votesBefore + 1));
+            Assert.That(voteManager.ActiveVotes.All(vote => Content.Shared._KS14.Voting.KsVoteText.IsDeferred(vote.Title)), Is.True,
+                "the vote's title should leave the server unformatted, for each client to read in its own language");
             Assert.That(rule!.Value.Comp.PendingObjectiveFactions, Does.Contain(Syndicate),
                 "the round should be held open while the vote runs");
             Assert.That(rule.Value.Comp.WinType, Is.Not.EqualTo(ScenarioWinType.Objective), "nor should the round have ended over it");
