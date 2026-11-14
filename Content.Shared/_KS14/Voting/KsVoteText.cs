@@ -11,9 +11,9 @@ public static class KsVoteText
 {
     /// <summary>
     ///     Marks a string as a localisation id. A private-use character: nothing a player types, and nothing a
-    ///         translation contains.
+    ///         translation contains. Written as an escape, as the character itself shows as nothing in an editor.
     /// </summary>
-    private const char Marker = '';
+    private const char Marker = '\uE14C';
 
     /// <summary>
     ///     A localisation id, to be put where a vote wants text: resolved by each client.
