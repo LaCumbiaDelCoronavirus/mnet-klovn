@@ -47,6 +47,9 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
     [Dependency] private IConfigurationManager _config = default!; // KS14
     [Dependency] private IPrototypeManager _prototypeManager = default!; // KS14
     [Dependency] private StandingStateSystem _standingStateSystem = default!; // KS14
+    [Dependency] private SharedTransformSystem _transformSystem = default!; // KS14
+    [Dependency] private SharedMapSystem _mapSystem = default!; // KS14
+    [Dependency] private _KS14.Projectiles.KsProjectileFalloffSystem _ksProjectileFalloffSystem = default!; // KS14
     [Dependency] private _KS14.PredictedSpawning.KsSharedPredictedSpawnSystem _ksPredictedSpawnSystem = default!; // KS14
 
     private EntityQuery<ProjectileComponent> _query;
@@ -82,14 +85,15 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
 
     // KS14 start
     /// <summary>
-    ///     Looked ahead of from here on a client, where an entity the server sent gets no map init, and for one made a
-    ///         projectile after its own (<c>ShootProjectile</c> on something that was not). On the server a new one waits for
-    ///         its map init (<see cref="KsOnProjectileMapInit"/>): on a map that is not initialised, a map being made,
-    ///         it would gain a component its prototype does not have, and be saved with it (<c>UninitializedSaveTest</c>).
+    ///     Looked ahead of from startup, on a map that is initialised; on one that is not, from its map init
+    ///         (<see cref="KsOnProjectileMapInit"/>).
     /// </summary>
     private void KsOnProjectileStartup(Entity<ProjectileComponent> entity, ref ComponentStartup args)
     {
-        if (_net.IsClient || MetaData(entity).EntityLifeStage >= EntityLifeStage.MapInitialized)
+        // Not on a map yet to be initialised, where nothing moves and a save of it would write the component into the
+        //      map (UninitializedSaveTest): there it starts with the map. Startup rather than map init alone, as a
+        //      client is not told of the map init of what the server sends it.
+        if (_mapSystem.IsInitialized(Transform(entity).MapUid))
             _ksRayCollisionSystem.StartChecking(entity, SharedProjectileSystem.ProjectileFixture);
     }
 
@@ -173,7 +177,10 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
         }
 
         var shooter = comp.Shooter;
-        var ev = new ProjectileHitEvent(comp.Damage * _damageable.UniversalProjectileDamageModifier, target, shooter);
+        // KS14 start: damage falloff by distance flown
+        var falloffMultiplier = _ksProjectileFalloffSystem.GetMultiplier(uid, _transformSystem.GetMapCoordinates(uid));
+        var ev = new ProjectileHitEvent(comp.Damage * _damageable.UniversalProjectileDamageModifier * falloffMultiplier, target, shooter);
+        // KS14 end
         RaiseLocalEvent(uid, ref ev);
 
         var otherName = ToPrettyString(target);
