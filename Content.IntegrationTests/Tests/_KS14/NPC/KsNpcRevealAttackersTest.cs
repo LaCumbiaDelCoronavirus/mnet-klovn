@@ -115,6 +115,7 @@ public sealed class KsNpcRevealAttackersTest : GameTest
             perceptionSystem.UpdateNow(scene.ObserverUid);
             Assert.That(perceptionSystem.TryGetContact(scene.ObserverUid, scene.AttackerUid, out var contact), "remembered like any other lost hostile");
             Assert.That(contact.State, Is.EqualTo(NpcContactState.Lost), "but no longer tracked");
+            Assert.That(contact.Traits, Is.EqualTo(NpcContactTraits.None), "it was never looked at, so nothing was made of it");
         });
     }
 

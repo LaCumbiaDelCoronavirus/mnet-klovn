@@ -344,7 +344,10 @@ public sealed partial class NpcPerceptionSystem : EntitySystem
         switch (contact.State)
         {
             case NpcContactState.Visible:
-                entity.Comp.Contacts[targetUid] = LoseSight(entity, targetUid, contact, observerMapCoordinates, range);
+                // Known only by its fire, and never looked at: see LoseRevealed.
+                entity.Comp.Contacts[targetUid] = contact.RevealedUntil != default
+                    ? LoseRevealed(entity, contact)
+                    : LoseSight(entity, targetUid, contact, observerMapCoordinates, range);
                 return true;
 
             case NpcContactState.Concealed:

@@ -90,6 +90,22 @@ public sealed partial class NpcPerceptionSystem
     }
 
     /// <summary>
+    ///     A reveal that has run out without the target coming into sight: it is lost where it last fired from, and
+    ///         nothing more. It was never looked at, so nothing was made of it (no <see cref="NpcContact.Traits"/>), and
+    ///         it did not vanish from under the NPC's eyes, so it is not suspected of hiding in a locker nearby as a
+    ///         hostile that had been in sight would be (<see cref="LoseSight"/>): a turret does not climb into one.
+    /// </summary>
+    private NpcContact LoseRevealed(Entity<NpcPerceptionComponent> entity, NpcContact contact)
+    {
+        return ToLost(contact with
+        {
+            ObserverWasMoving = IsAdvancing(entity.Owner),
+            RevealedUntil = default,
+            Traits = NpcContactTraits.None,
+        });
+    }
+
+    /// <summary>
     ///     A revealed contact's update: still known where it is now, wherever that is, until the reveal runs out.
     /// </summary>
     private ContactOutcome UpdateRevealed(Entity<NpcPerceptionComponent> entity,
