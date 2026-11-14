@@ -2,6 +2,7 @@ using Content.Server.Explosion.EntitySystems;
 using Content.Shared._KS14.Construction;
 using Content.Shared._Trauma.Projectiles;
 using Content.Shared.Construction.Components;
+using Content.Shared.DeviceLinking;
 using Content.Shared.Projectiles;
 using Robust.Shared.Network;
 using Robust.Shared.Player;
@@ -17,8 +18,8 @@ namespace Content.Server._KS14.KillCredit;
 ///         </item>
 ///         <item>
 ///             <b>Who is paid for it</b> (<see cref="GetHitRecipient"/>): a player, asked of the attacker with
-///                 <see cref="KsGetCreditRecipientEvent"/> as the hit lands. A player's body answers with its player
-///                 and a turret with whoever set it up.
+///                 <see cref="KsGetCreditRecipientEvent"/> as the hit lands. A player's body answers with its player,
+///                 a turret with whoever set it up, and a signaller with whoever pressed it.
 ///         </item>
 ///     </list>
 ///     Whatever can outlive what it answers for is told the answer early: a bullet is stamped with its shooter's
@@ -101,6 +102,17 @@ public sealed partial class KsKillCreditSystem : EntitySystem
     {
         if (args.Recipient == null && entity.Comp.Shooter is { } shooterUid && shooterUid != entity.Owner)
             args.Recipient = GetRecipient(shooterUid, args.Depth + 1);
+    }
+
+    /// <summary>
+    ///     A device whose signal set something off answers for whoever sent the signal by using it
+    ///         (<see cref="DeviceLinkSourceComponent.KsSignalUser"/>): the trigger names the device, not the presser.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnSignalSourceGetRecipient(Entity<DeviceLinkSourceComponent> entity, ref KsGetCreditRecipientEvent args)
+    {
+        if (args.Recipient == null && entity.Comp.KsSignalUser is { } signalUserUid && signalUserUid != entity.Owner)
+            args.Recipient = GetRecipient(signalUserUid, args.Depth + 1);
     }
 
     /// <summary>
