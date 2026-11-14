@@ -91,6 +91,8 @@
     damage:
       types:
         Slash: 10
+  # A dive into it ends in it. Something thrown still goes over.
+  - type: KsStopsDives
   - type: KsDamagedSound
     sound:
       collection: FenceRattle
