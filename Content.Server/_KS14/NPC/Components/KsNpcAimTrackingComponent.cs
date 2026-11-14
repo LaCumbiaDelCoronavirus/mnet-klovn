@@ -33,7 +33,10 @@ public sealed partial class KsNpcAimTrackingComponent : Component
 
     /// <summary>
     ///     Fire even when a friend stands in the line of fire: the shooter never holds fire for one
-    ///         (<c>NpcSquadFireLaneSystem</c>), before a shot or as it goes off.
+    ///         (<c>NpcSquadFireLaneSystem.TryGetClearShot</c> and <c>IsShotClear</c>), before a shot or as it goes off. A
+    ///         bystander is still held for if its blackboard has <c>KsHoldFireForNeutrals</c>. Sight is another matter: a
+    ///         turret sees past every mob anyway (<c>TargetInLOSPrecondition.KsStandingMobsBlock</c> off), and only with
+    ///         that on does this also let it see past a friend.
     /// </summary>
     [DataField]
     public bool IgnoreFriendlyBlocking;

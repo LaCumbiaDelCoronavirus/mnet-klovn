@@ -20,9 +20,11 @@
             - !type:TargetInLOSPrecondition
               targetKey: Target
               rangeKey: RangedRange
+              ksStandingMobsBlock: false # KS14: seen past mobs; holds fire for friends instead
           operator: !type:GunOperator
             targetKey: Target
             requireLOS: true
+            ksHoldFireWhenBlocked: true # KS14: aims and tracks, and holds fire until a round would get there
           services:
             - !type:UtilityService
               id: RangedService
@@ -53,9 +55,11 @@
               targetKey: Target
               rangeKey: RangedRange
               opaqueKey: true
+              ksStandingMobsBlock: false # KS14: seen past mobs; holds fire for friends instead
           operator: !type:GunOperator
             targetKey: Target
             opaqueKey: true
+            ksHoldFireWhenBlocked: true # KS14: aims and tracks, and holds fire until a round would get there
           services:
             - !type:UtilityService
               id: RangedService

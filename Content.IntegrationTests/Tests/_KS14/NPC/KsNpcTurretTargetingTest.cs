@@ -222,8 +222,9 @@ public sealed class KsNpcTurretTargetingTest : GameTest
     }
 
     /// <summary>
-    ///     The fire-lane check itself, which a turret's own body hides friends from, so asked of a mob: a friend in the
-    ///         line of fire makes it hold fire, unless it ignores friendly blocking, for the aim and for a round as it goes.
+    ///     The fire-lane check itself, asked of a mob shooter with no HTN: a friend in the line of fire makes it hold fire,
+    ///         unless it ignores friendly blocking, for the aim and for a round as it goes. A live turret is
+    ///         <see cref="TestIgnoreFriendlyBlocking"/> and <c>KsNpcTurretSightTest</c>.
     /// </summary>
     [TestCase(false)]
     [TestCase(true)]

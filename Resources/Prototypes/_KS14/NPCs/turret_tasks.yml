@@ -17,10 +17,12 @@
               targetKey: Target
               rangeKey: RangedRange
               opaqueKey: true
+              ksStandingMobsBlock: false # seen past mobs; holds fire for friends instead
           operator: !type:GunOperator
             targetKey: Target
             requireLOS: true
             opaqueKey: true
+            ksHoldFireWhenBlocked: true # aims and tracks, and holds fire until a round would get there
           services:
             - !type:UtilityService
               id: RangedService

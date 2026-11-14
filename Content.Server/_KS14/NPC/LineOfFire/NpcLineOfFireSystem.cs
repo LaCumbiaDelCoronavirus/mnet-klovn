@@ -2,9 +2,11 @@ using System.Numerics;
 using Content.Server.Interaction;
 using Content.Server.Weapons.Ranged.Systems;
 using Content.Shared.Interaction;
+using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Physics;
 using Content.Shared.Projectiles;
+using Content.Shared.Standing;
 using Content.Shared.Weapons.Hitscan.Components;
 using Content.Shared.Weapons.Ranged.Components;
 using Content.Shared.Weapons.Ranged.Events;
@@ -55,6 +57,7 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
     [Dependency] private InteractionSystem _interactionSystem = default!;
     [Dependency] private SharedContainerSystem _containerSystem = default!;
     [Dependency] private SharedPhysicsSystem _physicsSystem = default!;
+    [Dependency] private SharedTransformSystem _transformSystem = default!;
 
     [Dependency] private EntityQuery<BallisticAmmoProviderComponent> _ballisticAmmoProviderQuery = default!;
     [Dependency] private EntityQuery<BasicEntityAmmoProviderComponent> _basicEntityAmmoProviderQuery = default!;
@@ -62,6 +65,7 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
     [Dependency] private EntityQuery<CartridgeAmmoComponent> _cartridgeAmmoQuery = default!;
     [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
     [Dependency] private EntityQuery<RevolverAmmoProviderComponent> _revolverAmmoProviderQuery = default!;
+    [Dependency] private EntityQuery<StandingStateComponent> _standingStateQuery = default!;
 
     /// <summary>
     ///     For a gun it can tell nothing about, and an NPC with no gun at all.
@@ -69,6 +73,12 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
     private const CollisionGroup UnknownShotMask = SharedInteractionSystem.InRangeUnobstructedMask;
 
     private const int MaxRoundsToFollow = 4;
+
+    /// <summary>
+    ///     How near a shot's start the middle of what it hits must be for that to be the shooter: see
+    ///         <see cref="TryGetFirstHit"/>. Squared, in tiles.
+    /// </summary>
+    private const float ShooterMiddleDistanceSquared = 0.0001f;
 
     /// <summary>
     ///     How far either side of its line a round hits things, for one whose fixture tells nothing: a bullet's.
@@ -92,9 +102,23 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
     private SharedInteractionSystem.Ignored _isMob = default!;
 
     /// <summary>
+    ///     For a sight check by collision mask that no mob ends, standing or not: every mob is on the
+    ///         <see cref="CollisionGroup.Opaque"/> layer. Made once, not on every cast.
+    /// </summary>
+    public SharedInteractionSystem.Ignored IsMob => _isMob;
+
+    /// <summary>
     ///     <see cref="_isMob"/> as the ray query takes it: made once, not on every cast.
     /// </summary>
     private Func<EntityUid, bool> _isMobPredicate = default!;
+
+    /// <summary>
+    ///     For a sight check by collision mask, which a body on the floor must not end: whether this is a mob lying down or
+    ///         dead. Every mob is on the <see cref="CollisionGroup.Opaque"/> layer, so lasers hit those standing, but one on
+    ///         the floor hides nothing, and rounds and beams pass over it unless aimed at it
+    ///         (<c>RequireProjectileTargetComponent</c>, active while it is down). Made once, not on every cast.
+    /// </summary>
+    public SharedInteractionSystem.Ignored IsLyingMob { get; private set; } = default!;
 
     public override void Initialize()
     {
@@ -102,6 +126,9 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
 
         _isMob = uid => _mobStateQuery.HasComp(uid);
         _isMobPredicate = uid => _mobStateQuery.HasComp(uid);
+        IsLyingMob = uid => _mobStateQuery.TryComp(uid, out var mobState) &&
+            (mobState.CurrentState == MobState.Dead ||
+                (_standingStateQuery.TryComp(uid, out var standingState) && !standingState.Standing));
 
         SubscribeLocalEvent<PrototypesReloadedEventArgs>(_ => _shots.Clear());
     }
@@ -292,7 +319,9 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
 
     /// <summary>
     ///     What a shot colliding with <paramref name="shotMask"/> would hit first on its way from one place to the other, if
-    ///         anything. Mobs do not count: see <see cref="IsClear"/>.
+    ///         anything. Mobs do not count: see <see cref="IsClear"/>. Nor does whatever has its middle where the shot starts:
+    ///         the shooter itself, a turret's own body, which its rounds leave and never hit, and which would otherwise hide
+    ///         everything from it.
     /// </summary>
     public bool TryGetFirstHit(MapCoordinates from, MapCoordinates to, CollisionGroup shotMask, out RayCastResults hit)
     {
@@ -309,7 +338,8 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
         // Every hit, not the first: the first is the first the broadphase came across, not the nearest.
         foreach (var result in _physicsSystem.IntersectRayWithPredicate(from.MapId, ray, distance, _isMobPredicate, returnOnFirstHit: false))
         {
-            if (result.Distance >= nearest)
+            if (result.Distance >= nearest ||
+                Vector2.DistanceSquared(_transformSystem.GetWorldPosition(result.HitEntity), from.Position) < ShooterMiddleDistanceSquared)
                 continue;
 
             nearest = result.Distance;
