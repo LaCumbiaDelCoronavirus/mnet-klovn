@@ -386,6 +386,12 @@ public sealed partial class NPCBlackboard : IEnumerable<KeyValuePair<string, obj
     ///     Can the NPC push loose obstacles out of its way for steering.
     /// </summary>
     public const string NavPush = "NavPush";
+
+    /// <summary>
+    ///     With <see cref="NavClimb"/>, can the NPC also climb things that break when climbed onto, such as glass tables.
+    ///         Off unless set: it walks round them. See <c>PathFlags.ClimbingBreakables</c>.
+    /// </summary>
+    public const string NavClimbBreakables = "NavClimbBreakables";
     // KS14 end
 
     /// <summary>

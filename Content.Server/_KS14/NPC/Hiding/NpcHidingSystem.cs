@@ -38,6 +38,7 @@ public sealed partial class NpcHidingSystem : EntitySystem
 
     [Dependency] private EntityQuery<EntityStorageComponent> _entityStorageQuery = default!;
     [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
+    [Dependency] private EntityQuery<NpcClosetHealerComponent> _closetHealerQuery = default!;
     [Dependency] private EntityQuery<NpcHidingComponent> _hidingQuery = default!;
     [Dependency] private EntityQuery<LockComponent> _lockQuery = default!;
     [Dependency] private EntityQuery<WeldableComponent> _weldableQuery = default!;
@@ -103,11 +104,14 @@ public sealed partial class NpcHidingSystem : EntitySystem
         if (!IsHidingPlace(storageUid) || !_entityStorageSystem.CanOpen(uid, storageUid, silent: true))
             return false;
 
+        // Stood in it with it open, shutting it takes it in, as it does anyone.
         if (_entityStorageSystem.IsOpen(storageUid) && !_entityStorageSystem.TryCloseStorage(storageUid, uid))
             return false;
 
-        // Shut, so what fits is known now.
-        if (!_entityStorageSystem.CanInsert(uid, storageUid) || !_entityStorageSystem.Insert(uid, storageUid))
+        // Shut, so what fits is known now. Not in by shutting it, it is put in: only ever from where it stands on it
+        //      (EnterEntityStorageOperator), or it is seen to jump in.
+        if (!IsIn(uid, storageUid) &&
+            (!_entityStorageSystem.CanInsert(uid, storageUid) || !_entityStorageSystem.Insert(uid, storageUid)))
             return false;
 
         var hidingComponent = EnsureComp<NpcHidingComponent>(uid);
@@ -117,6 +121,21 @@ public sealed partial class NpcHidingSystem : EntitySystem
         hidingComponent.WasRecovering = false;
         hidingComponent.NextCheck = _gameTiming.CurTime + CheckInterval;
         return true;
+    }
+
+    /// <summary>
+    ///     Whether a hostile is near enough <paramref name="uid"/> that, hidden, it would come straight out again: within its
+    ///         <see cref="NpcClosetHealerComponent.ExitRange"/>, where one in a closet hears footsteps outside. Hiding then
+    ///         was a hop in and out again for nothing.
+    /// </summary>
+    public bool IsHostileInEarshot(EntityUid uid)
+    {
+        if (!_closetHealerQuery.TryComp(uid, out var closetHealerComponent))
+            return false;
+
+        _hostiles.Clear();
+        _npcFactionSystem.GetNearbyHostiles(uid, closetHealerComponent.ExitRange, _hostiles);
+        return _hostiles.Count > 0;
     }
 
     public bool IsHiding(EntityUid uid)
@@ -130,6 +149,11 @@ public sealed partial class NpcHidingSystem : EntitySystem
     public void StopHiding(EntityUid uid)
     {
         RemCompDeferred<NpcHidingComponent>(uid);
+    }
+
+    private bool IsIn(EntityUid uid, EntityUid storageUid)
+    {
+        return _containerSystem.TryGetContainingContainer(uid, out var container) && container.Owner == storageUid;
     }
 
     private bool ShouldComeOut(Entity<NpcHidingComponent, NpcClosetHealerComponent> entity, TimeSpan now)

@@ -247,6 +247,13 @@ public enum NpcSearchPointKind : byte
     ///     Where it was last seen.
     /// </summary>
     LastKnown,
+
+    /// <summary>
+    ///     A disposal unit it could have climbed into: one that shows something is in it, or one with no power, which
+    ///         shows nothing either way (<see cref="NpcSquadTacticsSettings.SearchOccupiedDisposals"/>,
+    ///         <see cref="NpcSquadTacticsSettings.SearchUnpoweredDisposals"/>). Searched by emptying it.
+    /// </summary>
+    Disposal,
 }
 
 /// <summary>
@@ -262,9 +269,16 @@ public sealed class NpcHuntSearchPoint
     public required EntityCoordinates Coordinates;
 
     /// <summary>
-    ///     The locker, for <see cref="NpcSearchPointKind.Locker"/>.
+    ///     The locker, for <see cref="NpcSearchPointKind.Locker"/>, or the disposal unit, for
+    ///         <see cref="NpcSearchPointKind.Disposal"/>.
     /// </summary>
     public EntityUid? StorageUid;
+
+    /// <summary>
+    ///     For <see cref="NpcSearchPointKind.Disposal"/>: a member has emptied it (<c>NpcSquadTacticsSystem.NoteEmptied</c>).
+    ///         There is no seeing into one, so that is what searched means.
+    /// </summary>
+    public bool Emptied;
 
     public bool Cleared;
 

@@ -1,0 +1,321 @@
+#nullable enable
+using System.Linq;
+using System.Numerics;
+using Content.IntegrationTests.Fixtures;
+using Content.Server._KS14.NPC.Perception;
+using Content.Server._KS14.NPC.Squad;
+using Content.Server._KS14.NPC.Squad.Tactics;
+using Content.Shared._KS14.NPC;
+using Content.Shared.Hands.Components;
+using Content.Shared.Hands.EntitySystems;
+using Content.Shared.Storage.EntitySystems;
+using Robust.Shared.GameObjects;
+using Robust.Shared.IoC;
+using Robust.Shared.Map;
+using Robust.Shared.Maths;
+using Robust.Shared.Timing;
+using Robust.UnitTesting.Pool;
+using static Content.IntegrationTests.Tests._KS14.NPC.KsNpcSquadTestHelpers;
+
+namespace Content.IntegrationTests.Tests._KS14.NPC;
+
+/// <summary>
+///     A squad breaking through to a hostile it cannot otherwise get at, through <see cref="NpcSquadTacticsSystem"/>: a locker
+///         nobody can open that the hostile is believed to be in, and the glass between them and one in sight, somewhere too
+///         big to be taken for a room.
+/// </summary>
+/// <remarks>
+///     Tactics are paused and driven with <see cref="NpcSquadTacticsSystem.UpdateNow"/>, and contacts are staged. The walls,
+///         glass, locker and breaching charge are the real ones: whether a charge goes on something is up to its whitelist.
+/// </remarks>
+public sealed class KsNpcSquadBreachTest : GameTest
+{
+    public override PoolSettings PoolSettings => PsDisconnected;
+
+    private const string BreachMob = "KsBreachTestMob";
+    private const string Gun = "KsBreachTestGun";
+
+    // Real prototypes, so the test goes by what the game has: the charge's whitelist, the lock.
+    private const string Wall = "WallReinforced";
+    private const string Window = "ReinforcedWindow";
+    private const string Grille = "Grille";
+    private const string Charge = "KsWireEndBreachingCharge";
+    private const string Activator = "KsWireStart";
+    private const string LockedLocker = "LockerSecurity";
+
+    /// <summary>
+    ///     Long enough for a search for a path to come back.
+    /// </summary>
+    private const int ProbeTicks = 30;
+
+    [TestPrototypes]
+    private const string Prototypes = @"
+- type: entity
+  parent: KsSquadTestMobSyndicate
+  id: KsBreachTestMob
+  components:
+  - type: Hands
+  - type: DoAfter
+  - type: NpcSquadMember
+    tactics:
+      watchTime: 0
+      planning: true
+      planGrace: 0s
+      stageTimeout: 0s
+      maxStageDistance: 24
+      planChargeMinPressure: 0 # a test map has no air in it
+      searchBreakLockers: true
+
+- type: entity
+  id: KsBreachTestBullet
+  components:
+  - type: Physics
+  - type: Fixtures
+    fixtures:
+      projectile:
+        shape: !type:PhysShapeCircle
+          radius: 0.1
+        mask:
+        - Impassable
+        - BulletImpassable
+
+- type: entity
+  id: KsBreachTestGun
+  components:
+  - type: Item
+  - type: Gun
+  - type: BallisticAmmoProvider
+    proto: KsBreachTestBullet
+    capacity: 10
+";
+
+    /// <summary>
+    ///     A hostile seen to get into a locker nobody can open, locked to all of them, is shot open by whoever is sent to it and
+    ///         has a clear shot: over combat, as glass is. Not sent to open it to no end. With the setting off, it is sent to
+    ///         open it all the same, as before.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task TestALockedLockerItIsInIsShotOpen(bool breaks)
+    {
+        var scene = await SetUp(width: 7, height: 6, window: false);
+
+        await Pair.Server.WaitAssertion(() =>
+        {
+            var entManager = scene.EntManager;
+            var transformSystem = entManager.System<SharedTransformSystem>();
+
+            if (!breaks)
+            {
+                foreach (var memberUid in new[] { scene.LeaderUid, scene.MemberUid })
+                {
+                    var settings = entManager.GetComponent<NpcSquadMemberComponent>(memberUid).Tactics;
+                    settings.SearchBreakLockers = false;
+                }
+            }
+
+            // In the room with it, which they are already inside: they search at once.
+            var lockerUid = SpawnAt(entManager, LockedLocker, scene.GridUid, 5, 3);
+            transformSystem.SetCoordinates(scene.LeaderUid, new EntityCoordinates(scene.GridUid, new Vector2(1.5f, 1.5f)));
+            transformSystem.SetCoordinates(scene.MemberUid, new EntityCoordinates(scene.GridUid, new Vector2(3.5f, 3.5f)));
+            GiveInHand(entManager, scene.LeaderUid, Gun);
+            GiveInHand(entManager, scene.MemberUid, Gun);
+
+            var storageSystem = entManager.System<SharedEntityStorageSystem>();
+            Assert.That(storageSystem.Insert(scene.TargetUid, lockerUid), "the test needs the hostile in the locker");
+            Assert.That(storageSystem.CanOpen(scene.MemberUid, lockerUid, silent: true), Is.False, "the test needs it locked to them");
+
+            var now = IoCManager.Resolve<IGameTiming>().CurTime;
+            var perceptionSystem = entManager.System<NpcPerceptionSystem>();
+            var lockerCoordinates = entManager.GetComponent<TransformComponent>(lockerUid).Coordinates;
+
+            foreach (var memberUid in new[] { scene.LeaderUid, scene.MemberUid })
+            {
+                perceptionSystem.SetContact(memberUid, scene.TargetUid, new NpcContact(NpcContactState.Suspected,
+                    now, now, now, lockerCoordinates, default, lockerUid, Reacted: true, ReactAt: now));
+            }
+
+            scene.TacticsSystem.UpdateNow();
+
+            var hunt = scene.TacticsSystem.GetHunt(scene.SquadUid);
+            Assert.That(hunt?.Phase, Is.EqualTo(NpcHuntPhase.Search), "a squad already inside should start searching");
+            Assert.That(hunt!.SearchPoints.Any(point => point.StorageUid == lockerUid), "the locker it went into should be searched");
+            Assert.That(scene.TacticsSystem.TryGetOrder(scene.MemberUid, out var order), "the member nearest the locker should be sent to it");
+            Assert.That(order.TargetUid, Is.EqualTo(lockerUid));
+
+            if (breaks)
+            {
+                Assert.That(order.Kind, Is.EqualTo(NpcOrderKind.BreakBarrier), "it should shoot it open");
+                Assert.That(order.OverCombat, "over combat, as glass is shot out");
+            }
+            else
+            {
+                Assert.That(order.Kind, Is.EqualTo(NpcOrderKind.Search), "turned off, it is sent to open it");
+            }
+        });
+    }
+
+    /// <summary>
+    ///     A hostile in sight down a long corridor, behind reinforced glass, with no way in: somewhere far too big to be taken
+    ///         for a room, so there are no room walls to blow. What stands in the way is: the breaching charge does not go on
+    ///         glass, so on the wall beside it. They used to do nothing about it at all, whoever had a charge. With the setting
+    ///         off, they still do not.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task TestTheWallBesideTheGlassIsBlown(bool barrier)
+    {
+        var scene = await SetUp(width: 30, height: 4, window: true);
+
+        await Pair.Server.WaitPost(() =>
+        {
+            if (!barrier)
+            {
+                foreach (var memberUid in new[] { scene.LeaderUid, scene.MemberUid })
+                {
+                    var settings = scene.EntManager.GetComponent<NpcSquadMemberComponent>(memberUid).Tactics;
+                    settings.PlanChargeBarrier = false;
+                }
+            }
+
+            GiveInHand(scene.EntManager, scene.MemberUid, Charge);
+            GiveInHand(scene.EntManager, scene.MemberUid, Activator);
+        });
+
+        await Step(scene);
+
+        await Pair.Server.WaitAssertion(() =>
+        {
+            var plan = scene.EntManager.TryGetComponent<NpcSquadPlanComponent>(scene.SquadUid, out var planComponent) ? planComponent.Plan : null;
+            Assert.That(plan, Is.Not.Null, "nobody has a shot through the glass, so the squad should plan");
+
+            if (!barrier)
+            {
+                Assert.That(plan!.State, Is.EqualTo(NpcSquadPlanState.Cooldown), "turned off, there is nothing to be done");
+                return;
+            }
+
+            Assert.That(plan!.Steps[..plan.StepCount], Is.EqualTo(new[] { NpcSquadAction.BlowWall, NpcSquadAction.Enter }), $"{plan.Reason} {plan.Facts}");
+
+            var site = plan.WallCharge!.Value.Site;
+            Assert.That(scene.EntManager.GetComponent<MetaDataComponent>(site.TargetUid).EntityPrototype!.ID, Is.EqualTo(Wall), "the wall, as the charge does not go on glass");
+            Assert.That(site.Tile.X, Is.EqualTo(-1), "in the barrier");
+            Assert.That(site.Tile.Y, Is.InRange(1, 5), "beside the glass");
+            Assert.That(site.StandTile.X, Is.LessThan(-1), "from their side of it");
+            Assert.That(scene.TacticsSystem.TryGetOrder(scene.MemberUid, out var order) && order.Kind == NpcOrderKind.PlantCharge,
+                "the member with it should go to put it on");
+        });
+    }
+
+    /// <summary>
+    ///     Stages the contact, and updates twice: once to ask for a way to the hostile, and once when the answer is back.
+    /// </summary>
+    private async Task Step(Scene scene)
+    {
+        await Pair.Server.WaitPost(() =>
+        {
+            StageVisible(scene);
+            scene.TacticsSystem.UpdateNow();
+        });
+
+        await Pair.RunTicksSync(ProbeTicks);
+
+        await Pair.Server.WaitPost(() =>
+        {
+            StageVisible(scene);
+            scene.TacticsSystem.UpdateNow();
+        });
+    }
+
+    private static void StageVisible(Scene scene)
+    {
+        var now = IoCManager.Resolve<IGameTiming>().CurTime;
+        var perceptionSystem = scene.EntManager.System<NpcPerceptionSystem>();
+        var coordinates = scene.EntManager.GetComponent<TransformComponent>(scene.TargetUid).Coordinates;
+
+        foreach (var memberUid in new[] { scene.LeaderUid, scene.MemberUid })
+        {
+            perceptionSystem.SetContact(memberUid, scene.TargetUid, new NpcContact(NpcContactState.Visible,
+                now, now, now, coordinates, default, null, Reacted: true, ReactAt: now));
+        }
+    }
+
+    private static EntityUid GiveInHand(IEntityManager entManager, EntityUid mobUid, string prototype)
+    {
+        var handsSystem = entManager.System<SharedHandsSystem>();
+        var handId = $"hand{entManager.GetComponent<HandsComponent>(mobUid).Count}";
+        handsSystem.AddHand(mobUid, handId, HandLocation.Right);
+
+        var itemUid = entManager.SpawnEntity(prototype, entManager.GetComponent<TransformComponent>(mobUid).Coordinates);
+        Assert.That(handsSystem.TryPickup(mobUid, itemUid, handId), "the test needs it holding that");
+        return itemUid;
+    }
+
+    /// <summary>
+    ///     A walled space <paramref name="width"/> by <paramref name="height"/> tiles from the origin, with no way in, the
+    ///         hostile in it and a squad of two outside its west wall. With <paramref name="window"/>, that wall has reinforced
+    ///         glass on a grille in it, level with the hostile.
+    /// </summary>
+    private async Task<Scene> SetUp(int width, int height, bool window)
+    {
+        var server = Pair.Server;
+        var entManager = server.ResolveDependency<IEntityManager>();
+        var tileDefinitionManager = server.ResolveDependency<ITileDefinitionManager>();
+        var tacticsSystem = entManager.System<NpcSquadTacticsSystem>();
+        var map = await Pair.CreateTestMap();
+
+        EntityUid gridUid = default, firstUid = default, secondUid = default, targetUid = default;
+
+        await server.WaitPost(() =>
+        {
+            tacticsSystem.UpdatesPaused = true;
+            gridUid = MakeGrid(entManager, tileDefinitionManager, map.MapId, map.Grid, new Vector2i(-12, -8), new Vector2i(width + 4, height + 4)).Owner;
+
+            for (var x = -1; x <= width; x++)
+            {
+                for (var y = -1; y <= height; y++)
+                {
+                    if (x > -1 && x < width && y > -1 && y < height)
+                        continue;
+
+                    if (window && x == -1 && y == 3)
+                    {
+                        SpawnAt(entManager, Grille, gridUid, x, y);
+                        SpawnAt(entManager, Window, gridUid, x, y);
+                    }
+                    else
+                    {
+                        SpawnAt(entManager, Wall, gridUid, x, y);
+                    }
+                }
+            }
+
+            firstUid = SpawnAt(entManager, BreachMob, gridUid, -3, 3);
+            secondUid = SpawnAt(entManager, BreachMob, gridUid, -3, 2);
+            targetUid = SpawnAt(entManager, NanoTrasenMob, gridUid, 3, 3);
+        });
+
+        // Long enough for the navmesh to build and the squad to form.
+        await Pair.RunTicksSync(150);
+
+        EntityUid squadUid = default, leaderUid = default;
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(entManager.System<NpcSquadSystem>().TryGetSquad(firstUid, out var squadEntity), "the two should form a squad");
+            squadUid = squadEntity!.Value.Owner;
+            leaderUid = squadEntity.Value.Comp.Leader!.Value;
+        });
+
+        return new Scene(entManager, tacticsSystem, gridUid, squadUid, leaderUid, leaderUid == firstUid ? secondUid : firstUid, targetUid);
+    }
+
+    private sealed record Scene(
+        IEntityManager EntManager,
+        NpcSquadTacticsSystem TacticsSystem,
+        EntityUid GridUid,
+        EntityUid SquadUid,
+        EntityUid LeaderUid,
+        EntityUid MemberUid,
+        EntityUid TargetUid);
+}

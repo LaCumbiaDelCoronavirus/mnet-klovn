@@ -40,6 +40,7 @@ public sealed partial class NpcSquadTacticsSystem : EntitySystem
 {
     [Dependency] private IGameTiming _gameTiming = default!;
     [Dependency] private EntityLookupSystem _entityLookupSystem = default!;
+    [Dependency] private Content.Shared.Power.EntitySystems.SharedPowerReceiverSystem _powerReceiverSystem = default!;
     [Dependency] private MobStateSystem _mobStateSystem = default!;
     [Dependency] private NpcMeterSystem _npcMeterSystem = default!;
     [Dependency] private NpcHuntDebugSystem _npcHuntDebugSystem = default!;
