@@ -11,7 +11,6 @@ using Robust.Shared.Map;
 using Robust.Shared.Physics.Components;
 using Robust.Shared.Physics.Systems;
 using Robust.Shared.Prototypes;
-using Robust.Shared.Timing;
 
 namespace Content.IntegrationTests.Tests._KS14.Damage;
 
@@ -161,11 +160,6 @@ public sealed class KsDamageContactsGroupTest : GameTest
             physicsSystem.SetSleepingAllowed(_walkerUid, physicsComponent, false);
             physicsSystem.WakeBody(_walkerUid, body: physicsComponent);
         });
-    }
-
-    private Task RunSeconds(float seconds)
-    {
-        return Pair.RunTicksSync((int)Math.Ceiling(seconds * Server.ResolveDependency<IGameTiming>().TickRate));
     }
 
     private async Task<(FixedPoint2 Slash, FixedPoint2 Blunt)> Damage()
