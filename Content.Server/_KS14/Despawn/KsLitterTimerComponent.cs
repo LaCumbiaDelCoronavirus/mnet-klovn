@@ -11,6 +11,12 @@ public sealed partial class KsLitterTimerComponent : Component
     public TimeSpan DissolveAt;
 
     /// <summary>
+    ///     How long the timer was started for, to start it over for something found on a table.
+    /// </summary>
+    [DataField]
+    public TimeSpan Delay;
+
+    /// <summary>
     ///     What put the timer there, which decides what cancels it.
     /// </summary>
     [DataField]
@@ -26,12 +32,12 @@ public sealed partial class KsLitterTimerComponent : Component
 public enum KsLitterKind
 {
     /// <summary>
-    ///     A spent casing: cancelled by nothing, it only dissolves.
+    ///     A spent casing: left alone if it has been picked up, or is found lying on a table, and dissolved otherwise.
     /// </summary>
     Casing,
 
     /// <summary>
-    ///     A gun or magazine on the floor: cancelled by picking it up, or by finding it on a table.
+    ///     A gun or magazine on the floor: cancelled by picking it up, and put off for as long as it lies on a table.
     /// </summary>
     Item,
 

@@ -49,13 +49,45 @@ public sealed partial class KsLitterDespawnSystem : GameRuleSystem<KsLitterDespa
             if (curTime < timerComponent.DissolveAt || timerComponent.LifeStage > ComponentLifeStage.Running)
                 continue;
 
+            if (timerComponent.Kind != KsLitterKind.Body)
+            {
+                // Lying on a table or a rack, where it was put to be kept. Looked at again later rather than
+                //      forgotten: dragged off again, no change of parent says so.
+                if (IsLoose(timerUid) && IsOnSurface(timerUid))
+                {
+                    timerComponent.DissolveAt = curTime + timerComponent.Delay;
+                    continue;
+                }
+
+                // Picked up since the timer started, by something that left it on: nothing to tidy.
+                if (!IsLoose(timerUid))
+                {
+                    RemCompDeferred<KsLitterTimerComponent>(timerUid);
+                    continue;
+                }
+            }
+
             RemCompDeferred<KsLitterTimerComponent>(timerUid);
-
-            // Picked up, or put on a table, since the timer started: nothing to tidy.
-            if (timerComponent.Kind != KsLitterKind.Body && (!IsLoose(timerUid) || IsOnSurface(timerUid)))
-                continue;
-
             _dissolveSystem.Dissolve(timerUid, timerComponent.DissolveDuration);
+        }
+    }
+
+    /// <summary>
+    ///     The last litter rule to end takes its timers with it: nothing is left counting down to a tidy-up that will
+    ///         never come, or waiting to dissolve the moment another rule starts.
+    /// </summary>
+    protected override void Ended(EntityUid uid, KsLitterDespawnRuleComponent component, GameRuleComponent gameRule, GameRuleEndedEvent args)
+    {
+        base.Ended(uid, component, gameRule, args);
+
+        // Another one still running keeps them: this one is no longer counted as active by now.
+        if (TryGetActiveRule(out _))
+            return;
+
+        var timerEnumerator = EntityManager.AllEntityQueryEnumerator<KsLitterTimerComponent>();
+        while (timerEnumerator.MoveNext(out var timerUid, out _))
+        {
+            RemCompDeferred<KsLitterTimerComponent>(timerUid);
         }
     }
 
@@ -125,6 +157,7 @@ public sealed partial class KsLitterDespawnSystem : GameRuleSystem<KsLitterDespa
     {
         var timerComponent = EnsureComp<KsLitterTimerComponent>(uid);
         timerComponent.Kind = kind;
+        timerComponent.Delay = delay;
         timerComponent.DissolveAt = _gameTiming.CurTime + delay;
         timerComponent.DissolveDuration = rule.DissolveDuration;
     }
