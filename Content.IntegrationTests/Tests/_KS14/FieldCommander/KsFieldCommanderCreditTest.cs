@@ -8,6 +8,7 @@ using Content.Server._KS14.KillCredit;
 using Content.Server.DeviceLinking.Systems;
 using Content.Shared._KS14.Construction;
 using Content.Shared._KS14.FieldCommander;
+using Content.Shared._KS14.PopupLocalization;
 using Content.Shared.Construction.Components;
 using Content.Shared.Damage;
 using Content.Shared.Damage.Systems;
@@ -298,9 +299,51 @@ public sealed class KsFieldCommanderCreditTest : GameTest
 
         await Pair.RunTicksSync(3);
         await Pair.Client.WaitAssertion(() =>
-            Assert.That(Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason,
+            Assert.That(Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason.Id,
                 Is.EqualTo(localDamage > otherDamage ? "ks-fieldcommander-points-kill" : "ks-fieldcommander-points-assist"),
                 "the top contributor has the kill, whoever shot last"));
+    }
+
+    /// <summary>
+    ///     What was killed reaches the client as something it can name in its own language: the unit's prototype, not
+    ///         its name as the server reads it. A player's character, whose name is their own, is sent as it is.
+    /// </summary>
+    [Test]
+    public async Task KillReasonNamesThePrototypeForTheClientToTranslate()
+    {
+        var server = Pair.Server;
+        var (testMap, _, playerBody, unitUid) = await SetUpUnit();
+        const string CharacterName = "Urist McTest";
+        var unitPrototypeId = string.Empty;
+
+        await server.WaitPost(() =>
+        {
+            unitPrototypeId = server.EntMan.GetComponent<MetaDataComponent>(unitUid).EntityPrototype!.ID;
+            Hurt(unitUid, playerBody, 10);
+        });
+
+        await Pair.RunTicksSync(3);
+        await Pair.Client.WaitAssertion(() =>
+        {
+            var reason = Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason;
+            Assert.That(reason.Arguments!["name"], Is.EqualTo(new KsPopupPrototypeName(unitPrototypeId)),
+                "a unit should be named by its prototype, for the client to resolve, not by text the server formatted");
+        });
+
+        await server.WaitPost(() =>
+        {
+            var victimUid = server.EntMan.SpawnAtPosition(_defender, new EntityCoordinates(testMap.Grid, 4.5f, 0.5f));
+            server.System<MetaDataSystem>().SetEntityName(victimUid, CharacterName);
+            Hurt(victimUid, playerBody, 10);
+        });
+
+        await Pair.RunTicksSync(3);
+        await Pair.Client.WaitAssertion(() =>
+        {
+            var reason = Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason;
+            Assert.That(reason.Arguments!["name"], Is.EqualTo(CharacterName), "a character's own name is sent as it is");
+            Assert.That(reason.Format(Pair.Client.EntMan), Does.Contain(CharacterName));
+        });
     }
 
     /// <summary>
@@ -358,7 +401,7 @@ public sealed class KsFieldCommanderCreditTest : GameTest
 
         await Pair.RunTicksSync(3);
         await Pair.Client.WaitAssertion(() =>
-            Assert.That(Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason, Is.EqualTo("ks-fieldcommander-points-kill"),
+            Assert.That(Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason.Id, Is.EqualTo("ks-fieldcommander-points-kill"),
                 "a turret's kill finished by nobody should still be its owner's kill, not an assist"));
     }
 
@@ -420,7 +463,7 @@ public sealed class KsFieldCommanderCreditTest : GameTest
 
         await Pair.RunTicksSync(3);
         await Pair.Client.WaitAssertion(() =>
-            Assert.That(Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason, Is.EqualTo("ks-fieldcommander-points-kill"),
+            Assert.That(Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason.Id, Is.EqualTo("ks-fieldcommander-points-kill"),
                 "a turret's kill is its owner's kill, not an assist"));
     }
 
@@ -546,7 +589,7 @@ public sealed class KsFieldCommanderCreditTest : GameTest
 
         await Pair.RunTicksSync(3);
         await Pair.Client.WaitAssertion(() =>
-            Assert.That(Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason,
+            Assert.That(Pair.Client.System<KsFieldCommanderPointsSystem>().LastChange!.Reason.Id,
                 Is.EqualTo(localDamage > otherDamage ? "ks-fieldcommander-points-teamkill" : "ks-fieldcommander-points-teamkill-assist"),
                 "the top contributor is the teamkiller, the other assisted"));
     }

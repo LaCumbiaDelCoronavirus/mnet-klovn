@@ -49,7 +49,7 @@ public sealed partial class KsFieldCommanderPointsSystem : EntitySystem
     {
         LastChange = args;
 
-        var reason = Loc.GetString(args.Reason, ("name", args.ReasonName ?? string.Empty));
+        var reason = args.Reason.Format(EntityManager);
         EnsureControl().AddChange(args.Delta, reason);
     }
 

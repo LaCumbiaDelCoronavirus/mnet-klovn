@@ -5,6 +5,7 @@ using Content.Shared.FixedPoint;
 using Content.Shared.Mobs.Systems;
 using Content.Shared._KS14.FactionCollision;
 using Content.Shared._KS14.FieldCommander;
+using Content.Shared._KS14.PopupLocalization;
 using Content.Shared._KS14.Scenario.Components;
 using Content.Shared._KS14.Vendors;
 using Content.Shared._RMC14.Vendors;
@@ -38,7 +39,12 @@ public sealed partial class KsFieldCommanderRuleSystem
     ///     Changes a defender's points, tells them why with a sound and their HUD, and carries the new total over to
     ///         the body they're in, where the shop reads it.
     /// </summary>
-    public void AddPoints(Entity<KsFieldCommanderRuleComponent> rule, ICommonSession session, int delta, string reason, string? reasonName = null)
+    /// <param name="reason">Localisation id of a short reason. Takes <c>name</c>, if there is a <paramref name="reasonName"/>.</param>
+    /// <param name="reasonName">
+    ///     What the reason names, as something the client can put in its own language: see <see cref="GetReasonName"/>.
+    ///         Never a name formatted here, which would be in the server's.
+    /// </param>
+    public void AddPoints(Entity<KsFieldCommanderRuleComponent> rule, ICommonSession session, int delta, string reason, object? reasonName = null)
     {
         if (delta == 0)
             return;
@@ -48,7 +54,10 @@ public sealed partial class KsFieldCommanderRuleSystem
 
         var filter = Filter.SinglePlayer(session);
         _audioSystem.PlayGlobal(delta > 0 ? rule.Comp.PointsGainedSound : rule.Comp.PointsLostSound, filter, recordReplay: false);
-        RaiseNetworkEvent(new KsFieldCommanderPointsChangedEvent(delta, reason, reasonName), filter);
+
+        // Sent unformatted: the client's language is its own, not the server's.
+        var message = reasonName != null ? KsPopupMessage.Create(reason, ("name", reasonName)) : KsPopupMessage.Create(reason);
+        RaiseNetworkEvent(new KsFieldCommanderPointsChangedEvent(delta, message.ToPayload(EntityManager)), filter);
     }
 
     /// <summary>
@@ -159,7 +168,7 @@ public sealed partial class KsFieldCommanderRuleSystem
                 continue;
 
             var penalty = GetTeamkillPenalty(ruleComponent, defenderDamage / (defenderDamage + ledgerComponent.OtherDamage));
-            PayShares((ruleUid, ruleComponent), ledgerComponent, penalty, TeamkillReason, TeamkillAssistReason, Name(args.Target));
+            PayShares((ruleUid, ruleComponent), ledgerComponent, penalty, TeamkillReason, TeamkillAssistReason, GetReasonName(args.Target));
         }
 
         // Paid out: whoever brings them back starts with a clean slate.
@@ -223,6 +232,18 @@ public sealed partial class KsFieldCommanderRuleSystem
         }
 
         return component.Defenders.Contains(userId);
+    }
+
+    /// <summary>
+    ///     What to call an entity in a points line, for the client to put in its own language: its prototype, unless
+    ///         it has a name of its own (a player's character), which is sent as it is.
+    /// </summary>
+    private object GetReasonName(EntityUid uid)
+    {
+        var metaDataComponent = MetaData(uid);
+        return metaDataComponent.EntityPrototype is { } prototype && metaDataComponent.EntityName == prototype.Name
+            ? new KsPopupPrototypeName(prototype.ID)
+            : metaDataComponent.EntityName;
     }
 
     /// <summary>
@@ -310,7 +331,7 @@ public sealed partial class KsFieldCommanderRuleSystem
             !TryComp<KsFieldCommanderDamageLedgerComponent>(unit, out var ledgerComponent))
             return;
 
-        PayShares(rule, ledgerComponent, GetKillPoints(rule.Comp, rule.Comp.Assets[unit.Comp.AssetIndex]), KillReason, AssistReason, Name(unit));
+        PayShares(rule, ledgerComponent, GetKillPoints(rule.Comp, rule.Comp.Assets[unit.Comp.AssetIndex]), KillReason, AssistReason, GetReasonName(unit));
 
         // Paid out: a unit brought back and killed again is a new kill.
         WipeLedger((unit.Owner, ledgerComponent));
@@ -320,7 +341,7 @@ public sealed partial class KsFieldCommanderRuleSystem
     ///     Splits <paramref name="total"/> between the defenders in a ledger by how much damage each dealt. The one
     ///         who dealt the most gets <paramref name="topReason"/>, everyone else <paramref name="otherReason"/>.
     /// </summary>
-    private void PayShares(Entity<KsFieldCommanderRuleComponent> rule, KsFieldCommanderDamageLedgerComponent ledgerComponent, int total, string topReason, string otherReason, string reasonName)
+    private void PayShares(Entity<KsFieldCommanderRuleComponent> rule, KsFieldCommanderDamageLedgerComponent ledgerComponent, int total, string topReason, string otherReason, object reasonName)
     {
         // Even defenders who've died since still collect, as long as they're connected: dying shouldn't erase an assist.
         var totalDamage = GetDefenderDamage(ledgerComponent);
