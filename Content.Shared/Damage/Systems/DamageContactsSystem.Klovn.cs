@@ -143,7 +143,7 @@ public sealed partial class DamageContactsSystem
     }
 
     /// <summary>
-    ///     A damage tick: each source that counts deals its own damage, whatever cares is told if any landed
+    ///     A damage tick: each source that counts deals its own damage, whatever cares is told of each that landed
     ///         (<c>KsDamagedSoundSystem</c>'s rattle), and then each source is worn by what it dealt
     ///         (<see cref="DamageContactsComponent.SelfDamageRatio"/>). Worn last: wear is damage to the source, which has
     ///         a sound of its own to make, and the rattle of the contact, the one a client predicts, is to come first.
@@ -168,8 +168,11 @@ public sealed partial class DamageContactsSystem
         if (_ksDealt.Count == 0)
             return;
 
-        var damagedEvent = new KsDamagedByContactEvent();
-        RaiseLocalEvent(entity.Owner, ref damagedEvent);
+        foreach (var (sourceUid, _) in _ksDealt)
+        {
+            var damagedEvent = new KsDamagedByContactEvent(sourceUid);
+            RaiseLocalEvent(entity.Owner, ref damagedEvent);
+        }
 
         foreach (var (sourceUid, dealt) in _ksDealt)
         {

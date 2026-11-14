@@ -2,11 +2,8 @@ using Content.Shared._KS14.Damage.Events;
 using Content.Shared.Damage.Components;
 using Content.Shared.Damage.Systems;
 using Content.Shared.Weapons.Melee.Events;
-using Content.Shared.Whitelist;
 using Robust.Shared.Audio.Systems;
 using Robust.Shared.Network;
-using Robust.Shared.Physics.Components;
-using Robust.Shared.Physics.Systems;
 using Robust.Shared.Player;
 using Robust.Shared.Timing;
 
@@ -42,11 +39,7 @@ public sealed partial class KsDamagedSoundSystem : EntitySystem
     [Dependency] private INetManager _netManager = default!;
     [Dependency] private ISharedPlayerManager _playerManager = default!;
     [Dependency] private SharedAudioSystem _audioSystem = default!;
-    [Dependency] private SharedPhysicsSystem _physicsSystem = default!;
-    [Dependency] private EntityWhitelistSystem _whitelistSystem = default!;
     [Dependency] private EntityQuery<KsDamagedSoundComponent> _damagedSoundQuery = default!;
-    [Dependency] private EntityQuery<DamageContactsComponent> _damageContactsQuery = default!;
-    [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
 
     // By-value class event: no Entity<T> handler for it (RA0054).
     [SubscribeLocalEvent]
@@ -75,19 +68,11 @@ public sealed partial class KsDamagedSoundSystem : EntitySystem
         if (_netManager.IsClient && !IsPredictingFor(entity.Owner))
             return;
 
-        if (!_physicsQuery.TryComp(entity.Owner, out var physicsComponent))
-            return;
-
-        foreach (var contactingUid in _physicsSystem.GetContactingEntities(entity.Owner, physicsComponent))
-        {
-            if (!_damagedSoundQuery.TryComp(contactingUid, out var damagedSoundComponent) ||
-                !damagedSoundComponent.PlayOnContactDamage ||
-                !_damageContactsQuery.TryComp(contactingUid, out var damageContactsComponent) ||
-                _whitelistSystem.IsWhitelistPass(damageContactsComponent.IgnoreWhitelist, entity.Owner))
-                continue;
-
-            TryPlay((contactingUid, damagedSoundComponent), entity.Owner);
-        }
+        // The source that did the damage, not everything touched that could have: astride two pieces of wire, one of
+        //     them cuts, and one rattles.
+        if (_damagedSoundQuery.TryComp(args.SourceUid, out var damagedSoundComponent) &&
+            damagedSoundComponent.PlayOnContactDamage)
+            TryPlay((args.SourceUid, damagedSoundComponent), entity.Owner);
     }
 
     /// <summary>
