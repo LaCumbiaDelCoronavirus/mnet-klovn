@@ -148,6 +148,9 @@ public sealed class KsThinTargetShotTest : GameTest
         {
             gridUid = MakeGrid(entManager, tileDefinitionManager, map.MapId, map.Grid, new Vector2i(-3, -12), new Vector2i(3, 4)).Owner;
             mobUid = SpawnAt(entManager, "MobHuman", gridUid, 0, 0);
+            // The test map has no air: nothing but the round may hurt them, or the vacuum passes this test by itself.
+            entManager.RemoveComponent<Content.Server.Atmos.Components.BarotraumaComponent>(mobUid);
+            entManager.RemoveComponent<Content.Server.Body.Components.RespiratorComponent>(mobUid);
 
             shooterUid = SpawnAt(entManager, "KsThinTargetTestShooter", gridUid, 0, -range);
             var handsSystem = entManager.System<SharedHandsSystem>();
@@ -160,6 +163,11 @@ public sealed class KsThinTargetShotTest : GameTest
 
         await Server.WaitAssertion(() =>
         {
+#pragma warning disable CS0618 // a hit at all is what is asked, not how much
+            Assert.That(entManager.System<Content.Shared.Damage.Systems.DamageableSystem>().GetTotalDamage(mobUid).Float(), Is.Zero,
+                "unhurt before the shot: whatever hurts them after is the round");
+#pragma warning restore CS0618
+
             var gunSystem = entManager.System<GunSystem>();
             Assert.That(gunSystem.TryGetGun(shooterUid, out var gun));
             gunSystem.AttemptShoot(shooterUid, gun, new EntityCoordinates(gridUid, new Vector2(0.5f, 0.5f)), mobUid);

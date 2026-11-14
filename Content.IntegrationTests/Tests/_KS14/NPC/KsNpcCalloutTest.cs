@@ -64,6 +64,8 @@ public sealed class KsNpcCalloutTest : GameTest
     public async Task TestACalloutIsOnlyInAVoiceThatMakesIt()
     {
         var map = await Pair.CreateTestMap();
+        // The speakers' clips are in the private _KsModule submodule: without it they are mute, and the lines are only said.
+        var recorded = Server.ProtoMan.HasIndex<EntityPrototype>(RedactedSpawner);
 
         await Server.WaitAssertion(() =>
         {
@@ -74,7 +76,8 @@ public sealed class KsNpcCalloutTest : GameTest
             Assert.That(voiceSystem.TrySpeakCallout(voicedUid, NpcCallout.ThrowFrag, TimeSpan.FromSeconds(5)), "the Redacted call out their throws");
             Assert.That(voiceSystem.TrySpeakCallout(voicedUid, NpcCallout.ThrowFrag, TimeSpan.FromSeconds(5)), Is.False, "but not twice at once");
             Assert.That(voiceSystem.TrySpeakCallout(voicedUid, NpcCallout.Push), "another callout has a cooldown of its own");
-            Assert.That(CountClips(voicedUid), Is.EqualTo(2), "each said aloud");
+            if (recorded)
+                Assert.That(CountClips(voicedUid), Is.EqualTo(2), "each said aloud");
 
             foreach (var callout in Enum.GetValues<NpcCallout>())
             {
@@ -161,6 +164,10 @@ public sealed class KsNpcCalloutTest : GameTest
     [TestCase("revived")]
     public async Task TestAManDownIsCalledOutByCallsign(string how)
     {
+        // Told by the clip that plays, and the clips are in the private submodule.
+        if (!Server.ProtoMan.HasIndex<EntityPrototype>(RedactedSpawner))
+            Assert.Ignore("the Redacted's recordings are in the private _KsModule submodule, which is not present");
+
         var map = await Pair.CreateTestMap();
         EntityUid speakerUid = default, downedUid = default;
 
@@ -210,7 +217,8 @@ public sealed class KsNpcCalloutTest : GameTest
         if (how != "revived")
             return;
 
-        // Down again while still down: nothing. Back on its feet, then down again: called out again.
+        // Down again while still down - critical, and now hurt some more - is nothing new. Dying of it is the "crit then
+        //      dead" case. Back on its feet, then down again: called out again.
         await Server.WaitPost(() => SetDamage(downedUid, 160));
         for (var i = 0; i < 40; i++)
         {

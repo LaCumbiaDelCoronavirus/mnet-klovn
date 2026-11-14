@@ -250,7 +250,8 @@ shooter locking onto them.
 ### Shooting in the dark (`NPCCombatSystem.Klovn.DarkAim.cs`)
 
 An NPC with perception that sees its target in under `darkAimLightLevel` (0.10) of light, after night vision, turns its aim
-point off the target by up to `darkAimSpread` (12° in pitch dark), held for `darkAimHold`. It moves `targetSpot` just before
+point off the target by up to `darkAimSpread` (12° in pitch dark), held for `darkAimHold` (0.6s); all three are fields
+of `NpcPerception`. It moves `targetSpot` just before
 `TryGetClearShot`, so the fire lane checks see where the shot really goes. Turrets and NPCs without `NpcPerception` are
 untouched. To make any other shooter miss, move the aim point the same way rather than widening the gun's spread, which
 `NpcLineOfFireSystem.GetShotCone` would also have to know about.

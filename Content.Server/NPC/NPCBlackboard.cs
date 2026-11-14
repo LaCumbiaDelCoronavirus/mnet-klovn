@@ -75,6 +75,21 @@ public sealed partial class NPCBlackboard : IEnumerable<KeyValuePair<string, obj
         return _blackboard.ContainsKey(key);
     }
 
+    // KS14 start
+    /// <summary>
+    ///     Whether there is a value at <paramref name="key"/> that <see cref="TryGetValue{T}"/> would hand out: not an
+    ///         entity, or coordinates on one, that is deleted or being deleted (<see cref="KsIsGone"/>). What a plan asks
+    ///         with, so that it agrees with the read that follows: asked with <see cref="ContainsKey(string)"/>, a branch
+    ///         gated on a key naming a deleted entity planned, its operator failed on the read, the failure replanned at
+    ///         once onto the same branch, and every branch below it never got a turn.
+    /// </summary>
+    [Pure]
+    public bool ContainsKey(string key, IEntityManager entManager)
+    {
+        return _blackboard.TryGetValue(key, out var value) && !KsIsGone(value, entManager);
+    }
+    // KS14 end
+
     /// <summary>
     /// Get the blackboard data for a particular key.
     /// </summary>

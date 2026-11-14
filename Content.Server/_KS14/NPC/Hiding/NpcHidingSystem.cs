@@ -1,6 +1,7 @@
 using Content.Server._KS14.NPC.Recovery;
 using Content.Server._KS14.NPC.Systems;
 using Content.Server._KS14.NPC.Utility;
+using Content.Shared.ActionBlocker;
 using Content.Shared.Damage.Systems;
 using Content.Shared.Lock;
 using Content.Shared.Mobs.Components;
@@ -17,7 +18,7 @@ namespace Content.Server._KS14.NPC.Hiding;
 ///     NPCs hiding in closets to heal (<see cref="NpcClosetHealerComponent"/>). Getting in is the HTN's
 ///         (<c>EnterEntityStorageOperator</c>, then the meds, then <c>HideOperator</c>); this works out when to get out, and
 ///         lets it out: once its meds have done what they will, a hostile comes near enough to hear, it is hurt in there, or
-///         it has been in too long.
+///         it has been in too long. One that cannot act (stunned, asleep, down) stays in for all but the last.
 ///     <para>
 ///         Nothing an NPC does inside a closet gets it out by itself: moving inside one opens it only for a player's keys.
 ///             So it is let out here, and taking <see cref="NpcHidingComponent"/> off however that happens - a plan cut
@@ -26,6 +27,7 @@ namespace Content.Server._KS14.NPC.Hiding;
 /// </summary>
 public sealed partial class NpcHidingSystem : EntitySystem
 {
+    [Dependency] private ActionBlockerSystem _actionBlockerSystem = default!;
     [Dependency] private IGameTiming _gameTiming = default!;
     [Dependency] private DamageableSystem _damageableSystem = default!;
     [Dependency] private NpcFactionSystem _npcFactionSystem = default!;
@@ -139,6 +141,11 @@ public sealed partial class NpcHidingSystem : EntitySystem
             container.Owner != hidingComponent.StorageUid ||
             now - hidingComponent.EnteredAt >= closetHealerComponent.MaxTime)
             return true;
+
+        // Stunned, asleep or down, it does not open a door and step out, whatever is outside: only its time being up, above,
+        //      has it let out all the same. What it could not answer is still so when it can act again.
+        if (!_actionBlockerSystem.CanInteract(uid, null))
+            return false;
 
         // Done once the meds have done what they will. They are used once it is in, so give them a moment to start.
         if (_npcRecoverySystem.IsRecovering(uid))

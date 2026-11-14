@@ -75,12 +75,25 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
         // KS14 start: a round moves more than a tile a tick, and steps over what is thinner than that, or onto it and what is
         //      behind it at once: what it is about to go through is looked for before each step (KsRayCollisionSystem)
         SubscribeLocalEvent<ProjectileComponent, ComponentStartup>(KsOnProjectileStartup);
+        SubscribeLocalEvent<ProjectileComponent, MapInitEvent>(KsOnProjectileMapInit);
         SubscribeLocalEvent<ProjectileComponent, _KS14.RayCollision.KsRayCollisionEvent>(KsOnRayCollision);
         // KS14 end
     }
 
     // KS14 start
+    /// <summary>
+    ///     Looked ahead of from here on a client, where an entity the server sent gets no map init, and for one made a
+    ///         projectile after its own (<c>ShootProjectile</c> on something that was not). On the server a new one waits for
+    ///         its map init (<see cref="KsOnProjectileMapInit"/>): on a map that is not initialised, a map being made,
+    ///         it would gain a component its prototype does not have, and be saved with it (<c>UninitializedSaveTest</c>).
+    /// </summary>
     private void KsOnProjectileStartup(Entity<ProjectileComponent> entity, ref ComponentStartup args)
+    {
+        if (_net.IsClient || MetaData(entity).EntityLifeStage >= EntityLifeStage.MapInitialized)
+            _ksRayCollisionSystem.StartChecking(entity, SharedProjectileSystem.ProjectileFixture);
+    }
+
+    private void KsOnProjectileMapInit(Entity<ProjectileComponent> entity, ref MapInitEvent args)
     {
         _ksRayCollisionSystem.StartChecking(entity, SharedProjectileSystem.ProjectileFixture);
     }
@@ -146,6 +159,10 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
         if (comp.ProjectileSpent || comp is { Weapon: null, OnlyCollideWhenShot: true })
             return;
 
+        // KS14: one meant to cross what cannot be damaged (PA particles, the containment field) does not count it as a hit
+        if (comp.KsPassesUndamageable && !HasComp<DamageableComponent>(target))
+            return;
+
         // it's here so this check is only done once before possible hit
         var attemptEv = new ProjectileReflectAttemptEvent(uid, comp, false);
         RaiseLocalEvent(target, ref attemptEv);
@@ -166,8 +183,9 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
         bool isAMob = HasComp<MobCollisionComponent>(target);
         if (comp.PenetrationThreshold > 0 && !isAMob) damageRequired /= _gunPenetrationMinShots;
 
-        if (!TryComp<DamageableComponent>(target, out var damageable))
-            return;
+        // Nothing to damage is still something hit: the round is spent on it below, as on anything it fails to damage. This
+        //      returned here, and a round went on through any hard thing with no DamageableComponent.
+        TryComp<DamageableComponent>(target, out var damageable);
         //KS14 pen end
 
         // KS14 Impact start

@@ -91,11 +91,17 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
 
     private SharedInteractionSystem.Ignored _isMob = default!;
 
+    /// <summary>
+    ///     <see cref="_isMob"/> as the ray query takes it: made once, not on every cast.
+    /// </summary>
+    private Func<EntityUid, bool> _isMobPredicate = default!;
+
     public override void Initialize()
     {
         base.Initialize();
 
         _isMob = uid => _mobStateQuery.HasComp(uid);
+        _isMobPredicate = uid => _mobStateQuery.HasComp(uid);
 
         SubscribeLocalEvent<PrototypesReloadedEventArgs>(_ => _shots.Clear());
     }
@@ -301,7 +307,7 @@ public sealed partial class NpcLineOfFireSystem : EntitySystem
         var nearest = float.MaxValue;
 
         // Every hit, not the first: the first is the first the broadphase came across, not the nearest.
-        foreach (var result in _physicsSystem.IntersectRayWithPredicate(from.MapId, ray, distance, _isMob.Invoke, returnOnFirstHit: false))
+        foreach (var result in _physicsSystem.IntersectRayWithPredicate(from.MapId, ray, distance, _isMobPredicate, returnOnFirstHit: false))
         {
             if (result.Distance >= nearest)
                 continue;

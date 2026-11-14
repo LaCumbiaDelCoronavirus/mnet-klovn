@@ -55,6 +55,10 @@ public sealed class KsNpcVoiceRecordingTest : GameTest
     public async Task TestEverySpokenLineHasOneClipPerSpeaker()
     {
         var protoManager = Server.ResolveDependency<IPrototypeManager>();
+        // The speakers are public and mute; their clips are added by the private submodule.
+        if (!protoManager.HasIndex<EntityPrototype>(RedactedSpawner))
+            Assert.Ignore("the Redacted's recordings are in the private _KsModule submodule, which is not present");
+
         var resourceManager = Server.ResolveDependency<IResourceManager>();
 
         await Server.WaitAssertion(() =>
