@@ -79,12 +79,20 @@
   - type: SpeedModifierContacts
     walkSpeedModifier: 0.175
     sprintSpeedModifier: 0.175
-  # Cuts only those wading through: standing still in it is safe, the first step after hurts at once.
+  # Cuts only those wading through: standing still in it is safe, the first step after hurts at once. Astride two
+  #     pieces, or more, it cuts like one.
   - type: DamageContacts
     onlyWhileMoving: true
+    exclusiveGroup: KsBarbedWire
+    # Wears out as it cuts: it breaks after dealing about 250 damage. Its Destructible threshold below, 60, over
+    #     250 is 0.24 of what it deals, taken as Structural past its own resistances.
+    selfDamageRatio: 0.24
+    selfDamageType: Structural
     damage:
       types:
         Slash: 10
+  # A dive into it ends in it. Something thrown still goes over.
+  - type: KsStopsDives
   - type: KsDamagedSound
     sound:
       collection: FenceRattle
