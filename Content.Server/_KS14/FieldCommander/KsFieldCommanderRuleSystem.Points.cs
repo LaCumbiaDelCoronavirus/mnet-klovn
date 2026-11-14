@@ -86,7 +86,10 @@ public sealed partial class KsFieldCommanderRuleSystem
         _defenderSystem.SetFlashes((bodyUid, defenderComponent), component.DownFlashes);
 
         if (session != null)
+        {
+            component.Defenders.Add(session.UserId);
             MirrorPoints(component, bodyUid, GetPoints(component, session.UserId));
+        }
     }
 
     /// <summary>
@@ -130,9 +133,10 @@ public sealed partial class KsFieldCommanderRuleSystem
     }
 
     /// <summary>
-    ///     Docks the defenders who killed one of their own, by how much of the damage each dealt: the one who dealt
-    ///         the most is the teamkiller and the rest assisted. Kills of the commander's units are paid in
-    ///         <see cref="RewardUnitKill"/>.
+    ///     Docks the defenders who killed one of their own. The penalty is scaled by how much of everything the
+    ///         victim took was their own side's doing (<see cref="GetTeamkillPenalty"/>), and split between those
+    ///         defenders by how much each dealt: the one who dealt the most is the teamkiller and the rest assisted.
+    ///         Kills of the commander's units are paid in <see cref="RewardUnitKill"/>.
     /// </summary>
     // MobStateChangedEvent is a by-value class event, so this is a plain broadcast handler.
     [SubscribeLocalEvent]
@@ -150,7 +154,12 @@ public sealed partial class KsFieldCommanderRuleSystem
             if (!IsDefender(ruleComponent, args.Target))
                 continue;
 
-            PayShares((ruleUid, ruleComponent), ledgerComponent, ruleComponent.TeamkillPoints, TeamkillReason, TeamkillAssistReason, Name(args.Target));
+            var defenderDamage = GetDefenderDamage(ledgerComponent);
+            if (defenderDamage <= 0f)
+                continue;
+
+            var penalty = GetTeamkillPenalty(ruleComponent, defenderDamage / (defenderDamage + ledgerComponent.OtherDamage));
+            PayShares((ruleUid, ruleComponent), ledgerComponent, penalty, TeamkillReason, TeamkillAssistReason, Name(args.Target));
         }
 
         // Paid out: whoever brings them back starts with a clean slate.
@@ -165,16 +174,55 @@ public sealed partial class KsFieldCommanderRuleSystem
     private void WipeLedger(Entity<KsFieldCommanderDamageLedgerComponent> ledger)
     {
         ledger.Comp.Damage.Clear();
+        ledger.Comp.OtherDamage = 0f;
         RemCompDeferred<KsFieldCommanderDamageLedgerComponent>(ledger.Owner);
     }
 
     /// <summary>
-    ///     Who to credit damage to: whatever dealt it, or, for an explosion, which damages with no origin, whoever
-    ///         set it off.
+    ///     What a teamkill costs the defenders behind it, between them: <see cref="KsFieldCommanderRuleComponent.TeamkillPoints"/>
+    ///         times their side's share of everything the victim took, the enemy's and the world's damage included, but
+    ///         never less than <see cref="KsFieldCommanderRuleComponent.TeamkillMinimumPoints"/>, nor more than the
+    ///         whole penalty.
     /// </summary>
-    private EntityUid? GetKiller(EntityUid? origin)
+    /// <param name="defenderShare">How much of all the damage the victim took was dealt by defenders, 0 to 1.</param>
+    public static int GetTeamkillPenalty(KsFieldCommanderRuleComponent component, float defenderShare)
     {
-        return _killCreditSystem.ResolveCredit(origin);
+        var scaled = (int)MathF.Round(component.TeamkillPoints * Math.Clamp(defenderShare, 0f, 1f));
+
+        // Both are losses, so below zero: the bigger loss of the two, capped at the whole penalty.
+        return Math.Max(component.TeamkillPoints, Math.Min(scaled, component.TeamkillMinimumPoints));
+    }
+
+    private static float GetDefenderDamage(KsFieldCommanderDamageLedgerComponent ledgerComponent)
+    {
+        var total = 0f;
+        foreach (var damage in ledgerComponent.Damage.Values)
+        {
+            total += damage;
+        }
+
+        return total;
+    }
+
+    /// <summary>
+    ///     Whether a player is on the defenders' side. Whoever they are now decides, if they are anyone: a defender's
+    ///         body, or a unit the commander's side handed them. Dead and watching, or between bodies, they are a
+    ///         defender if they have been one this round, so a turret goes on paying its owner.
+    /// </summary>
+    private bool IsDefenderPlayer(KsFieldCommanderRuleComponent component, NetUserId userId)
+    {
+        if (_playerManager.TryGetSessionById(userId, out var session) &&
+            session.AttachedEntity is { } bodyUid &&
+            _scenarioFactionMemberQuery.TryComp(bodyUid, out var factionMemberComponent))
+        {
+            if (factionMemberComponent.Id != component.DefenderFaction)
+                return false;
+
+            component.Defenders.Add(userId);
+            return true;
+        }
+
+        return component.Defenders.Contains(userId);
     }
 
     /// <summary>
@@ -186,12 +234,13 @@ public sealed partial class KsFieldCommanderRuleSystem
     private void OnUnitDamageChanged(EntityUid unitUid, KsFieldCommanderUnitComponent unitComponent, DamageChangedEvent args)
     {
         if (TryComp<KsFieldCommanderRuleComponent>(unitComponent.RuleUid, out var ruleComponent))
-            RecordDefenderDamage(unitUid, args, ruleComponent);
+            RecordDamage(unitUid, args, ruleComponent, recordOther: false);
     }
 
     /// <summary>
-    ///     Keeps count of which defenders damaged a defender, for <see cref="OnMobStateChanged"/> to split a teamkill by.
-    ///         Healed back to full, the slate is wiped: old friendly fire isn't charged to a later death.
+    ///     Keeps count of who damaged a defender, their own side and everything else, for <see cref="OnMobStateChanged"/>
+    ///         to work a teamkill out from. Healed back to full, the slate is wiped: old friendly fire isn't charged to
+    ///         a later death.
     /// </summary>
     // By-value class event again, and ordered like OnUnitDamageChanged.
     [SubscribeLocalEvent(before: [typeof(MobThresholdSystem)])]
@@ -212,22 +261,22 @@ public sealed partial class KsFieldCommanderRuleSystem
         while (query.MoveNext(out _, out _, out var ruleComponent, out _))
         {
             if (IsDefender(ruleComponent, defenderUid))
-                RecordDefenderDamage(defenderUid, args, ruleComponent);
+                RecordDamage(defenderUid, args, ruleComponent, recordOther: true);
         }
     }
 
     /// <summary>
-    ///     Adds the damage a defender just dealt to <paramref name="targetUid"/> to its ledger. Nobody else's damage
-    ///         counts, and neither does damage to oneself.
+    ///     Adds damage just dealt to <paramref name="targetUid"/> to its ledger: under the defender who is paid for it,
+    ///         asked now, while what dealt it (a bullet, a turret about to be destroyed) still exists to say whose it
+    ///         is. Damage to oneself is nobody's.
     /// </summary>
-    private void RecordDefenderDamage(EntityUid targetUid, DamageChangedEvent args, KsFieldCommanderRuleComponent ruleComponent)
+    /// <param name="recordOther">
+    ///     Whether damage that no defender is paid for is counted as well, as one total: the enemy's, the world's, the
+    ///         target's own. A teamkill is weighed against it; a kill is split between defenders only.
+    /// </param>
+    private void RecordDamage(EntityUid targetUid, DamageChangedEvent args, KsFieldCommanderRuleComponent ruleComponent, bool recordOther)
     {
-        if (args.DamageDelta is not { } delta ||
-            !args.DamageIncreased ||
-            GetKiller(args.Origin) is not { } attacker ||
-            attacker == targetUid ||
-            !TryComp<ActorComponent>(attacker, out var attackerActorComponent) ||
-            !IsDefender(ruleComponent, attacker))
+        if (args.DamageDelta is not { } delta || !args.DamageIncreased)
             return;
 
         var dealt = 0f;
@@ -240,9 +289,19 @@ public sealed partial class KsFieldCommanderRuleSystem
         if (dealt <= 0f)
             return;
 
+        var recipient = _killCreditSystem.GetHitRecipient(args.Origin);
+        var credited = recipient is { } recipientUserId &&
+            recipientUserId != _killCreditSystem.GetRecipient(targetUid) &&
+            IsDefenderPlayer(ruleComponent, recipientUserId);
+
+        if (!credited && !recordOther)
+            return;
+
         var ledgerComponent = EnsureComp<KsFieldCommanderDamageLedgerComponent>(targetUid);
-        var userId = attackerActorComponent.PlayerSession.UserId;
-        ledgerComponent.Damage[userId] = ledgerComponent.Damage.GetValueOrDefault(userId) + dealt;
+        if (credited)
+            ledgerComponent.Damage[recipient!.Value] = ledgerComponent.Damage.GetValueOrDefault(recipient.Value) + dealt;
+        else
+            ledgerComponent.OtherDamage += dealt;
     }
 
     private void RewardUnitKill(Entity<KsFieldCommanderRuleComponent> rule, Entity<KsFieldCommanderUnitComponent> unit)
@@ -264,12 +323,7 @@ public sealed partial class KsFieldCommanderRuleSystem
     private void PayShares(Entity<KsFieldCommanderRuleComponent> rule, KsFieldCommanderDamageLedgerComponent ledgerComponent, int total, string topReason, string otherReason, string reasonName)
     {
         // Even defenders who've died since still collect, as long as they're connected: dying shouldn't erase an assist.
-        var totalDamage = 0f;
-        foreach (var damage in ledgerComponent.Damage.Values)
-        {
-            totalDamage += damage;
-        }
-
+        var totalDamage = GetDefenderDamage(ledgerComponent);
         if (totalDamage <= 0f)
             return;
 
