@@ -1,12 +1,13 @@
 using Content.Server._KS14.KillCredit;
 using Content.Shared._KS14.NPC;
 using Content.Shared.Damage.Systems;
+using Content.Shared.Mobs.Components;
 
 namespace Content.Server._KS14.NPC.Perception;
 
 /// <summary>
-///     Being shot gives the shooter away. With <see cref="NpcPerceptionComponent.RevealAttackers"/>, whoever hurts the
-///         NPC becomes known to it wherever they are, so it can turn and fire back, and nobody can pick it off from
+///     Being shot gives the shooter away. With <see cref="NpcPerceptionComponent.RevealAttackers"/>, whatever hurts the
+///         NPC (a player, or a turret, but never the turret's owner) becomes known to it wherever it is on its map, so it can turn and fire back, and nobody can pick it off from
 ///         where it cannot see them. The knowledge is a plain visible contact that holds for
 ///         <see cref="NpcPerceptionComponent.RevealDuration"/> after the last hit and then decays like any other
 ///         sighting, and it reaches the squad through the usual callouts.
@@ -14,6 +15,7 @@ namespace Content.Server._KS14.NPC.Perception;
 public sealed partial class NpcPerceptionSystem
 {
     [Dependency] private KsKillCreditSystem _ksKillCreditSystem = default!;
+    [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
 
     [SubscribeLocalEvent]
     // A by-value event: there is no Entity<T> form of handler for one.
@@ -25,15 +27,34 @@ public sealed partial class NpcPerceptionSystem
             delta.GetTotal() <= 0)
             return;
 
-        // The hand behind a bullet or a turret, not the bullet.
-        if (_ksKillCreditSystem.ResolveCredit(args.Origin) is not { } attackerUid ||
-            attackerUid == uid ||
-            TerminatingOrDeleted(attackerUid) ||
-            !_mobStateSystem.IsAlive(attackerUid) ||
-            _npcFactionSystem.IsEntityFriendly(uid, attackerUid))
-            return;
+        if (GetRevealedAttacker(uid, args.Origin) is { } attackerUid)
+            Reveal((uid, component), attackerUid);
+    }
 
-        Reveal((uid, component), attackerUid);
+    /// <summary>
+    ///     What a hit gives away: the thing that shot, never whoever answers for it. A turret's bullet reveals the
+    ///         turret where it stands, not the player who set it up, who may be anywhere. Null if there is nothing
+    ///         to turn on: it is gone, dead, a friend, or on another map.
+    /// </summary>
+    private EntityUid? GetRevealedAttacker(EntityUid uid, EntityUid? origin)
+    {
+        // The shooter behind a bullet, or whatever set off an explosion: not the bullet.
+        if (_ksKillCreditSystem.GetAttacker(origin) is not { } attackerUid || TerminatingOrDeleted(attackerUid))
+            return null;
+
+        // A gun in someone's hands is its holder shooting: a beam names the gun.
+        if (_containerSystem.TryGetOuterContainer(attackerUid, Transform(attackerUid), out var container))
+            attackerUid = container.Owner;
+
+        if (attackerUid == uid ||
+            // A mob has to be alive. A machine, a turret, has no life to check: it is there until it is deleted.
+            _mobStateQuery.HasComp(attackerUid) && !_mobStateSystem.IsAlive(attackerUid) ||
+            // Known wherever it is, but not on another map, where there is no way to turn towards it.
+            Transform(attackerUid).MapID != Transform(uid).MapID ||
+            _npcFactionSystem.IsEntityFriendly(uid, attackerUid))
+            return null;
+
+        return attackerUid;
     }
 
     /// <summary>
