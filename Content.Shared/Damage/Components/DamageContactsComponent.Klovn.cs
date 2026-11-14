@@ -1,3 +1,6 @@
+using Content.Shared.Damage.Prototypes;
+using Robust.Shared.Prototypes;
+
 namespace Content.Shared.Damage.Components;
 
 public sealed partial class DamageContactsComponent
@@ -18,4 +21,19 @@ public sealed partial class DamageContactsComponent
     /// </summary>
     [DataField]
     public string? ExclusiveGroup;
+
+    /// <summary>
+    ///     If set, this wears out as it hurts: for each point of damage it actually deals, after the victim's armour
+    ///         and resistances, it takes this many points of <see cref="SelfDamageType"/> itself, past its own
+    ///         resistances. So a source that is destroyed at D damage breaks after dealing D divided by this in all.
+    ///         Null, the default, never wears.
+    /// </summary>
+    [DataField]
+    public float? SelfDamageRatio;
+
+    /// <summary>
+    ///     The type of the damage <see cref="SelfDamageRatio"/> does to this. One its damage container takes.
+    /// </summary>
+    [DataField]
+    public ProtoId<DamageTypePrototype> SelfDamageType = "Structural";
 }

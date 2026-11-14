@@ -87,6 +87,10 @@
   - type: DamageContacts
     onlyWhileMoving: true
     exclusiveGroup: KsBarbedWire
+    # Wears out as it cuts: it breaks after dealing about 250 damage. Its Destructible threshold below, 60, over
+    #     250 is 0.24 of what it deals, taken as Structural past its own resistances.
+    selfDamageRatio: 0.24
+    selfDamageType: Structural
     damage:
       types:
         Slash: 10

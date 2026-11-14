@@ -1,6 +1,7 @@
 using System.Linq;
 using Content.Shared._KS14.Damage.Events;
 using Content.Shared.Damage.Components;
+using Content.Shared.FixedPoint;
 using Robust.Shared.Physics.Components;
 
 namespace Content.Shared.Damage.Systems;
@@ -24,6 +25,11 @@ public sealed partial class DamageContactsSystem
     private readonly List<EntityUid> _ksSources = new();
 
     private readonly HashSet<string> _ksClaimedGroups = new();
+
+    /// <summary>
+    ///     What each source dealt this damage tick, to wear it by once the tick is done.
+    /// </summary>
+    private readonly List<(EntityUid SourceUid, FixedPoint2 Dealt)> _ksDealt = new();
 
     /// <summary>
     ///     Works out again which of the sources <paramref name="otherUid"/> touches count for it
@@ -137,14 +143,15 @@ public sealed partial class DamageContactsSystem
     }
 
     /// <summary>
-    ///     A damage tick: each source that counts deals its own damage, and whatever cares is told if any landed
-    ///         (<c>KsDamagedSoundSystem</c>'s rattle).
+    ///     A damage tick: each source that counts deals its own damage, whatever cares is told if any landed
+    ///         (<c>KsDamagedSoundSystem</c>'s rattle), and then each source is worn by what it dealt
+    ///         (<see cref="DamageContactsComponent.SelfDamageRatio"/>). Worn last: wear is damage to the source, which has
+    ///         a sound of its own to make, and the rattle of the contact, the one a client predicts, is to come first.
     /// </summary>
     private void KsDealContactDamage(Entity<DamagedByContactComponent> entity)
     {
         var moving = KsIsMoving(entity.Owner);
-        var damaged = false;
-
+        _ksDealt.Clear();
         _ksSources.Clear();
         _ksSources.AddRange(entity.Comp.Sources);
 
@@ -154,13 +161,34 @@ public sealed partial class DamageContactsSystem
             if (!_damageQuery.TryComp(sourceUid, out var sourceComponent) || !KsHurtsNow(sourceComponent, moving))
                 continue;
 
-            damaged |= _damageable.TryChangeDamage(entity.Owner, sourceComponent.Damage, interruptsDoAfters: false);
+            if (_damageable.TryChangeDamage(entity.Owner, sourceComponent.Damage, out var dealtDamage, interruptsDoAfters: false))
+                _ksDealt.Add((sourceUid, dealtDamage.GetTotal()));
         }
 
-        if (!damaged)
+        if (_ksDealt.Count == 0)
             return;
 
         var damagedEvent = new KsDamagedByContactEvent();
         RaiseLocalEvent(entity.Owner, ref damagedEvent);
+
+        foreach (var (sourceUid, dealt) in _ksDealt)
+        {
+            if (_damageQuery.TryComp(sourceUid, out var sourceComponent))
+                KsWear((sourceUid, sourceComponent), dealt);
+        }
+    }
+
+    /// <summary>
+    ///     Has <paramref name="source"/> take its share of the <paramref name="dealt"/> damage it just did, if it wears
+    ///         (<see cref="DamageContactsComponent.SelfDamageRatio"/>). Past its own resistances, so that the ratio is
+    ///         what it says. On a client this is predicted like the damage it follows; breaking is the server's.
+    /// </summary>
+    private void KsWear(Entity<DamageContactsComponent> source, FixedPoint2 dealt)
+    {
+        if (source.Comp.SelfDamageRatio is not { } ratio || ratio <= 0f || dealt <= FixedPoint2.Zero)
+            return;
+
+        var wear = new DamageSpecifier(ProtoMan.Index(source.Comp.SelfDamageType), dealt * ratio);
+        _damageable.TryChangeDamage(source.Owner, wear, ignoreResistances: true, interruptsDoAfters: false);
     }
 }
