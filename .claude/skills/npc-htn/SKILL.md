@@ -58,6 +58,9 @@ The links below cross system and file boundaries, and nothing in any one file sh
 one end of a chain, check the other end. An arrow means "is read by" or "calls".
 
 - **Light, sight and aim.** `NpcLightDetectionSystem.GetLightLevel` caches the level per target per tick.
+  - It goes by the ambient light a player sees, not the server's: a map's day and night (`LightCycleComponent`) is
+    only applied to its colour on clients, and roofs (`RoofComponent` tiles, and every grid that is not the map,
+    `ImplicitRoofComponent`) only shut it out of the client's lighting. It swaps the engine's ambient for that one.
   - `NpcPerceptionSystem.CanSee` reads it. With the observer's dark vision applied, it is kept on the contact as
     `NpcContact.SeenLight`.
   - `GetSeenLight` reads it from there for:
