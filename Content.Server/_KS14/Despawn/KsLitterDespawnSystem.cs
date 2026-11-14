@@ -84,7 +84,7 @@ public sealed partial class KsLitterDespawnSystem : GameRuleSystem<KsLitterDespa
         if (TryGetActiveRule(out _))
             return;
 
-        var timerEnumerator = EntityManager.AllEntityQueryEnumerator<KsLitterTimerComponent>();
+        var timerEnumerator = AllEntityQuery<KsLitterTimerComponent>();
         while (timerEnumerator.MoveNext(out var timerUid, out _))
         {
             RemCompDeferred<KsLitterTimerComponent>(timerUid);
