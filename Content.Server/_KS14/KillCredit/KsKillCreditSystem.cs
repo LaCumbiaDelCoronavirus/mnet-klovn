@@ -4,6 +4,8 @@ using Content.Shared._Trauma.Projectiles;
 using Content.Shared.Construction.Components;
 using Content.Shared.DeviceLinking;
 using Content.Shared.Projectiles;
+using Content.Shared.Weapons.Ranged.Components;
+using Robust.Shared.Containers;
 using Robust.Shared.Network;
 using Robust.Shared.Player;
 
@@ -19,7 +21,8 @@ namespace Content.Server._KS14.KillCredit;
 ///         <item>
 ///             <b>Who is paid for it</b> (<see cref="GetHitRecipient"/>): a player, asked of the attacker with
 ///                 <see cref="KsGetCreditRecipientEvent"/> as the hit lands. A player's body answers with its player,
-///                 a turret with whoever set it up, and a signaller with whoever pressed it.
+///                 a turret with whoever set it up, a signaller with whoever pressed it, and a held gun with
+///                 whoever holds it.
 ///         </item>
 ///     </list>
 ///     Whatever can outlive what it answers for is told the answer early: a bullet is stamped with its shooter's
@@ -34,6 +37,7 @@ public sealed partial class KsKillCreditSystem : EntitySystem
     private const int MaxDepth = 8;
 
     [Dependency] private ExplosionSystem _explosionSystem = default!;
+    [Dependency] private SharedContainerSystem _containerSystem = default!;
     [Dependency] private EntityQuery<ProjectileComponent> _projectileQuery = default!;
 
     /// <summary>
@@ -92,6 +96,18 @@ public sealed partial class KsKillCreditSystem : EntitySystem
     private void OnOwnedGetRecipient(Entity<KsCreditOwnerComponent> entity, ref KsGetCreditRecipientEvent args)
     {
         args.Recipient ??= entity.Comp.OwnerUserId;
+    }
+
+    /// <summary>
+    ///     A gun in someone's hands, or anywhere else on them, answers for whoever holds it: a beam names the gun as
+    ///         what did the damage, not the shooter. A gun that is its own thing, a turret or a mob that shoots, is
+    ///         in nothing, and answers through whatever else is on it.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnGunGetRecipient(Entity<GunComponent> entity, ref KsGetCreditRecipientEvent args)
+    {
+        if (args.Recipient == null && _containerSystem.TryGetContainingContainer(entity.Owner, out var container))
+            args.Recipient = GetRecipient(container.Owner, args.Depth + 1);
     }
 
     /// <summary>

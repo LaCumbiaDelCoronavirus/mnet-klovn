@@ -17,6 +17,7 @@ using Content.Shared.Damage.Systems;
 using Content.Shared.DeviceLinking;
 using Content.Shared.FixedPoint;
 using Content.Shared.GameTicking.Components;
+using Content.Shared.Hands.EntitySystems;
 using Content.Shared.Interaction;
 using Content.Shared.Interaction.Events;
 using Content.Shared.Mobs;
@@ -60,6 +61,7 @@ public sealed class KsFieldCommanderCreditTest : GameTest
     private readonly EntProtoId _defender = "KsTestFieldCommanderCreditDefender";
     private readonly EntProtoId _humanDefender = "KsTestFieldCommanderCreditHumanDefender";
     private readonly EntProtoId _turret = "KsTestFieldCommanderCreditTurret";
+    private readonly EntProtoId _beamGun = "KsTestFieldCommanderCreditBeamGun";
     private readonly EntProtoId _bullet = "KsTestFieldCommanderCreditBullet";
     private readonly EntProtoId _signaller = "KsTestFieldCommanderCreditSignaller";
     private readonly EntProtoId _charge = "KsTestFieldCommanderCreditCharge";
@@ -86,6 +88,12 @@ public sealed class KsFieldCommanderCreditTest : GameTest
   components:
   - type: ScenarioFactionMember
     id: Nanotrasen
+
+- type: entity
+  parent: BaseItem
+  id: KsTestFieldCommanderCreditBeamGun
+  components:
+  - type: Gun
 
 - type: entity
   id: KsTestFieldCommanderCreditUnit
@@ -721,6 +729,34 @@ public sealed class KsFieldCommanderCreditTest : GameTest
             Assert.That(KsFieldCommanderRuleSystem.GetTeamkillPenalty(ruleComponent, 0.5f), Is.EqualTo((int)MathF.Round(full * 0.5f)), "half of it");
             Assert.That(KsFieldCommanderRuleSystem.GetTeamkillPenalty(ruleComponent, 0.0001f), Is.EqualTo(minimum), "a graze still costs the minimum");
         });
+    }
+
+    /// <summary>
+    ///     A beam's damage names the gun it came from, not the shooter (<c>HitscanBasicDamageSystem</c>): a kill with a
+    ///         gun in a player's hands pays the player. The same gun lying on the floor is nobody's.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task BeamKillPaysWhoeverHoldsTheGun(bool held)
+    {
+        var server = Pair.Server;
+        var (testMap, ruleUid, playerBody, unitUid) = await SetUpUnit(_humanDefender);
+        var killPoints = 0;
+
+        await server.WaitPost(() =>
+        {
+            killPoints = GetKillPoints(ruleUid);
+            var gunUid = server.EntMan.SpawnAtPosition(_beamGun, new EntityCoordinates(testMap.Grid, 2.5f, 0.5f));
+            if (held)
+                Assert.That(server.System<SharedHandsSystem>().TryPickupAnyHand(playerBody, gunUid, checkActionBlocker: false), Is.True, "the player should be holding the gun");
+
+            Hurt(unitUid, gunUid, 10); // what a beam's hit passes as its origin
+            Assert.That(server.EntMan.GetComponent<MobStateComponent>(unitUid).CurrentState, Is.EqualTo(MobState.Dead));
+        });
+
+        await server.WaitAssertion(() =>
+            Assert.That(GetPointsChange(ruleUid, Pair.Player!.UserId), Is.EqualTo(held ? killPoints : 0),
+                held ? "a kill with a held beam gun should pay its holder" : "a gun nobody holds is nobody's"));
     }
 
     /// <summary>
