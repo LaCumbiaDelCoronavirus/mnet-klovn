@@ -82,9 +82,11 @@
   - type: SpeedModifierContacts
     walkSpeedModifier: 0.175
     sprintSpeedModifier: 0.175
-  # Cuts only those wading through: standing still in it is safe, the first step after hurts at once.
+  # Cuts only those wading through: standing still in it is safe, the first step after hurts at once. Astride two
+  #     pieces, or more, it cuts like one.
   - type: DamageContacts
     onlyWhileMoving: true
+    exclusiveGroup: KsBarbedWire
     damage:
       types:
         Slash: 10
