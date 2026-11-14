@@ -7,6 +7,8 @@ using Content.Server._KS14.FieldCommander;
 using Content.Server._KS14.KillCredit;
 using Content.Server.DeviceLinking.Systems;
 using Content.Shared._KS14.Construction;
+using Content.Shared._KS14.DistressBeacon;
+using Content.Shared.Inventory;
 using Content.Shared._KS14.FieldCommander;
 using Content.Shared._KS14.PopupLocalization;
 using Content.Shared.Construction.Components;
@@ -56,6 +58,7 @@ public sealed class KsFieldCommanderCreditTest : GameTest
     // Ids that exist only in the test prototypes below. Instance fields: the YAML linter checks only static ones.
     private readonly EntProtoId _commanderRule = "KsTestFieldCommanderCreditRule";
     private readonly EntProtoId _defender = "KsTestFieldCommanderCreditDefender";
+    private readonly EntProtoId _humanDefender = "KsTestFieldCommanderCreditHumanDefender";
     private readonly EntProtoId _turret = "KsTestFieldCommanderCreditTurret";
     private readonly EntProtoId _bullet = "KsTestFieldCommanderCreditBullet";
     private readonly EntProtoId _signaller = "KsTestFieldCommanderCreditSignaller";
@@ -74,6 +77,13 @@ public sealed class KsFieldCommanderCreditTest : GameTest
   - type: Damageable
     damageContainer: Biological
   - type: Injurable
+  - type: ScenarioFactionMember
+    id: Nanotrasen
+
+- type: entity
+  parent: MobHuman
+  id: KsTestFieldCommanderCreditHumanDefender
+  components:
   - type: ScenarioFactionMember
     id: Nanotrasen
 
@@ -161,7 +171,8 @@ public sealed class KsFieldCommanderCreditTest : GameTest
       cost: 4
 ";
 
-    private async Task<(TestMapData Map, EntityUid RuleUid, EntityUid PlayerBody, EntityUid UnitUid)> SetUpUnit()
+    /// <param name="playerPrototype">What the player is in as the rule starts, or the bare test defender.</param>
+    private async Task<(TestMapData Map, EntityUid RuleUid, EntityUid PlayerBody, EntityUid UnitUid)> SetUpUnit(EntProtoId? playerPrototype = null)
     {
         var server = Pair.Server;
         var testMap = await Pair.CreateTestMap();
@@ -174,7 +185,7 @@ public sealed class KsFieldCommanderCreditTest : GameTest
             KsFieldCommanderTestHelpers.FillFloor(server, testMap, halfExtent: 16);
 
             server.EntMan.SpawnAtPosition(NanotrasenObjective, new EntityCoordinates(testMap.Grid, 0.5f, 0.5f));
-            playerBody = server.EntMan.SpawnAtPosition(_defender, new EntityCoordinates(testMap.Grid, 2.5f, 0.5f));
+            playerBody = server.EntMan.SpawnAtPosition(playerPrototype ?? _defender, new EntityCoordinates(testMap.Grid, 2.5f, 0.5f));
             server.PlayerMan.SetAttachedEntity(Pair.Player!, playerBody);
 
             ruleUid = KsFieldCommanderTestHelpers.StartRules(server, _commanderRule).CommanderUid;
@@ -612,6 +623,25 @@ public sealed class KsFieldCommanderCreditTest : GameTest
             Assert.That(defenderComponent.Flashes[MobState.Dead].Color, Is.EqualTo(ruleComponent.DownFlashes[MobState.Dead].Color));
             Assert.That(defenderComponent.Flashes[MobState.Dead].Color, Is.Not.EqualTo(defenderComponent.Flashes[MobState.Critical].Color), "dying has its own colour");
             Assert.That(server.EntMan.HasComponent<KsFieldCommanderDefenderComponent>(unitUid), Is.False);
+        });
+    }
+
+    /// <summary>
+    ///     A defender who was already in the round when the rule started is given a distress beacon as it readies them,
+    ///         like one who spawns into it. A bot of theirs, with nobody in it, is not.
+    /// </summary>
+    [Test]
+    public async Task DefenderAlreadyInTheRoundIsGivenABeacon()
+    {
+        var server = Pair.Server;
+        var (testMap, _, playerBody, _) = await SetUpUnit(_humanDefender);
+
+        await server.WaitAssertion(() =>
+        {
+            var inventorySystem = server.System<InventorySystem>();
+            Assert.That(inventorySystem.TryGetSlotEntity(playerBody, KsDistressBeaconSystem.NeckSlot, out var neckUid), Is.True,
+                "a defender in the round before the rule should have been given a beacon");
+            Assert.That(server.EntMan.HasComponent<KsDistressBeaconComponent>(neckUid), Is.True);
         });
     }
 

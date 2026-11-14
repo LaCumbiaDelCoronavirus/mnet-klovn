@@ -96,6 +96,9 @@ public sealed partial class KsFieldCommanderRuleSystem
 
         if (session != null)
         {
+            // A player's body only: the beacon is for finding them when they go down.
+            _beaconSystem.GiveBeacon(bodyUid);
+
             component.Defenders.Add(session.UserId);
             MirrorPoints(component, bodyUid, GetPoints(component, session.UserId));
         }
