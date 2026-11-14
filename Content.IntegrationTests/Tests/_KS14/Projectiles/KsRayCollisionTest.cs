@@ -93,7 +93,7 @@ public sealed class KsRayCollisionTest : GameTest
   components:
   - type: Reflect
     reflectProb: 1
-    spread: 0
+    spread: 0.0001 # as good as straight back; not 0, which NextAngle's min < max debug assert refuses
 
 - type: entity
   id: KsRayCollisionTestBody
