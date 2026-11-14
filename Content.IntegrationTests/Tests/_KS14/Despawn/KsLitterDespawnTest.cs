@@ -170,6 +170,52 @@ public sealed class KsLitterDespawnTest : InteractionTest
     }
 
     /// <summary>
+    ///     A gun picked up while it is dissolving is wanted after all: the dissolve is called off, on the server and for
+    ///         the client, and it is not deleted out of the player's hand.
+    /// </summary>
+    [Test]
+    public async Task GunPickedUpWhileDissolvingStays()
+    {
+        // Long enough to pick the gun up well within it.
+        var dissolveDuration = TimeSpan.FromSeconds(4);
+
+        var gunNetUid = await PlaceInHands(_gun);
+        var gunUid = SEntMan.GetEntity(gunNetUid);
+        await RunSeconds(1f);
+        await Drop();
+
+        await Server.WaitPost(() => SEntMan.System<KsDissolveSystem>().Dissolve(gunUid, dissolveDuration));
+        await RunTicks(5);
+        await Client.WaitAssertion(() =>
+        {
+            var clientGunUid = CEntMan.GetEntity(gunNetUid);
+            Assert.That(CEntMan.HasComponent<KsDissolveComponent>(clientGunUid), Is.True, "the client should be dissolving it, or the test proves nothing");
+            Assert.That(PostShaderIds(clientGunUid), Does.Contain(KsPostShaderIds.Dissolve));
+        });
+
+        await Pickup(gunNetUid, deleteHeld: false);
+
+        await RunSeconds((float)(dissolveDuration + KsDissolveSystem.Linger).TotalSeconds + 1f);
+        Assert.That(Gone(gunUid), Is.False, "A gun picked up while it dissolved was deleted out of the player's hand.");
+        Assert.That(SEntMan.HasComponent<KsDissolveComponent>(gunUid), Is.False, "the dissolve should have been called off");
+        Assert.That(SEntMan.HasComponent<TimedDespawnComponent>(gunUid), Is.False, "and its despawn timer taken off");
+
+        await Client.WaitAssertion(() =>
+        {
+            var clientGunUid = CEntMan.GetEntity(gunNetUid);
+            Assert.That(CEntMan.HasComponent<KsDissolveComponent>(clientGunUid), Is.False, "the client should have stopped dissolving it");
+            Assert.That(PostShaderIds(clientGunUid), Does.Not.Contain(KsPostShaderIds.Dissolve), "and be drawing it whole again");
+            Assert.That(CEntMan.GetComponent<SpriteComponent>(clientGunUid).Visible, Is.True);
+        });
+    }
+
+    private List<string> PostShaderIds(EntityUid clientUid)
+    {
+        var spriteComponent = CEntMan.GetComponent<SpriteComponent>(clientUid);
+        return CEntMan.System<SpriteSystem>().GetPostShaders((clientUid, spriteComponent)).Select(entry => entry.Id).ToList();
+    }
+
+    /// <summary>
     ///     When the rule ends, what it was timing is left alone, and stays left alone.
     /// </summary>
     [Test]

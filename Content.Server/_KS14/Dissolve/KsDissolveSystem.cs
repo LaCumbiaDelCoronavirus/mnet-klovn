@@ -1,4 +1,5 @@
 using Content.Shared._KS14.Dissolve;
+using Robust.Shared.Containers;
 using Robust.Shared.Spawners;
 using Robust.Shared.Timing;
 
@@ -38,9 +39,41 @@ public sealed partial class KsDissolveSystem : EntitySystem
         var lifetime = (float)(dissolveComponent.Duration + Linger).TotalSeconds;
         // One that was already counting down to its own end keeps it, if that comes first.
         if (TryComp<TimedDespawnComponent>(uid, out var existingDespawn))
+        {
             existingDespawn.Lifetime = Math.Min(existingDespawn.Lifetime, lifetime);
+        }
         else
+        {
             AddComp(uid, new TimedDespawnComponent { Lifetime = lifetime });
+            dissolveComponent.OwnsDespawn = true;
+        }
+    }
+
+    /// <summary>
+    ///     Calls a dissolve off: the entity stays, and the clients draw it whole again as the component goes. Does
+    ///         nothing if it isn't dissolving.
+    /// </summary>
+    public void Cancel(Entity<KsDissolveComponent?> entity)
+    {
+        if (!_dissolveQuery.Resolve(entity.Owner, ref entity.Comp, logMissing: false) ||
+            entity.Comp.LifeStage > ComponentLifeStage.Running)
+            return;
+
+        // Only the timer the dissolve started: one the entity already had is its own business.
+        if (entity.Comp.OwnsDespawn)
+            RemCompDeferred<TimedDespawnComponent>(entity.Owner);
+
+        RemCompDeferred<KsDissolveComponent>(entity.Owner);
+    }
+
+    /// <summary>
+    ///     Picked up, or put in something, while it dissolves: someone wants it after all, and it must not vanish from
+    ///         their hands a moment later.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnInsertedIntoContainer(Entity<KsDissolveComponent> entity, ref EntGotInsertedIntoContainerMessage args)
+    {
+        Cancel(entity.AsNullable());
     }
 
     public bool IsDissolving(EntityUid uid)
