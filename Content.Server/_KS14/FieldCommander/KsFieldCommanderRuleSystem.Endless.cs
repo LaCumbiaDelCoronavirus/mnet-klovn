@@ -1,10 +1,16 @@
 using Content.Server.Voting;
 using Content.Server.Voting.Managers;
+using Content.Shared._KS14.Voting;
 
 namespace Content.Server._KS14.FieldCommander;
 
 public sealed partial class KsFieldCommanderRuleSystem
 {
+    public static readonly LocId EndlessVoteTitle = "ks-fieldcommander-endless-vote-title";
+    private static readonly LocId EndlessVoteInitiator = "ks-fieldcommander-endless-vote-initiator";
+    private static readonly LocId EndlessVoteYes = "ks-fieldcommander-endless-vote-yes";
+    private static readonly LocId EndlessVoteNo = "ks-fieldcommander-endless-vote-no";
+
     [Dependency] private IVoteManager _voteManager = default!;
 
     #region Endless
@@ -27,13 +33,14 @@ public sealed partial class KsFieldCommanderRuleSystem
 
         var options = new VoteOptions
         {
-            Title = Loc.GetString("ks-fieldcommander-endless-vote-title"),
-            InitiatorText = Loc.GetString("ks-fieldcommander-endless-vote-initiator"),
+            // Not formatted here, where it would be in the server's language: each client resolves them.
+            Title = KsVoteText.Deferred(EndlessVoteTitle),
+            InitiatorText = KsVoteText.Deferred(EndlessVoteInitiator),
             Duration = component.EndlessVoteDuration,
             Options =
             {
-                (Loc.GetString("ks-fieldcommander-endless-vote-yes"), true),
-                (Loc.GetString("ks-fieldcommander-endless-vote-no"), false),
+                (KsVoteText.Deferred(EndlessVoteYes), true),
+                (KsVoteText.Deferred(EndlessVoteNo), false),
             },
         };
 

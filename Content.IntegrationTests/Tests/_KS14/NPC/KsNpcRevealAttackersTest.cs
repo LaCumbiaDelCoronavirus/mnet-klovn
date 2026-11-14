@@ -1,6 +1,7 @@
 #nullable enable
 using System.Numerics;
 using Content.IntegrationTests.Fixtures;
+using Content.Server._KS14.KillCredit;
 using Content.Server._KS14.NPC.Perception;
 using Content.Server.NPC.Systems;
 using Content.Shared._KS14.NPC;
@@ -34,6 +35,7 @@ public sealed class KsNpcRevealAttackersTest : GameTest
     private readonly EntProtoId _revealingMob = "KsRevealTestMobRevealing";
     private readonly EntProtoId _blindMob = "KsRevealTestMobBlind";
     private readonly EntProtoId _bullet = "KsRevealTestBullet";
+    private readonly EntProtoId _turret = "KsRevealTestTurret";
 
     [TestPrototypes]
     private const string Prototypes = @"
@@ -64,6 +66,9 @@ public sealed class KsNpcRevealAttackersTest : GameTest
         5
       AggroVisionRadius: !type:Single
         5
+
+- type: entity
+  id: KsRevealTestTurret
 
 - type: entity
   id: KsRevealTestBullet
@@ -110,6 +115,65 @@ public sealed class KsNpcRevealAttackersTest : GameTest
             perceptionSystem.UpdateNow(scene.ObserverUid);
             Assert.That(perceptionSystem.TryGetContact(scene.ObserverUid, scene.AttackerUid, out var contact), "remembered like any other lost hostile");
             Assert.That(contact.State, Is.EqualTo(NpcContactState.Lost), "but no longer tracked");
+            Assert.That(contact.Traits, Is.EqualTo(NpcContactTraits.None), "it was never looked at, so nothing was made of it");
+        });
+    }
+
+    /// <summary>
+    ///     Shot by a turret that answers to a player, the NPC learns of the turret, where it stands: a machine, with no
+    ///         life to check. It learns nothing of the turret's owner, who is paid for the turret's kills but did not
+    ///         shoot, and may be anywhere.
+    /// </summary>
+    [Test]
+    public async Task TestTurretIsRevealedAndNotItsOwner()
+    {
+        var scene = await SetUpScene(_revealingMob);
+        var perceptionSystem = scene.EntManager.System<NpcPerceptionSystem>();
+        var session = await Pair.Server.AddDummySession();
+
+        await Pair.Server.WaitAssertion(() =>
+        {
+            var transformSystem = scene.EntManager.System<SharedTransformSystem>();
+            var gridUid = scene.EntManager.GetComponent<TransformComponent>(scene.ObserverUid).GridUid!.Value;
+
+            // The far hostile is the turret's owner, a player, standing well away from the turret.
+            var ownerUid = scene.AttackerUid;
+            Pair.Server.PlayerMan.SetAttachedEntity(session, ownerUid);
+            var turretCoordinates = new EntityCoordinates(gridUid, -FarAway);
+            var turretUid = scene.EntManager.SpawnEntity(_turret, turretCoordinates);
+            scene.EntManager.System<KsKillCreditSystem>().SetOwner(turretUid, session.UserId);
+            scene.EntManager.GetComponent<ProjectileComponent>(scene.BulletUid).Shooter = turretUid;
+            Assert.That(scene.EntManager.System<KsKillCreditSystem>().GetRecipient(scene.BulletUid), Is.EqualTo(session.UserId),
+                "the turret's shots should be its owner's to be paid for, or the test proves nothing");
+
+            Shoot(scene);
+
+            Assert.That(perceptionSystem.TryGetContact(scene.ObserverUid, turretUid, out var contact), "shot by a turret, it should know of the turret");
+            Assert.That(contact.State, Is.EqualTo(NpcContactState.Visible));
+            Assert.That(transformSystem.ToMapCoordinates(contact.LastKnownCoordinates).Position,
+                Is.EqualTo(transformSystem.ToMapCoordinates(turretCoordinates).Position).Using<Vector2>((a, b) => (a - b).Length() < 0.01f),
+                "and where the turret is");
+            Assert.That(perceptionSystem.TryGetContact(scene.ObserverUid, ownerUid, out _), Is.False, "the owner did not shoot, and is not given away");
+        });
+    }
+
+    /// <summary>
+    ///     A shooter on another map is not revealed: there is no way to turn towards it.
+    /// </summary>
+    [Test]
+    public async Task TestShooterOnAnotherMapIsNotRevealed()
+    {
+        var scene = await SetUpScene(_revealingMob);
+        var perceptionSystem = scene.EntManager.System<NpcPerceptionSystem>();
+        var otherMap = await Pair.CreateTestMap();
+
+        await Pair.Server.WaitAssertion(() =>
+        {
+            scene.EntManager.System<SharedTransformSystem>().SetCoordinates(scene.AttackerUid, new EntityCoordinates(otherMap.MapUid, Vector2.Zero));
+
+            Shoot(scene);
+
+            Assert.That(perceptionSystem.TryGetContact(scene.ObserverUid, scene.AttackerUid, out _), Is.False);
         });
     }
 

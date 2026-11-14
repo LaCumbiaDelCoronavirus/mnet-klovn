@@ -1,7 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System;
+using Content.Client._KS14.Graphics;
 using Content.Server._KS14.Despawn;
+using Content.Server._KS14.Dissolve;
+using Robust.Client.GameObjects;
+using Robust.Shared.Spawners;
 using Content.Server.GameTicking;
 using Content.Shared._KS14.Dissolve;
 using Content.Shared.Mobs;
@@ -30,6 +35,7 @@ public sealed class KsLitterDespawnTest : InteractionTest
     private readonly EntProtoId _ballisticGun = "KsTestLitterBallisticGun";
     private readonly EntProtoId _table = "KsTestLitterTable";
     private readonly EntProtoId _unit = "KsTestLitterUnit";
+    private readonly EntProtoId _armedMob = "KsTestLitterArmedMob";
 
     // Short, so a test waits seconds rather than minutes. The rule's own defaults are what the real prototype sets.
     private const float CasingDelay = 2f;
@@ -76,6 +82,14 @@ public sealed class KsLitterDespawnTest : InteractionTest
   - type: Transform
     anchored: true
   - type: PlaceableSurface
+
+- type: entity
+  id: KsTestLitterArmedMob
+  components:
+  - type: MobState
+  - type: Gun
+  - type: BallisticAmmoProvider
+    proto: CartridgePistol
 
 - type: entity
   id: KsTestLitterUnit
@@ -131,6 +145,98 @@ public sealed class KsLitterDespawnTest : InteractionTest
         Assert.That(SEntMan.HasComponent<KsDissolveComponent>(gunUid), Is.False);
     }
 
+    /// <summary>
+    ///     A gun on a table is kept only while it lies there: once the table is gone from under it, it is litter again,
+    ///         though nothing about the gun itself changed.
+    /// </summary>
+    [Test]
+    public async Task GunLeftWhereATableWasDissolves()
+    {
+        await Server.WaitPost(StartRule);
+        EntityUid tableUid = default;
+        await Server.WaitPost(() => tableUid = SEntMan.SpawnEntity(_table, SEntMan.GetCoordinates(PlayerCoords)));
+        var gunUid = SEntMan.GetEntity(await PlaceInHands(_gun));
+        await RunSeconds(1f);
+        await Drop();
+
+        await RunSeconds(ItemDelay + DissolveSlack);
+        Assert.That(Gone(gunUid), Is.False, "A gun lying on a table dissolved.");
+
+        await Server.WaitPost(() => SEntMan.DeleteEntity(tableUid));
+
+        // Looked at again within one more delay of when it was last found on the table.
+        await RunSeconds(ItemDelay + DissolveSlack);
+        Assert.That(Gone(gunUid), Is.True, "A gun left on the floor where a table had been never dissolved.");
+    }
+
+    /// <summary>
+    ///     A gun picked up while it is dissolving is wanted after all: the dissolve is called off, on the server and for
+    ///         the client, and it is not deleted out of the player's hand.
+    /// </summary>
+    [Test]
+    public async Task GunPickedUpWhileDissolvingStays()
+    {
+        // Long enough to pick the gun up well within it.
+        var dissolveDuration = TimeSpan.FromSeconds(4);
+
+        var gunNetUid = await PlaceInHands(_gun);
+        var gunUid = SEntMan.GetEntity(gunNetUid);
+        await RunSeconds(1f);
+        await Drop();
+
+        await Server.WaitPost(() => SEntMan.System<KsDissolveSystem>().Dissolve(gunUid, dissolveDuration));
+        await RunTicks(5);
+        await Client.WaitAssertion(() =>
+        {
+            var clientGunUid = CEntMan.GetEntity(gunNetUid);
+            Assert.That(CEntMan.HasComponent<KsDissolveComponent>(clientGunUid), Is.True, "the client should be dissolving it, or the test proves nothing");
+            Assert.That(PostShaderIds(clientGunUid), Does.Contain(KsPostShaderIds.Dissolve));
+        });
+
+        await Pickup(gunNetUid, deleteHeld: false);
+
+        await RunSeconds((float)(dissolveDuration + KsDissolveSystem.Linger).TotalSeconds + 1f);
+        Assert.That(Gone(gunUid), Is.False, "A gun picked up while it dissolved was deleted out of the player's hand.");
+        Assert.That(SEntMan.HasComponent<KsDissolveComponent>(gunUid), Is.False, "the dissolve should have been called off");
+        Assert.That(SEntMan.HasComponent<TimedDespawnComponent>(gunUid), Is.False, "and its despawn timer taken off");
+
+        await Client.WaitAssertion(() =>
+        {
+            var clientGunUid = CEntMan.GetEntity(gunNetUid);
+            Assert.That(CEntMan.HasComponent<KsDissolveComponent>(clientGunUid), Is.False, "the client should have stopped dissolving it");
+            Assert.That(PostShaderIds(clientGunUid), Does.Not.Contain(KsPostShaderIds.Dissolve), "and be drawing it whole again");
+            Assert.That(CEntMan.GetComponent<SpriteComponent>(clientGunUid).Visible, Is.True);
+        });
+    }
+
+    private List<string> PostShaderIds(EntityUid clientUid)
+    {
+        var spriteComponent = CEntMan.GetComponent<SpriteComponent>(clientUid);
+        return CEntMan.System<SpriteSystem>().GetPostShaders((clientUid, spriteComponent)).Select(entry => entry.Id).ToList();
+    }
+
+    /// <summary>
+    ///     When the rule ends, what it was timing is left alone, and stays left alone.
+    /// </summary>
+    [Test]
+    public async Task EndingTheRuleCallsItsTimersOff()
+    {
+        EntityUid ruleUid = default;
+        await Server.WaitPost(() => Assert.That(SEntMan.System<GameTicker>().StartGameRule(_rule, out ruleUid), Is.True));
+        var gunUid = SEntMan.GetEntity(await PlaceInHands(_gun));
+        await RunSeconds(1f);
+        await Drop();
+        await RunTicks(2);
+        Assert.That(SEntMan.HasComponent<KsLitterTimerComponent>(gunUid), Is.True, "the dropped gun should be timed, or the test proves nothing");
+
+        await Server.WaitPost(() => SEntMan.System<GameTicker>().EndGameRule(ruleUid));
+        await RunTicks(2);
+        Assert.That(SEntMan.HasComponent<KsLitterTimerComponent>(gunUid), Is.False, "the rule ended and left its timer on the gun");
+
+        await RunSeconds(ItemDelay + DissolveSlack);
+        Assert.That(Gone(gunUid), Is.False, "A gun dissolved after the litter rule had ended.");
+    }
+
     [Test]
     public async Task GunPickedUpBeforeItsDelayStays()
     {
@@ -145,6 +251,22 @@ public sealed class KsLitterDespawnTest : InteractionTest
 
         await RunSeconds(ItemDelay + DissolveSlack);
         Assert.That(Gone(gunUid), Is.False, "A gun in someone's hand dissolved.");
+    }
+
+    /// <summary>
+    ///     Something with a gun of its own that nobody can carry, a mob that spits or a machine with a gun built in, is
+    ///         not a gun left on the floor, however long it stands there.
+    /// </summary>
+    [Test]
+    public async Task ArmedMobOnTheFloorStays()
+    {
+        await Server.WaitPost(StartRule);
+        EntityUid mobUid = default;
+        await Server.WaitPost(() => mobUid = SEntMan.SpawnEntity(_armedMob, SEntMan.GetCoordinates(TargetCoords)));
+
+        await RunSeconds(ItemDelay + DissolveSlack);
+        Assert.That(Gone(mobUid), Is.False, "A mob with a gun of its own dissolved as a gun left on the floor.");
+        Assert.That(SEntMan.HasComponent<KsLitterTimerComponent>(mobUid), Is.False, "A mob with a gun of its own was timed as litter.");
     }
 
     [Test]

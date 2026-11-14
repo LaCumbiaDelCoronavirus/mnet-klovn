@@ -21,6 +21,7 @@ public sealed partial class KsFieldCommanderDownFlashSystem : EntitySystem
     [Dependency] private IGameTiming _gameTiming = default!;
     [Dependency] private EntityQuery<SpriteComponent> _spriteQuery = default!;
     [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
+    [Dependency] private EntityQuery<KsFieldCommanderDefenderComponent> _defenderQuery = default!;
     [Dependency] private EntityQuery<KsFieldCommanderDownFlashVisualsComponent> _visualsQuery = default!;
 
     /// <summary>
@@ -51,19 +52,19 @@ public sealed partial class KsFieldCommanderDownFlashSystem : EntitySystem
     /// <summary>
     ///     Notes a defender's state, and flashes them if it is a change to critical or dead.
     /// </summary>
-    private void Observe(EntityUid uid, MobState state)
+    private void Observe(Entity<KsFieldCommanderDownFlashVisualsComponent> entity, MobState state)
     {
-        if (!TryComp<KsFieldCommanderDefenderComponent>(uid, out var defenderComponent) ||
-            !_visualsQuery.TryComp(uid, out var visualsComponent) ||
-            visualsComponent.LastState == state)
+        // Every frame for every defender, and almost always no change: that is checked before anything is looked up.
+        if (entity.Comp.LastState == state)
             return;
 
-        visualsComponent.LastState = state;
+        entity.Comp.LastState = state;
 
-        if (defenderComponent.Flashes.TryGetValue(state, out var settings))
-            StartFlash((uid, visualsComponent), settings);
+        if (_defenderQuery.TryComp(entity, out var defenderComponent) &&
+            defenderComponent.Flashes.TryGetValue(state, out var settings))
+            StartFlash(entity, settings);
         else
-            EndFlash((uid, visualsComponent)); // revived
+            EndFlash(entity); // revived
     }
 
     private void StartFlash(Entity<KsFieldCommanderDownFlashVisualsComponent> entity, KsFieldCommanderDownFlashSettings settings)
@@ -122,9 +123,13 @@ public sealed partial class KsFieldCommanderDownFlashSystem : EntitySystem
         var enumerator = EntityQueryEnumerator<KsFieldCommanderDownFlashVisualsComponent, MobStateComponent>();
         while (enumerator.MoveNext(out var uid, out var visualsComponent, out var mobStateComponent))
         {
+            // One taken off this frame is shut down, but still stored: a flash started on it would never be ended.
+            if (visualsComponent.LifeStage > ComponentLifeStage.Running)
+                continue;
+
             // The mob state is checked here for want of anything to hear it change: MobStateComponent never raises
             //     AfterAutoHandleStateEvent, and MobStateChangedEvent only comes on the client for what it predicts itself.
-            Observe(uid, mobStateComponent.CurrentState);
+            Observe((uid, visualsComponent), mobStateComponent.CurrentState);
 
             if (visualsComponent.Shader == null)
                 continue;

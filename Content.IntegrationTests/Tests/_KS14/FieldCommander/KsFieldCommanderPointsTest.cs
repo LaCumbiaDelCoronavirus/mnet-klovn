@@ -465,7 +465,7 @@ public sealed class KsFieldCommanderPointsTest : GameTest
 
         await client.WaitPost(() =>
             client.EntMan.EventBus.RaiseEvent(EventSource.Network,
-                new KsFieldCommanderPointsChangedEvent(50, "ks-fieldcommander-points-admin", null)));
+                new KsFieldCommanderPointsChangedEvent(50, new Content.Shared._KS14.PopupLocalization.KsPopupPayload("ks-fieldcommander-points-admin", null))));
 
         // A few frames, which is when the readout used to be thrown away.
         await Pair.RunTicksSync(5);

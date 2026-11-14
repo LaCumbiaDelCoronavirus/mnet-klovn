@@ -55,6 +55,7 @@ public sealed partial class KsFieldCommanderRuleSystem : GameRuleSystem<KsFieldC
     [Dependency] private DamageableSystem _damageableSystem = default!;
     [Dependency] private KsFieldCommanderFogSystem _fogSystem = default!;
     [Dependency] private KsFieldCommanderDefenderSystem _defenderSystem = default!;
+    [Dependency] private KsFieldCommanderBeaconSystem _beaconSystem = default!;
     [Dependency] private KsNoBuildZoneSystem _noBuildZoneSystem = default!;
     [Dependency] private SharedCMAutomatedVendorSystem _automatedVendorSystem = default!;
     [Dependency] private EntityQuery<ScenarioFactionMemberComponent> _scenarioFactionMemberQuery = default!;

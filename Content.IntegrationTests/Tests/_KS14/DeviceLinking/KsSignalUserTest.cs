@@ -94,8 +94,8 @@ public sealed class KsSignalUserTest : GameTest
                 Assert.That(heard, Has.Count.EqualTo(1), "the signal should have set the beeper off");
                 Assert.That(heard.Values.FirstOrDefault(), Is.Not.EqualTo(presserUid),
                     "the sound should not leave the presser out: their client never predicted it");
-                Assert.That(Server.System<KsKillCreditSystem>().ResolveCredit(signallerUid), Is.EqualTo(presserUid),
-                    "whoever pressed the signaller should answer for what its signal sets off");
+                Assert.That(SEntMan.GetComponent<DeviceLinkSourceComponent>(signallerUid).KsSignalUser, Is.EqualTo(presserUid),
+                    "the signaller should remember who pressed it, to answer for what its signal sets off");
             });
         });
     }

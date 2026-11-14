@@ -394,6 +394,13 @@ public sealed partial class KsFieldCommanderRuleComponent : Component
     public int TeamkillPoints = -150;
 
     /// <summary>
+    ///     The least a teamkill costs the defenders behind it, between them, however small their share of what killed
+    ///         the victim: <see cref="TeamkillPoints"/> is scaled by that share, down to this. Below zero, like it.
+    /// </summary>
+    [DataField]
+    public int TeamkillMinimumPoints = -15;
+
+    /// <summary>
     ///     The flash of static over a defender as they go into each state that has one, which every defender is given:
     ///         black as they die.
     /// </summary>
@@ -470,6 +477,12 @@ public sealed partial class KsFieldCommanderRuleComponent : Component
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly)]
     public Dictionary<NetUserId, int> Points = new();
+
+    /// <summary>
+    ///     Every player who has been a defender this round, for telling whose side a player with no body is on.
+    /// </summary>
+    [ViewVariables]
+    public HashSet<NetUserId> Defenders = new();
 
     [ViewVariables]
     public TimeSpan NextWaveTime = TimeSpan.MaxValue;

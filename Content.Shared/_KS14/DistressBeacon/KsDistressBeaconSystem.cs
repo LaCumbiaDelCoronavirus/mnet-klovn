@@ -4,7 +4,6 @@ using Content.Shared.Inventory;
 using Content.Shared.Inventory.Events;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
-using Robust.Shared.Timing;
 
 namespace Content.Shared._KS14.DistressBeacon;
 

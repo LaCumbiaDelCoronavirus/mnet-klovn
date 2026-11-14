@@ -54,7 +54,8 @@ public sealed class KsLineSmoothTest : GameTest
     ///     Spawns a piece on each of <paramref name="tiles"/> and returns the layers shown on the piece at
     ///         <paramref name="inspected"/>, as the client draws it.
     /// </summary>
-    private async Task<HashSet<string>> ShownLayers(Vector2i[] tiles, Vector2i inspected)
+    /// <param name="destroyed">A piece to delete once they have all been drawn, or null.</param>
+    private async Task<HashSet<string>> ShownLayers(Vector2i[] tiles, Vector2i inspected, Vector2i? destroyed = null)
     {
         var testMap = await Pair.CreateTestMap();
         var serverUids = new Dictionary<Vector2i, EntityUid>();
@@ -69,6 +70,12 @@ public sealed class KsLineSmoothTest : GameTest
             }
         });
         await Pair.RunTicksSync(5);
+
+        if (destroyed is { } destroyedTile)
+        {
+            await Server.WaitPost(() => Server.EntMan.DeleteEntity(serverUids[destroyedTile]));
+            await Pair.RunTicksSync(5);
+        }
 
         var shown = new HashSet<string>();
         await Client.WaitAssertion(() =>
@@ -108,6 +115,21 @@ public sealed class KsLineSmoothTest : GameTest
         // The north end has its neighbour to the south: the post capping a line that runs south, and no wire under it.
         var shown = await ShownLayers([new Vector2i(0, 0), new Vector2i(0, 1)], new Vector2i(0, 1));
         Assert.That(shown, Is.EquivalentTo(new[] { "postSouth" }));
+    }
+
+    /// <summary>
+    ///     A piece cut out of a line leaves its neighbours capped where it was, not still reaching for it.
+    /// </summary>
+    [Test]
+    public async Task DestroyedPieceCapsItsNeighbours()
+    {
+        Vector2i[] line = [new Vector2i(0, -1), new Vector2i(0, 0), new Vector2i(0, 1)];
+
+        var middle = await ShownLayers(line, new Vector2i(0, 0), destroyed: new Vector2i(0, 1));
+        Assert.That(middle, Is.EquivalentTo(new[] { "postSouth" }), "the middle piece, with the north one gone");
+
+        var end = await ShownLayers(line, new Vector2i(0, 1), destroyed: new Vector2i(0, 0));
+        Assert.That(end, Is.EquivalentTo(new[] { "postNorth", "postSouth" }), "the north end, cut off from the line");
     }
 
     [Test]
