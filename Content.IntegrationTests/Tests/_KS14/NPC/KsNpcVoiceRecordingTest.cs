@@ -34,14 +34,15 @@ public sealed class KsNpcVoiceRecordingTest : GameTest
     private const string VoicedMob = "KsVoiceRecordingTestMob";
     private const string RedactedSpawner = "KsRandomHumanoidSpawnerOperativeRedacted";
 
-    private static readonly ProtoId<NpcVoiceRecordingPrototype> RedactedSpeaker = "KsRedactedSpeakerA";
+    // An instance field: the linter checks static ids, and does not know this server-only prototype kind.
+    private readonly ProtoId<NpcVoiceRecordingPrototype> _redactedSpeaker = "KsRedactedSpeakerA";
 
     /// <summary>
     ///     Whether the Redacted's speakers have their clips. The speakers are public and mute; the clips are a private
     ///         partial of them (<see cref="NpcVoiceRecordingPrototype"/>), so without the _KsModule submodule, as on CI
     ///         for a pull request, a line is spoken and nothing plays.
     /// </summary>
-    private bool HasVoiceClips => Server.ProtoMan.Index(RedactedSpeaker).Lines.Count > 0;
+    private bool HasVoiceClips => Server.ProtoMan.Index(_redactedSpeaker).Lines.Count > 0;
 
     private const string NoVoiceClips = "the Redacted's voice clips are in the private _KsModule submodule, which is not present";
 
