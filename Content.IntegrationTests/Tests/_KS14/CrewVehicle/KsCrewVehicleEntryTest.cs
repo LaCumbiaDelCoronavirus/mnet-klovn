@@ -34,11 +34,11 @@ public sealed class KsCrewVehicleEntryTest : GameTest
 {
     public override PoolSettings PoolSettings => new() { Connected = false, Dirty = true };
 
-    private static readonly EntProtoId Hull = "KsCrewVehicleEntryTestHull";
-    private static readonly EntProtoId HullWithNoRoom = "KsCrewVehicleEntryTestHullNoRoom";
-    private static readonly EntProtoId Mob = "KsCrewVehicleEntryTestMob";
-    private static readonly EntProtoId Crate = "KsCrewVehicleEntryTestCrate";
-    private static readonly EntProtoId Blocker = "KsCrewVehicleEntryTestBlocker";
+    private readonly EntProtoId Hull = "KsCrewVehicleEntryTestHull";
+    private readonly EntProtoId HullWithNoRoom = "KsCrewVehicleEntryTestHullNoRoom";
+    private readonly EntProtoId Mob = "KsCrewVehicleEntryTestMob";
+    private readonly EntProtoId Crate = "KsCrewVehicleEntryTestCrate";
+    private readonly EntProtoId Blocker = "KsCrewVehicleEntryTestBlocker";
     private static readonly EntProtoId Ghost = "MobObserver";
 
     // The interior (Maps/Test/_KS14/CrewVehicle/basic.yml) has its "left" door on its west wall and its "right" door on

@@ -28,9 +28,9 @@ public sealed class KsCrewVehicleEjectionTest : GameTest
 {
     public override PoolSettings PoolSettings => new() { Connected = false, Dirty = true };
 
-    private static readonly EntProtoId Hull = "KsCrewVehicleEjectionTestHull";
-    private static readonly EntProtoId Mob = "KsCrewVehicleEjectionTestMob";
-    private static readonly EntProtoId Crate = "KsCrewVehicleEjectionTestCrate";
+    private readonly EntProtoId Hull = "KsCrewVehicleEjectionTestHull";
+    private readonly EntProtoId Mob = "KsCrewVehicleEjectionTestMob";
+    private readonly EntProtoId Crate = "KsCrewVehicleEjectionTestCrate";
 
     [TestPrototypes]
     private const string Prototypes = @"

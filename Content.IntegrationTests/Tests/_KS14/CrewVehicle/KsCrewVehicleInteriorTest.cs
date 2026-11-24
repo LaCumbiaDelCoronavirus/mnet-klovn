@@ -30,10 +30,10 @@ public sealed class KsCrewVehicleInteriorTest : GameTest
 {
     public override PoolSettings PoolSettings => new() { Connected = false, Dirty = true };
 
-    private static readonly EntProtoId Hull = "KsCrewVehicleInteriorTestHull";
-    private static readonly EntProtoId HullWithAnExtraDoorway = "KsCrewVehicleInteriorTestHullExtraDoorway";
-    private static readonly EntProtoId HullMissingADoorway = "KsCrewVehicleInteriorTestHullMissingDoorway";
-    private static readonly EntProtoId HullWithAPassenger = "KsCrewVehicleInteriorTestHullPassenger";
+    private readonly EntProtoId Hull = "KsCrewVehicleInteriorTestHull";
+    private readonly EntProtoId HullWithAnExtraDoorway = "KsCrewVehicleInteriorTestHullExtraDoorway";
+    private readonly EntProtoId HullMissingADoorway = "KsCrewVehicleInteriorTestHullMissingDoorway";
+    private readonly EntProtoId HullWithAPassenger = "KsCrewVehicleInteriorTestHullPassenger";
 
     // The interior has exit doors for "left" and "right" (Maps/Test/_KS14/CrewVehicle/basic.yml).
     [TestPrototypes]

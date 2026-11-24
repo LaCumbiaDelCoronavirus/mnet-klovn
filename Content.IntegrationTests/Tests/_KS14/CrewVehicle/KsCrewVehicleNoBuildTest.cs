@@ -26,7 +26,7 @@ public sealed class KsCrewVehicleNoBuildTest : InteractionTest
     private const string Wall = "Wall";
     private const string Girder = "Girder";
     private const string Anchorable = "KsCrewVehicleNoBuildTestAnchorable";
-    private static readonly EntProtoId Hull = "KsCrewVehicleNoBuildTestHull";
+    private readonly EntProtoId Hull = "KsCrewVehicleNoBuildTestHull";
 
     [TestPrototypes]
     private const string Prototypes = @"
