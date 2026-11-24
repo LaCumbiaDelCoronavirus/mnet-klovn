@@ -171,6 +171,9 @@ public sealed partial class ThrowingSystem : EntitySystem
         if ((physics.BodyType & (BodyType.Dynamic | BodyType.KinematicController)) == 0x0)
             return;
 
+        if (!KsCanBeThrown(uid, user)) // KS14: let things refuse being thrown, such as a parked crew vehicle
+            return;
+
         // Allow throwing if this projectile only acts as a projectile when shot, otherwise disallow
         if (_projectileQuery.TryComp(uid, out var proj) && !proj.OnlyCollideWhenShot)
             return;

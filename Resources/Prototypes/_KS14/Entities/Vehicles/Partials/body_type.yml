@@ -1,0 +1,21 @@
+# Vehicles park as loose objects: Dynamic while nobody drives them, so they are solid to mobs and to driven vehicles,
+#   and a kinematic controller only while someone does (VehicleSystem.Klovn.BodyType.cs). Mechs are left as they are.
+
+- type: !PartialOnly entity
+  id: BaseVehicleStrap
+  components:
+  - type: Physics
+    bodyType: Dynamic
+
+# Its own Physics entry overrides BaseVehicleStrap's.
+- type: !PartialOnly entity
+  id: OfficeChairVehicleBase
+  components:
+  - type: Physics
+    bodyType: Dynamic
+
+- type: !PartialOnly entity
+  id: BaseBigBox
+  components:
+  - type: Physics
+    bodyType: Dynamic

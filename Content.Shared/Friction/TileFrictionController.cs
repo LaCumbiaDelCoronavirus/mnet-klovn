@@ -122,6 +122,7 @@ namespace Content.Shared.Friction
                      * which cancels CanMove. Only Dynamic and Static input movers are actually a bug.
                      */
                     DebugTools.Assert(body.BodyType == BodyType.Kinematic // KS14
+                        || _moverQuery.TryComp(uid, out var ksMover) && !ksMover.CanMove // KS14: an input mover that can't move, as a parked vehicle, is a loose object
                         || !_moverQuery.HasComp(uid) || _blockMoverQuery.HasComp(uid),
                         $"Input mover: {ToPrettyString(uid)} in TileFrictionController is not the correct BodyType, BodyType found: {body.BodyType}, expected: KinematicController.");
                     continue;

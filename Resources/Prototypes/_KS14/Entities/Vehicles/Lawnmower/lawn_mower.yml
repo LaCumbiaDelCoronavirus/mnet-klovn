@@ -18,8 +18,9 @@
       enum.KsLawnmowerVisuals.SafetyDisabled:
         mower:
           True: { state: lawnmoweremag }
+  # Parked; a kinematic controller while ridden (VehicleSystem.Klovn.BodyType.cs).
   - type: Physics
-    bodyType: KinematicController
+    bodyType: Dynamic
   - type: Fixtures
     fixtures:
       fix1:
