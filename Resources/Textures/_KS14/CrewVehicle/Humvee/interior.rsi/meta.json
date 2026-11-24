@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/icons/obj/vehicles/interiors/general_humvee.dmi. From cmss13 pull request 11308 (https://github.com/cmss13-devs/cmss13/pull/11308) by Zenith00000, which was not merged; the commit is that pull request's head. Art credited in the pull request to dimdimich1996 and others; unused states removed",
+  "states": [
+    {
+      "name": "car_seat",
+      "directions": 4
+    },
+    {
+      "name": "exit_door"
+    },
+    {
+      "name": "exit_door1",
+      "directions": 4
+    },
+    {
+      "name": "weapons_loader"
+    },
+    {
+      "name": "small_viewport"
+    },
+    {
+      "name": "small_viewport_window"
+    },
+    {
+      "name": "viewport_door"
+    },
+    {
+      "name": "viewport_frontwindow_north"
+    },
+    {
+      "name": "viewport_frontwindow_south"
+    }
+  ]
+}

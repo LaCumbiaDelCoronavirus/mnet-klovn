@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "size": {
+    "x": 96,
+    "y": 96
+  },
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/icons/obj/vehicles/humvee.dmi. From cmss13 pull request 11308 (https://github.com/cmss13-devs/cmss13/pull/11308) by Zenith00000, which was not merged; the commit is that pull request's head. Art credited in the pull request to dimdimich1996 and others; unused states removed and the two wheel states renamed (humvee_wheels_1 -> wheels_idle, humvee_wheels_0 movement state -> wheels_moving)",
+  "metaAtlas": false,
+  "states": [
+    {
+      "name": "humvee_base",
+      "directions": 4
+    },
+    {
+      "name": "damaged_frame",
+      "directions": 4
+    },
+    {
+      "name": "wheels_idle",
+      "directions": 4
+    },
+    {
+      "name": "wheels_moving",
+      "directions": 4,
+      "delays": [
+        [
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08
+        ],
+        [
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08
+        ],
+        [
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08
+        ],
+        [
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08
+        ]
+      ]
+    },
+    {
+      "name": "humveeturret_0",
+      "directions": 4
+    },
+    {
+      "name": "humveeturret_1",
+      "directions": 4
+    },
+    {
+      "name": "humveecannon_0",
+      "directions": 4
+    },
+    {
+      "name": "humveecannon_1",
+      "directions": 4
+    }
+  ]
+}

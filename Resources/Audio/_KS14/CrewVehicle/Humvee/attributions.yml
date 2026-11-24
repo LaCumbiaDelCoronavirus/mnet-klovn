@@ -1,0 +1,9 @@
+- files: ["horn.ogg"]
+  license: "CC-BY-SA-3.0"
+  copyright: "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/sound/vehicles/humvee_horn.ogg. From cmss13 pull request 11308 by Zenith00000, which was not merged; the commit is that pull request's head. Converted to mono OGG Vorbis"
+  source: "https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/sound/vehicles/humvee_horn.ogg"
+
+- files: ["cannon.ogg"]
+  license: "CC-BY-SA-3.0"
+  copyright: "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/sound/weapons/humvee_cannon.ogg. From cmss13 pull request 11308 by Zenith00000, which was not merged; the commit is that pull request's head. Converted to mono OGG Vorbis"
+  source: "https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/sound/weapons/humvee_cannon.ogg"
