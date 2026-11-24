@@ -10,14 +10,21 @@ using Robust.Shared.Physics.Controllers;
 namespace Content.Shared._KS14.CrewVehicle.RunOver;
 
 /// <summary>
-///     A driven hull too slow to run a standing mob over is stopped by it, as a parked one is.
+///     A driven hull and a standing mob it touches stop against each other, as a parked hull and a mob do: the hull
+///         while it is too slow to run the mob over, the mob always.
 /// </summary>
 /// <remarks>
-///     Physics can't do it: a driven hull and a mob are both kinematic controllers, which never collide. So after the
-///         hull's speed for the tick is set (<see cref="KsCrewVehicleGripController"/>), the part of it that would take
-///         it further into a standing mob its contact fixture touches is taken away, while that is under
-///         <see cref="KsCrewVehicleRunOverComponent.MinSpeed"/>. The mob isn't pushed: it walks into the hull's side and
-///         through it, which only a parked hull stops.
+///     <para>
+///         Physics can't do it: a driven hull and a mob are both kinematic controllers, which never collide. So after
+///             everyone's speed for the step is set (the mover, then <see cref="KsCrewVehicleGripController"/>), the part
+///             of each one's velocity that would take it further into the other is taken away, for every standing mob a
+///             driven hull's contact fixture touches. Neither pushes the other.
+///     </para>
+///     <para>
+///         Only driven hulls are visited, a handful at most. On a client, the hull is stopped only if the client
+///             predicts the hull (its driver's), and a mob only if it predicts the mob (its own player): each is
+///             stopped where it is predicted, so neither its driver nor a player walking into it rubber-bands.
+///     </para>
 /// </remarks>
 public sealed partial class KsCrewVehicleRunOverController : VirtualController
 {
@@ -26,6 +33,12 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
     [Dependency] private StandingStateSystem _standingSystem = default!;
 
     [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
+    [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
+
+    /// <summary>
+    ///     Speeds below this, in m/s, are standing still.
+    /// </summary>
+    private const float MinSpeed = 0.001f;
 
     public override void Initialize()
     {
@@ -40,18 +53,15 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
 
         // Rarest first: a relay target exists only while someone drives.
         var query = EntityQueryEnumerator<KsCrewVehicleRunOverComponent, MovementRelayTargetComponent, PhysicsComponent>();
-        while (query.MoveNext(out var uid, out var runOverComponent, out _, out var physicsComponent))
+        while (query.MoveNext(out var uid, out var runOverComponent, out _, out var hullBody))
         {
-            if (prediction && !physicsComponent.Predict ||
-                physicsComponent.BodyType != BodyType.KinematicController ||
-                physicsComponent.LinearVelocity.LengthSquared() < 0.000001f)
-            {
+            if (hullBody.BodyType != BodyType.KinematicController)
                 continue;
-            }
 
-            var velocity = physicsComponent.LinearVelocity;
-            var position = _transformSystem.GetWorldPosition(uid);
-            var blocked = false;
+            var stopHull = !prediction || hullBody.Predict;
+            var hullVelocity = hullBody.LinearVelocity;
+            var hullBlocked = false;
+            var hullPosition = _transformSystem.GetWorldPosition(uid);
 
             var contacts = PhysicsSystem.GetContacts(uid);
             while (contacts.MoveNext(out var contact))
@@ -69,21 +79,41 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
                     continue;
                 }
 
-                var away = _transformSystem.GetWorldPosition(mobUid) - position;
-                if (away.LengthSquared() < 0.0001f)
+                if (KsCrewVehicleHullFrame.TryGetSeparation(PhysicsSystem, _transformSystem, uid, hullPosition, mobUid) is not { } toward)
                     continue;
 
-                var toward = Vector2.Normalize(away);
-                var closing = Vector2.Dot(velocity, toward);
-                if (closing <= 0f || closing >= runOverComponent.MinSpeed)
-                    continue;
+                if (stopHull)
+                {
+                    var closing = Vector2.Dot(hullVelocity, toward);
+                    if (closing > 0f && closing < runOverComponent.MinSpeed)
+                    {
+                        hullVelocity -= toward * closing;
+                        hullBlocked = true;
+                    }
+                }
 
-                velocity -= toward * closing;
-                blocked = true;
+                StopMob(mobUid, -toward, prediction);
             }
 
-            if (blocked)
-                PhysicsSystem.SetLinearVelocity(uid, velocity, body: physicsComponent);
+            if (hullBlocked)
+                PhysicsSystem.SetLinearVelocity(uid, hullVelocity, body: hullBody);
         }
+    }
+
+    /// <summary>
+    ///     Takes away the part of <paramref name="mobUid"/>'s velocity along <paramref name="towardHull"/>.
+    /// </summary>
+    private void StopMob(EntityUid mobUid, Vector2 towardHull, bool prediction)
+    {
+        if (!_physicsQuery.TryComp(mobUid, out var mobBody) ||
+            prediction && !mobBody.Predict)
+        {
+            return;
+        }
+
+        var velocity = mobBody.LinearVelocity;
+        var closing = Vector2.Dot(velocity, towardHull);
+        if (closing > 0f)
+            PhysicsSystem.SetLinearVelocity(mobUid, velocity - towardHull * closing, body: mobBody);
     }
 }

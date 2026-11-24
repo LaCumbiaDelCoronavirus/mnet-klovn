@@ -11,6 +11,7 @@ using Content.Shared.Standing;
 using NUnit.Framework;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Input;
+using Robust.Shared.Maths;
 
 namespace Content.IntegrationTests.Tests._KS14.CrewVehicle;
 
@@ -163,6 +164,46 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
             Assert.That(IsDown(course.Mob), Is.False, "and standing");
             Assert.That((HullPosition(course.Mob) - mobStart).Length(), Is.LessThan(0.1f), "and not pushed");
         });
+    }
+
+    /// <summary>
+    ///     The player walks, through their own predicting client, into a hull someone is at the wheel of but not
+    ///         driving: it stops them as a parked hull would, and they can walk away again.
+    /// </summary>
+    [Test]
+    public async Task MobWalkingIntoADrivenHullIsStopped()
+    {
+        await SetTankControlsAsync(false);
+        var scene = await SpawnHullAsync(new Vector2(3f, 0f));
+        EntityUid driver = default;
+        await Server.WaitPost(() =>
+            driver = SEntMan.SpawnAtPosition(Human, SComp<TransformComponent>(scene.DriverSeat).Coordinates));
+        await RunTicks(5);
+        await SitAsync(scene.DriverSeat, driver);
+        await Server.WaitAssertion(() =>
+            Assert.That(SComp<Robust.Shared.Physics.Components.PhysicsComponent>(scene.Hull).BodyType,
+                Is.EqualTo(Robust.Shared.Physics.BodyType.KinematicController), "precondition: the hull is driven"));
+
+        var overlapped = false;
+        await SetMovementKey(DirectionFlag.East, BoundKeyState.Down);
+        for (var tick = 0; tick < TickRate * 2; tick++)
+        {
+            await RunTicks(1);
+            await Server.WaitPost(() => overlapped |= HardBox(SPlayer).Intersects(HardBox(scene.Hull).Enlarged(-0.05f)));
+        }
+
+        await SetMovementKey(DirectionFlag.East, BoundKeyState.Up);
+        var stoppedAt = Vector2.Zero;
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(overlapped, Is.False, "walking into a driven hull, a mob shouldn't get inside it");
+            Assert.That(HullPosition(SPlayer).X, Is.LessThan(HullPosition(scene.Hull).X), "nor past it");
+            stoppedAt = HullPosition(SPlayer);
+        });
+
+        await Move(DirectionFlag.West, 0.5f);
+        await Server.WaitAssertion(() =>
+            Assert.That(HullPosition(SPlayer).X, Is.LessThan(stoppedAt.X - 0.5f), "and it can walk away from it"));
     }
 
     [Test]

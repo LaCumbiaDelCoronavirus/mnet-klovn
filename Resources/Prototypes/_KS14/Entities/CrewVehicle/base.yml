@@ -103,7 +103,9 @@
     requiresHands: false
     transferDamage: false
   - type: KsCrewVehicleDrive
-  - type: DoorBumpOpener
+  - type: Tag
+    tags:
+    - DoorBumpOpener
   - type: AmbientSound
     enabled: false
     volume: -4
@@ -124,3 +126,27 @@
     damage:
       types:
         Blunt: 25
+  # Breaks through windows, grilles and tables; crashes into walls. Doors are bumped open, never smashed.
+  - type: KsCrewVehicleSmash
+    smashable:
+      tags:
+      - Window
+      components:
+      - CanBuildWindowOnTop
+      - Bonkable
+    walls:
+      tags:
+      - Wall
+    smashDamage:
+      types:
+        Blunt: 150
+    smashSelfDamage:
+      types:
+        Blunt: 5
+    wallDamage:
+      types:
+        Blunt: 30
+    wallSelfDamage:
+      types:
+        Blunt: 20
+  - type: KsCrewVehicleCrashLockout

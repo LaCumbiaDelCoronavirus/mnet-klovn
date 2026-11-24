@@ -33,6 +33,9 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
 {
     protected readonly EntProtoId HullPrototype = "KsCrewVehicleDriveTestHull";
     protected readonly EntProtoId GentleHullPrototype = "KsCrewVehicleDriveTestHullGentle";
+    protected readonly EntProtoId BlockPrototype = "KsCrewVehicleDriveTestBlock";
+    protected readonly EntProtoId GlassPrototype = "KsCrewVehicleDriveTestGlass";
+    protected readonly EntProtoId TestWallPrototype = "KsCrewVehicleDriveTestWall";
     protected readonly EntProtoId TwoDriversHullPrototype = "KsCrewVehicleDriveTestHullTwoDrivers";
     protected readonly EntProtoId BlindHullPrototype = "KsCrewVehicleDriveTestHullBlind";
     protected readonly EntProtoId CratePrototype = "KsCrewVehicleDriveTestCrate";
@@ -116,8 +119,35 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
       types:
         Blunt: 10
     knockdown: 2
+  - type: Damageable
+  - type: Injurable
+    damageContainer: Inorganic
+  - type: KsCrewVehicleSmash
+    minSpeed: 2
+    smashable:
+      tags:
+      - KsCrewVehicleDriveTestSmashable
+    walls:
+      tags:
+      - KsCrewVehicleDriveTestWall
+    smashDamage:
+      types:
+        Blunt: 100
+    smashSpeedRetained: 0.5
+    smashSelfDamage:
+      types:
+        Blunt: 5
+    wallDamage:
+      types:
+        Blunt: 10
+    wallSelfDamage:
+      types:
+        Blunt: 10
+  - type: KsCrewVehicleCrashLockout
+    minImpactSpeed: 2
+    duration: 1
 
-# Never fast enough to run anyone over.
+# Never fast enough to run anyone over, smash anything or crash.
 - type: entity
   parent: KsCrewVehicleDriveTestHull
   id: KsCrewVehicleDriveTestHullGentle
@@ -127,6 +157,72 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     damage:
       types:
         Blunt: 10
+  - type: KsCrewVehicleSmash
+    minSpeed: 100
+    smashable:
+      tags:
+      - KsCrewVehicleDriveTestSmashable
+    walls:
+      tags:
+      - KsCrewVehicleDriveTestWall
+    smashDamage:
+      types:
+        Blunt: 100
+    wallSelfDamage:
+      types:
+        Blunt: 10
+
+- type: Tag
+  id: KsCrewVehicleDriveTestSmashable
+
+- type: Tag
+  id: KsCrewVehicleDriveTestWall
+
+# An obstacle in a hull's way, which a hull must not break unless its whitelist says so.
+- type: entity
+  id: KsCrewVehicleDriveTestBlock
+  components:
+  - type: Transform
+    anchored: true
+  - type: Physics
+    bodyType: Static
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: ""-0.5,-0.5,0.5,0.5""
+        mask:
+        - FullTileMask
+        layer:
+        - WallLayer
+  - type: Damageable
+  - type: Injurable
+    damageContainer: Inorganic
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 50
+      behaviors:
+      - !type:DoActsBehavior
+        acts: [ ""Destruction"" ]
+
+- type: entity
+  parent: KsCrewVehicleDriveTestBlock
+  id: KsCrewVehicleDriveTestGlass
+  components:
+  - type: Tag
+    tags:
+    - KsCrewVehicleDriveTestSmashable
+
+- type: entity
+  parent: KsCrewVehicleDriveTestBlock
+  id: KsCrewVehicleDriveTestWall
+  components:
+  - type: Tag
+    tags:
+    - KsCrewVehicleDriveTestWall
 
 - type: entity
   parent: KsCrewVehicleDriveTestHull

@@ -10,3 +10,4 @@ ks-crew-vehicle-exit-blocked = Снаружи что-то мешает.
 ks-crew-vehicle-exit-moving = Слишком быстро едет, чтобы выйти.
 
 ks-crew-vehicle-run-over = { CAPITALIZE($vehicle) } сбивает { $victim }!
+ks-crew-vehicle-crash-lockout = От удара заглох двигатель!

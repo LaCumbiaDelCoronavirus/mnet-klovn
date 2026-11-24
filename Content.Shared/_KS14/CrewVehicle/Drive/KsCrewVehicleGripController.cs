@@ -80,11 +80,8 @@ public sealed partial class KsCrewVehicleGripController : VirtualController
             if (!_driveQuery.HasComp(otherUid) || !contact.OtherFixture(hull.Owner).Item2.Hard)
                 continue;
 
-            var away = _transformSystem.GetWorldPosition(otherUid) - position;
-            if (away.LengthSquared() < MinSpeed * MinSpeed)
+            if (KsCrewVehicleHullFrame.TryGetSeparation(PhysicsSystem, _transformSystem, hull.Owner, position, otherUid) is not { } toward)
                 continue;
-
-            var toward = Vector2.Normalize(away);
             var closing = Vector2.Dot(velocity, toward);
             if (closing > 0f)
                 velocity -= toward * closing;

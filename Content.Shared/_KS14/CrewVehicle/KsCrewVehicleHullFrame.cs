@@ -42,6 +42,28 @@ public static class KsCrewVehicleHullFrame
     }
 
     /// <summary>
+    ///     The unit direction from <paramref name="hullUid"/> to <paramref name="otherUid"/> across the gap between their
+    ///         bodies: the way something blocked by the hull's side or end is pushed back, not toward its centre, which
+    ///         would let it slide round the corner and in. Through the centres if their bodies already overlap.
+    /// </summary>
+    /// <param name="hullPosition">The hull's world position.</param>
+    public static Vector2? TryGetSeparation(Robust.Shared.Physics.Systems.SharedPhysicsSystem physicsSystem,
+        SharedTransformSystem transformSystem,
+        EntityUid hullUid,
+        Vector2 hullPosition,
+        EntityUid otherUid)
+    {
+        if (physicsSystem.TryGetNearestPoints(hullUid, otherUid, out var hullPoint, out var otherPoint) &&
+            (otherPoint - hullPoint).LengthSquared() > 0.000001f)
+        {
+            return Vector2.Normalize(otherPoint - hullPoint);
+        }
+
+        var away = transformSystem.GetWorldPosition(otherUid) - hullPosition;
+        return away.LengthSquared() > 0.000001f ? Vector2.Normalize(away) : null;
+    }
+
+    /// <summary>
     ///     A world point in the hull's local frame.
     /// </summary>
     public static Vector2 WorldToHull(Vector2 hullWorldPosition, Angle hullWorldRotation, Vector2 world)
