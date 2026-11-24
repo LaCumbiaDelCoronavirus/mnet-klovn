@@ -1,5 +1,6 @@
 using System.Numerics;
 using Content.Shared.Damage;
+using Content.Shared.Guidebook;
 using Robust.Shared.Utility;
 
 namespace Content.Shared._KS14.CrewVehicle.Interior;
@@ -49,7 +50,7 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     /// <summary>
     ///     How many living people fit inside. The dead, ghosts and things pulled in do not count.
     /// </summary>
-    [DataField]
+    [DataField, GuidebookData]
     public int MaxOccupants = 4;
 
     /// <summary>

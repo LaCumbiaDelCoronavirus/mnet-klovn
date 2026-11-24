@@ -5,7 +5,7 @@
     "y": 96
   },
   "license": "CC-BY-SA-3.0",
-  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/icons/obj/vehicles/humvee.dmi. From cmss13 pull request 11308 (https://github.com/cmss13-devs/cmss13/pull/11308) by Zenith00000, which was not merged; the commit is that pull request's head. Art credited in the pull request to dimdimich1996 and others; unused states removed and the two wheel states renamed (humvee_wheels_1 -> wheels_idle, humvee_wheels_0 movement state -> wheels_moving)",
+  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/icons/obj/vehicles/humvee.dmi. From cmss13 pull request 11308 (https://github.com/cmss13-devs/cmss13/pull/11308) by Zenith00000, which was not merged; the commit is that pull request's head. Art credited in the pull request to dimdimich1996 and others; unused states removed and the two wheel states renamed (humvee_wheels_1 -> wheels_idle, humvee_wheels_0 movement state -> wheels_moving) and damaged_frame renamed to DamageOverlay_1, the name the damage visualiser looks for",
   "metaAtlas": false,
   "states": [
     {
@@ -13,7 +13,7 @@
       "directions": 4
     },
     {
-      "name": "damaged_frame",
+      "name": "DamageOverlay_1",
       "directions": 4
     },
     {

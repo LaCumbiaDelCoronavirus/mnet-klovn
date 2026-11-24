@@ -1,0 +1,52 @@
+<Document>
+  # Humvee
+  A light armoured car with a machine gun on its roof. You ride inside it: the one at the wheel drives and fires the gun, and the rest of the crew rides along in the back.
+
+  <Box>
+    <GuideEntityEmbed Entity="KsCrewVehicleHumvee"/>
+  </Box>
+
+  ## Getting in and out
+  There are two doors down each side. Stand at one and use the humvee with [color=yellow][bold][keybind="ActivateItemInWorld"][/bold][/color], or pick [bold]Get in[/bold] from its menu. Hold still for a moment and you're inside, standing by that door. Whoever you're pulling comes in with you.
+
+  It seats [color=orange][protodata="KsCrewVehicleHumvee" comp="KsCrewVehicleInterior" member="MaxOccupants" format="N0"/][/color]. When it's full, nobody else gets in.
+
+  To get out, stand up from your seat and use one of the doors inside. You step out beside the matching door outside. You can't get out while the humvee is moving, or if something is in the way on that side.
+
+  ## Seats
+  Click a seat with an empty hand to sit down. Sitting in the [bold]driver's seat[/bold] puts you at the wheel and on the gun: your view moves outside, above the humvee, and zooms out a little. From the passenger seats, and on your feet, you see the inside, and the world outside through its windows.
+
+  ## Driving
+  Drive with your movement keys. How they work depends on the server:
+  - [bold]Pressing a direction.[/bold] The humvee turns to face the way you press, crawling while it turns, then drives on at full speed. Press the way behind you and it backs up without turning.
+  - [bold]Tank controls.[/bold] Left and right turn it, even while it stands still. Forward drives, and back reverses.
+
+  Let go and it rolls to a stop. Your action bar has its [bold]horn[/bold] and its [bold]headlights[/bold] while you drive.
+
+  The humvee is heavy, and what it hits notices:
+  - [bold]People.[/bold] Drive into someone fast and you run them over: they're hurt and knocked down. Slowly, they just stand in your way.
+  - [bold]Windows, grilles and tables.[/bold] Fast enough, you smash straight through and lose some speed. Doors are never smashed: one that would open anyway opens, and a locked one stops you.
+  - [bold]Walls.[/bold] Hit one fast and you damage it and stop dead, and the humvee takes a beating too. A really hard crash stalls the engine for a few seconds.
+
+  ## Firing
+  Turn on combat mode in the driver's seat and click, or hold, where you want to shoot. The turret swings round toward your cursor and fires once it points there, so give it a moment to come round. Aiming past its reach fires the same way, as far as it reaches.
+
+  The alert at the side of your screen counts the rounds left.
+
+  ## Reloading
+  The gun takes .30 rifle rounds. Use them on the [bold]ammo loader[/bold] standing between the seats: loose rounds, a box or a magazine all work, and it takes as many as fit, after a few seconds. Examine the loader to see how full the gun is.
+
+  <Box>
+    <GuideEntityEmbed Entity="CartridgeLightRifle"/>
+    <GuideEntityEmbed Entity="MagazineBoxLightRifle"/>
+  </Box>
+
+  ## Damage
+  The hull soaks up a lot. Once it's badly hurt it looks battered and smoke pours from the engine. Weld it to patch it up, a little with each pass.
+
+  <Box>
+    <GuideEntityEmbed Entity="Welder"/>
+  </Box>
+
+  If it's destroyed, it blows up. Everyone inside is thrown out around it, hurt and knocked down, and all that's left is a burnt-out wreck.
+</Document>

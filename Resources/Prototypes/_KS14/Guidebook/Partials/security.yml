@@ -1,0 +1,5 @@
+# Hangs the fork's security pages under upstream's Security entry.
+- type: !PartialOnly guideEntry
+  id: Security
+  children:
+  - KsHumvee

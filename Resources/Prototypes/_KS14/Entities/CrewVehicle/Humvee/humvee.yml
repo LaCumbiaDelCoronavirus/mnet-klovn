@@ -1,0 +1,246 @@
+# The MG humvee: one crew member drives and fires the roof gun from the driver's seat, three more ride along. Its
+#   interior is Maps/_KS14/CrewVehicle/humvee.yml; the pieces of it are in interior.yml beside this file.
+
+- type: entity
+  parent: KsCrewVehicleHullBase
+  id: KsCrewVehicleHumvee
+  name: humvee
+  description: A light armoured car with a machine gun on the roof. Four seats inside, one of them at the wheel and the trigger both.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/hull.rsi
+    drawdepth: Mobs
+    layers:
+    - state: humvee_base
+    - state: wheels_idle
+      map: [ "wheels" ]
+  - type: SpriteMovement
+    movementLayers:
+      wheels:
+        state: wheels_moving
+    noMovementLayers:
+      wheels:
+        state: wheels_idle
+  - type: Appearance
+  # The battered frame shows from half health, as the engine starts to smoke.
+  - type: DamageVisuals
+    thresholds: [ 1 ]
+    damageDivisor: 500
+    trackAllDamage: true
+    damageOverlay:
+      sprite: _KS14/CrewVehicle/Humvee/hull.rsi
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.65,-1.2,0.65,1.2"
+        density: 400
+        mask:
+        - MobMask
+        layer:
+        - Impassable
+        - MidImpassable
+        - HighImpassable
+        - BulletImpassable
+        - Opaque
+      contact:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.9,-1.45,0.9,1.45"
+        hard: false
+        mask:
+        - MobMask
+        - MobLayer
+  # Six tiles a second flat out; it gets there in about a second and a half, and stops from it in about as long.
+  - type: MovementSpeedModifier
+    baseWalkSpeed: 6
+    baseSprintSpeed: 6
+    baseAcceleration: 2
+    baseFriction: 2
+    baseWeightlessModifier: 0
+  - type: PointLight
+    enabled: false
+    radius: 12
+    energy: 2.5
+    softness: 2
+    lightMask: ConeSingle
+    autoRot: true
+  - type: KsCrewVehicleHorn
+    sound:
+      path: /Audio/_KS14/CrewVehicle/Humvee/horn.ogg
+  - type: KsCrewVehicleInterior
+    interiorPath: /Maps/_KS14/CrewVehicle/humvee.yml
+    # The cabin is the rear of the hull: the bonnet ahead of it is engine.
+    interiorAnchor: 2.5,2.35
+    maxOccupants: 4
+    ejectDamage:
+      types:
+        Blunt: 10
+    ejectStun: 2
+    # Two doors down each side. Left is +X: the hull faces -Y.
+    doorways:
+      frontLeft:
+        offset: 1,-0.1
+        radius: 0.45
+      rearLeft:
+        offset: 1,0.8
+        radius: 0.45
+      frontRight:
+        offset: -1,-0.1
+        radius: 0.45
+      rearRight:
+        offset: -1,0.8
+        radius: 0.45
+  # The gun sits a little behind the centre: with its sprite's lift (KsCrewVehicleWeaponHumveeMachineGun) that puts the
+  #   turret over the roof hatch whichever way the hull is drawn.
+  - type: KsCrewVehicleMounts
+    mounts:
+      turret:
+        prototype: KsCrewVehicleWeaponHumveeMachineGun
+        offset: 0,0.17
+  - type: Damageable
+    damageModifierSet: Metallic
+  - type: Injurable
+    damageContainer: StructuralInorganic
+  - type: ExaminableDamage
+    messages: ShieldMessages
+  - type: Repairable
+    doAfterDelay: 3
+    fuelCost: 10
+    # A tenth of the hull a pass.
+    damageValue: -100
+  - type: KsParticles
+    prototype: KsSmokeBurning
+    emitting: false
+    # From the engine, under the bonnet.
+    rotatingOffset: 0,-0.8
+  - type: KsDamagedParticles
+    threshold: 500
+  - type: Explosive
+    explosionType: Default
+    totalIntensity: 20
+    intensitySlope: 5
+    maxIntensity: 4
+    canCreateVacuum: false
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 1000
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+      - !type:SpawnEntitiesBehavior
+        offset: 0
+        spawn:
+          KsCrewVehicleHumveeWreck:
+            min: 1
+            max: 1
+      - !type:ExplodeBehavior
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]
+
+# The roof gun. Its sprite is the turret and barrel drawn for each of four directions, at the hull sprite's scale and
+#   origin, so it is shown as the frame nearest to where the gun points (noRot) rather than turned. The art draws the
+#   roof higher in the frame than the turret, by an amount that differs with the hull's direction; the sprite's lift
+#   here and the mount's offset behind the centre (KsCrewVehicleHumvee) together land it within a few pixels of the
+#   hatch in all four.
+- type: entity
+  id: KsCrewVehicleWeaponHumveeMachineGun
+  categories: [ HideSpawnMenu ]
+  name: humvee machine gun
+  description: A belt-fed machine gun on a turret ring, fired from the driver's seat inside.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/hull.rsi
+    drawdepth: OverMobs
+    noRot: true
+    offset: 0,0.4
+    layers:
+    - state: humveeturret_0
+    - state: humveecannon_0
+  - type: Gun
+    fireRate: 5
+    minAngle: 1
+    maxAngle: 8
+    angleIncrease: 0.5
+    angleDecay: 8
+    selectedMode: FullAuto
+    availableModes:
+    - FullAuto
+    soundGunshot:
+      path: /Audio/_KS14/CrewVehicle/Humvee/cannon.ogg
+    soundEmpty:
+      path: /Audio/Weapons/Guns/Empty/lmg_empty.ogg
+  - type: ContainerContainer
+    containers:
+      ballistic-ammo: !type:Container
+  - type: BallisticAmmoProvider
+    proto: CartridgeLightRifle
+    capacity: 500
+    whitelist:
+      tags:
+      - CartridgeLightRifle
+  - type: KsCrewVehicleWeapon
+    muzzleOffset: 0,-0.7
+    maxAimRange: 16
+  - type: KsCrewVehicleTurret
+    traverseRate: 180
+    fireTolerance: 20
+
+# What a destroyed humvee leaves behind: burnt-out and going nowhere, its gun bent.
+- type: entity
+  parent: BaseStructure
+  id: KsCrewVehicleHumveeWreck
+  name: humvee wreck
+  description: What's left of a humvee. Nobody is driving this anywhere again.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/hull.rsi
+    drawdepth: Mobs
+    layers:
+    - state: humvee_base
+    - state: wheels_idle
+    - state: DamageOverlay_1
+    # The broken turret and barrel, lifted onto the roof as the gun's sprite is when the hull faces south.
+    - state: humveeturret_1
+      offset: 0,0.47
+    - state: humveecannon_1
+      offset: 0,0.47
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.65,-1.2,0.65,1.2"
+        density: 400
+        mask:
+        - MachineMask
+        layer:
+        - Impassable
+        - MidImpassable
+        - HighImpassable
+        - BulletImpassable
+        - Opaque
+  - type: Damageable
+    damageModifierSet: Metallic
+  - type: Injurable
+    damageContainer: StructuralInorganic
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 500
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+      - !type:SpawnEntitiesBehavior
+        spawn:
+          SheetSteel1:
+            min: 4
+            max: 8
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]

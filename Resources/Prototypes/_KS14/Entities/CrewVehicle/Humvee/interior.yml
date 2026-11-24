@@ -1,0 +1,114 @@
+# The inside of the humvee (Maps/_KS14/CrewVehicle/humvee.yml). Its front is north; the art it was drawn from faced east,
+#   so the floor plan and doors are turned in the map file.
+
+- type: entity
+  parent: KsCrewVehicleInteriorBaseSeat
+  id: KsCrewVehicleSeatHumveeDriver
+  categories: [ HideSpawnMenu ]
+  name: driver's seat
+  description: The wheel, and the trigger of the roof gun, are both within reach from here.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    state: car_seat
+    drawdepth: Objects
+  - type: KsCrewVehicleDriverSeat
+  - type: KsCrewVehicleGunnerSeat
+    mounts:
+    - turret
+  # Looks out from the hull, zoomed out a little and leaning toward the cursor to aim the gun.
+  - type: KsCrewVehicleViewSeat
+    pvsScale: 2
+    zoom: 1.5,1.5
+    cursorOffset: 3
+
+- type: entity
+  parent: KsCrewVehicleInteriorBaseSeat
+  id: KsCrewVehicleSeatHumveePassenger
+  categories: [ HideSpawnMenu ]
+  name: passenger seat
+  description: A hard seat with a thin cushion. Better than walking.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    state: car_seat
+    drawdepth: Objects
+
+# Drawn as the door with its little window, on the wall it leads out of.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseExit
+  id: KsCrewVehicleExitDoorHumvee
+  categories: [ HideSpawnMenu ]
+  name: humvee door
+  description: The way out.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    drawdepth: HighFloorObjects
+    layers:
+    - state: exit_door
+    - state: viewport_door
+
+# Stands between the seats, where everyone can reach it. Not solid: it is narrower than a tile.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseAmmoPort
+  id: KsCrewVehicleAmmoPortHumvee
+  categories: [ HideSpawnMenu ]
+  name: ammo loader
+  description: Feeds the roof gun. Hand it .30 rifle rounds, loose or boxed.
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    state: weapons_loader
+    drawdepth: Objects
+  - type: InteractionOutline
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.2,-0.4,0.2,0.4"
+        hard: false
+        layer:
+        - MidImpassable
+  - type: KsCrewVehicleAmmoPort
+    mount: turret
+
+# The walls and glass are drawn by the floor plan (KsCrewVehicleInteriorChassisHumvee): these only stop people and,
+#   for the walls, sight.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseWall
+  id: KsCrewVehicleInteriorWallHumvee
+  categories: [ HideSpawnMenu ]
+  name: humvee wall
+  description: Armour plate, from the inside.
+
+- type: entity
+  parent: KsCrewVehicleInteriorBaseWindow
+  id: KsCrewVehicleInteriorWindowHumvee
+  categories: [ HideSpawnMenu ]
+  name: humvee window
+  description: Thick, scratched glass.
+
+# The floor plan: seats, doors and loader stand on it. The windscreen's glass is drawn over its front.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseDecoration
+  id: KsCrewVehicleInteriorChassisHumvee
+  categories: [ HideSpawnMenu ]
+  name: humvee floor
+  description: The inside of a humvee.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/chassis.rsi
+    layers:
+    - state: humvee_chassis
+    - sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+      state: viewport_frontwindow_north
+      offset: 0.19,0.53
+    - sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+      state: viewport_frontwindow_north
+      offset: 0.19,-0.38

@@ -77,6 +77,7 @@
         hard: false
         layer:
         - MidImpassable
+  - type: InteractionOutline
   - type: KsCrewVehicleExit
 
 # A console through which a mounted weapon is loaded from inside. Each placed port names its mount in the map file, or a
@@ -87,6 +88,43 @@
   id: KsCrewVehicleInteriorBaseAmmoPort
   components:
   - type: KsCrewVehicleAmmoPort
+
+# A seat inside a crew vehicle. Not anchored, so it can sit where the interior's art has it rather than at a tile's
+#   centre, and not solid: people step over it to sit down.
+- type: entity
+  abstract: true
+  parent: KsCrewVehicleInteriorBase
+  id: KsCrewVehicleInteriorBaseSeat
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: InteractionOutline
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.3,-0.3,0.3,0.3"
+        hard: false
+        layer:
+        - MidImpassable
+  - type: Strap
+    position: Stand
+
+# Art of an interior that is only drawn: the floor plan under everything else, which nobody touches. Not anchored, so it
+#   can sit off the tile grid where the art needs it.
+- type: entity
+  abstract: true
+  id: KsCrewVehicleInteriorBaseDecoration
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: Sprite
+    drawdepth: FloorTiles
 
 # The hull of a crew vehicle, driven from the driver seat in its interior. Children give it a sprite, its body and
 #   contact fixtures, speeds, an interior and health. Parked it is a loose Dynamic body, solid to mobs and to driven
@@ -123,6 +161,10 @@
     sound:
       path: /Audio/Effects/Vehicle/vehicleengineidle.ogg
   - type: ActionsContainer
+  # Written out, so that a hull made on an uninitialised map saves as it was spawned.
+  - type: ContainerContainer
+    containers:
+      actions: !type:Container
   - type: KsCrewVehicleHorn
     sound:
       path: /Audio/Effects/Vehicle/carhorn.ogg

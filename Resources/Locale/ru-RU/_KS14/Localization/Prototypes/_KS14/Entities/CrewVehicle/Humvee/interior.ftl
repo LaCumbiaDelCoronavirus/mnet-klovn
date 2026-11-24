@@ -1,0 +1,22 @@
+# Resources\Prototypes\_KS14\Entities\CrewVehicle\Humvee\interior.yml
+ent-KsCrewVehicleSeatHumveeDriver = водительское сиденье
+    .desc = Отсюда можно дотянуться и до руля, и до спуска пулемёта на крыше.
+    .gender = neuter
+ent-KsCrewVehicleSeatHumveePassenger = пассажирское сиденье
+    .desc = Жёсткое сиденье с тонкой подушкой. Всё лучше, чем пешком.
+    .gender = neuter
+ent-KsCrewVehicleExitDoorHumvee = дверь хамви
+    .desc = Путь наружу.
+    .gender = female
+ent-KsCrewVehicleAmmoPortHumvee = заряжатель
+    .desc = Питает пулемёт на крыше. Подавайте ему винтовочные патроны .30, россыпью или в коробках.
+    .gender = male
+ent-KsCrewVehicleInteriorWallHumvee = стенка хамви
+    .desc = Броневой лист, вид изнутри.
+    .gender = female
+ent-KsCrewVehicleInteriorWindowHumvee = окно хамви
+    .desc = Толстое поцарапанное стекло.
+    .gender = neuter
+ent-KsCrewVehicleInteriorChassisHumvee = пол хамви
+    .desc = Внутренности хамви.
+    .gender = male
