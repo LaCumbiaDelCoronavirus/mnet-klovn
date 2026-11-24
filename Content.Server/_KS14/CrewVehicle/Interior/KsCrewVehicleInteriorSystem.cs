@@ -1,6 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using Content.Shared._KS14.CrewVehicle.Interior;
 using Content.Shared._KS14.RCD;
+using Content.Shared.Atmos.Components;
+using Content.Shared.Construction.EntitySystems;
+using Content.Shared.Ghost;
+using Content.Shared.Physics;
 using Content.Shared.Light.Components;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
@@ -21,11 +25,14 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
     [Dependency] private MapLoaderSystem _mapLoaderSystem = default!;
     [Dependency] private SharedMapSystem _mapSystem = default!;
     [Dependency] private KsNoBuildZoneSystem _noBuildZoneSystem = default!;
+    [Dependency] private AnchorableSystem _anchorableSystem = default!;
     [Dependency] private MetaDataSystem _metaDataSystem = default!;
     [Dependency] private MobStateSystem _mobStateSystem = default!;
     [Dependency] private PullingSystem _pullingSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
     [Dependency] private EntityQuery<KsCrewVehicleExitComponent> _exitQuery = default!;
+    [Dependency] private EntityQuery<GhostComponent> _ghostQuery = default!;
+    [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleInteriorComponent> _interiorQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleOccupantComponent> _occupantQuery = default!;
 
@@ -74,18 +81,70 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
             return false;
         }
 
-        // ShuttleSystem roofs every grid that is not a map, which would shut out the interior map's ambient light.
         foreach (var grid in grids)
         {
+            // ShuttleSystem roofs every grid that is not a map, which would shut out the interior map's ambient light.
             RemComp<ImplicitRoofComponent>(grid);
+            // AutomaticAtmosSystem gives any grid of a few tiles its own atmosphere, which starts as vacuum. The air
+            //      inside is the interior map's fixed, breathable one.
+            RemComp<GridAtmosphereComponent>(grid);
         }
 
         LinkInterior(vehicle, mapUid);
         _noBuildZoneSystem.SetBlocked(mapUid, KsCrewVehicleNoBuildSystem.NoBuildMessage);
         _mapSystem.InitializeMap(mapUid, unpause: true);
 
+        // Parent changes during the load came before the link, so nobody placed in the map file was seen arriving.
+        foreach (var grid in grids)
+        {
+            TrackPresentOccupants(grid, vehicle);
+        }
+
         interiorMap = mapUid;
         return true;
+    }
+
+    /// <summary>
+    ///     Unlinks the vehicle from its interior map, which it is about to lose, and returns the map.
+    /// </summary>
+    public EntityUid? DetachInterior(Entity<KsCrewVehicleInteriorComponent> vehicle)
+    {
+        var interiorMap = vehicle.Comp.InteriorMap;
+        vehicle.Comp.InteriorMap = null;
+        return interiorMap;
+    }
+
+    /// <summary>
+    ///     Whether a mob cannot stand at <paramref name="position"/>: an anchored structure in its way, such as a wall.
+    ///         Unanchored things, the hull and whatever is mounted on it among them, do not count.
+    /// </summary>
+    public bool IsBlockedForMobs(MapCoordinates position)
+    {
+        if (!_mapSystem.TryFindGridAt(position, out var gridUid, out var gridComponent))
+            return false;
+
+        var indices = _mapSystem.TileIndicesFor(gridUid, gridComponent, position);
+        return !_anchorableSystem.TileFree((gridUid, gridComponent), indices, (int)CollisionGroup.MobLayer, (int)CollisionGroup.MobMask);
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="uid"/> is the kind of thing that is an occupant while on an interior grid.
+    /// </summary>
+    public bool CanBeOccupant(EntityUid uid)
+    {
+        return _mobStateQuery.HasComp(uid) || _ghostQuery.HasComp(uid);
+    }
+
+    private void TrackPresentOccupants(EntityUid parentUid, EntityUid vehicleUid)
+    {
+        var children = Transform(parentUid).ChildEnumerator;
+        while (children.MoveNext(out var childUid))
+        {
+            if (CanBeOccupant(childUid))
+                TrackOccupant(childUid, vehicleUid);
+            else
+                TrackPresentOccupants(childUid, vehicleUid);
+        }
     }
 
     /// <summary>
@@ -161,7 +220,7 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
     {
         _metaDataSystem.RemoveFlag(entity.Owner, MetaDataFlags.ExtraTransformEvents);
 
-        if (TerminatingOrDeleted(entity.Comp.Vehicle))
+        if (Deleted(entity.Comp.Vehicle))
             return;
 
         var ev = new KsCrewVehicleExitedEvent(entity.Owner);

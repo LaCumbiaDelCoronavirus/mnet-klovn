@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Content.IntegrationTests.Fixtures;
 using Content.Server._KS14.CrewVehicle.Interior;
 using Content.Shared._KS14.CrewVehicle.Interior;
+using Content.Server.Atmos.EntitySystems;
+using Content.Shared.Atmos;
+using Content.Shared.Atmos.Components;
 using Content.Shared.Light.Components;
 using NUnit.Framework;
 using Robust.Shared.GameObjects;
@@ -30,6 +33,7 @@ public sealed class KsCrewVehicleInteriorTest : GameTest
     private static readonly EntProtoId Hull = "KsCrewVehicleInteriorTestHull";
     private static readonly EntProtoId HullWithAnExtraDoorway = "KsCrewVehicleInteriorTestHullExtraDoorway";
     private static readonly EntProtoId HullMissingADoorway = "KsCrewVehicleInteriorTestHullMissingDoorway";
+    private static readonly EntProtoId HullWithAPassenger = "KsCrewVehicleInteriorTestHullPassenger";
 
     // The interior has exit doors for "left" and "right" (Maps/Test/_KS14/CrewVehicle/basic.yml).
     [TestPrototypes]
@@ -45,6 +49,17 @@ public sealed class KsCrewVehicleInteriorTest : GameTest
         offset: -1,0
       right:
         offset: 1,0
+
+- type: entity
+  id: KsCrewVehicleInteriorTestHullPassenger
+  components:
+  - type: KsCrewVehicleInterior
+    interiorPath: /Maps/Test/_KS14/CrewVehicle/passenger.yml
+    doorways:
+      left:
+        offset: 1,0
+      right:
+        offset: -1,0
 
 - type: entity
   id: KsCrewVehicleInteriorTestHullExtraDoorway
@@ -111,6 +126,14 @@ public sealed class KsCrewVehicleInteriorTest : GameTest
                 var grids = SEntMan.AllEntities<MapGridComponent>().Where(grid => SComp<TransformComponent>(grid).MapUid == interior).ToList();
                 Assert.That(grids, Has.Count.EqualTo(1));
                 Assert.That(SEntMan.HasComponent<ImplicitRoofComponent>(grids[0]), Is.False, "nothing roofs the interior, so its map's light reaches it");
+
+                // The air is the interior map's fixed, breathable one, from the moment it loads.
+                Assert.That(SEntMan.HasComponent<GridAtmosphereComponent>(grids[0]), Is.False, "the interior grid has no atmosphere of its own");
+                var air = SEntMan.System<AtmosphereSystem>().GetTileMixture(grids[0].Owner, interior, new Vector2i(2, 2));
+                Assert.That(air, Is.Not.Null);
+                Assert.That(air!.Immutable, Is.True, "the air inside is fixed");
+                Assert.That(air.GetMoles(Gas.Oxygen), Is.GreaterThan(0f), "and has oxygen");
+                Assert.That(air.Pressure, Is.EqualTo(Atmospherics.OneAtmosphere).Within(0.1f * Atmospherics.OneAtmosphere), "at about one atmosphere");
             }
 
             var mapsBefore = CountMaps();
@@ -170,6 +193,24 @@ public sealed class KsCrewVehicleInteriorTest : GameTest
             Assert.That(CountMaps(), Is.EqualTo(mapsBefore), "and the refused map is gone");
             Assert.That(SEntMan.AllEntities<KsCrewVehicleInteriorMapComponent>().Any(interior => interior.Comp.Vehicle == hull),
                 Is.False, "nothing was linked to it");
+        });
+    }
+
+    [Test]
+    public async Task SomeonePlacedInTheMapFileIsInsideOnceItLoads()
+    {
+        var testMap = await Pair.CreateTestMap();
+        await Server.WaitAssertion(() =>
+        {
+            var hull = SEntMan.SpawnAtPosition(HullWithAPassenger, new EntityCoordinates(testMap.Grid, new Vector2(0.5f, 0.5f)));
+            Assert.That(Interiors.EnsureInterior(SEntity<KsCrewVehicleInteriorComponent>(hull), out var interior), Is.True);
+
+            var passengers = SEntMan.AllEntities<Content.Shared.Mobs.Components.MobStateComponent>()
+                .Where(mob => SComp<TransformComponent>(mob).MapUid == interior)
+                .ToList();
+            Assert.That(passengers, Has.Count.EqualTo(1), "precondition: the map file has one mob");
+            Assert.That(STryComp<KsCrewVehicleOccupantComponent>(passengers[0], out var occupant), Is.True, "it is an occupant at once");
+            Assert.That(occupant!.Vehicle, Is.EqualTo(hull));
         });
     }
 }

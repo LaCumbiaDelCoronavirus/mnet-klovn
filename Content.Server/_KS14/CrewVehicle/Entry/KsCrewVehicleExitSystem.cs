@@ -7,8 +7,6 @@ using Content.Shared.Buckle;
 using Content.Shared.DoAfter;
 using Content.Shared.Ghost;
 using Content.Shared.Interaction;
-using Content.Shared.Maps;
-using Content.Shared.Physics;
 using Content.Shared.Popups;
 using Content.Shared.Verbs;
 using Robust.Shared.Map;
@@ -28,10 +26,8 @@ public sealed partial class KsCrewVehicleExitSystem : EntitySystem
     [Dependency] private KsCrewVehicleInteriorSystem _interiorSystem = default!;
     [Dependency] private SharedBuckleSystem _buckleSystem = default!;
     [Dependency] private SharedDoAfterSystem _doAfterSystem = default!;
-    [Dependency] private SharedMapSystem _mapSystem = default!;
     [Dependency] private SharedPopupSystem _popupSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
-    [Dependency] private TurfSystem _turfSystem = default!;
     [Dependency] private EntityQuery<GhostComponent> _ghostQuery = default!;
     [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
 
@@ -124,25 +120,13 @@ public sealed partial class KsCrewVehicleExitSystem : EntitySystem
         }
 
         landing = _interiorSystem.GetDoorwayPosition(vehicle.Value, doorway);
-        if (IsBlockedForMobs(landing))
+        if (_interiorSystem.IsBlockedForMobs(landing))
         {
             _popupSystem.PopupEntity(KsPopupMessage.Create(BlockedMessage), exit, user);
             return false;
         }
 
         return true;
-    }
-
-    /// <summary>
-    ///     Whether the tile under <paramref name="landing"/> is blocked for a mob. Off every grid nothing blocks it.
-    /// </summary>
-    private bool IsBlockedForMobs(MapCoordinates landing)
-    {
-        if (!_mapSystem.TryFindGridAt(landing, out var gridUid, out var gridComponent))
-            return false;
-
-        var indices = _mapSystem.TileIndicesFor(gridUid, gridComponent, landing);
-        return _turfSystem.IsTileBlocked(gridUid, indices, CollisionGroup.MobMask, gridComponent);
     }
 
     private bool Exit(Entity<KsCrewVehicleExitComponent> exit, EntityUid user)

@@ -51,13 +51,17 @@ public sealed class KsCrewVehicleEntryTest : GameTest
   components:
   - type: Physics
     bodyType: KinematicController
+  # A solid hull: the doorways' landing points are less than a tile from its sides, so the tile someone lands on
+  #   overlaps it.
   - type: Fixtures
     fixtures:
       fix1:
         shape:
-          !type:PhysShapeCircle
-          radius: 0.2
-        hard: false
+          !type:PhysShapeAabb
+          bounds: -0.65,-1.2,0.65,1.2
+        layer:
+        - MidImpassable
+        - LowImpassable
   - type: KsCrewVehicleInterior
     interiorPath: /Maps/Test/_KS14/CrewVehicle/basic.yml
     interiorAnchor: 2.5,3
@@ -135,15 +139,28 @@ public sealed class KsCrewVehicleEntryTest : GameTest
     private Entity<KsCrewVehicleInteriorComponent> Vehicle(EntityUid hull) => SEntity<KsCrewVehicleInteriorComponent>(hull);
 
     /// <summary>
-    ///     A test map with a hull at (0.5, -0.5), just south of its one-tile grid; and where, at rotation 0, its doorways
-    ///         are.
+    ///     A test map with a hull at (0.5, -0.5), on floor that reaches two tiles round it, so that the hull is on the
+    ///         grid it lands people on; and where, at rotation 0, its doorways are.
     /// </summary>
     private async Task<(MapId MapId, EntityUid Hull, Vector2 Left, Vector2 Right)> SpawnHullAsync(EntProtoId hullPrototype)
     {
         var testMap = await Pair.CreateTestMap();
         EntityUid hull = default;
         var hullPosition = new Vector2(0.5f, -0.5f);
-        await Server.WaitPost(() => hull = SEntMan.Spawn(hullPrototype, new MapCoordinates(hullPosition, testMap.MapId)));
+        await Server.WaitPost(() =>
+        {
+            var mapSystem = SEntMan.System<SharedMapSystem>();
+            for (var x = -2; x <= 2; x++)
+            {
+                for (var y = -3; y <= 1; y++)
+                {
+                    mapSystem.SetTile(testMap.Grid, new Vector2i(x, y), testMap.Tile.Tile);
+                }
+            }
+
+            hull = SEntMan.Spawn(hullPrototype, new MapCoordinates(hullPosition, testMap.MapId));
+            Assert.That(SComp<TransformComponent>(hull).GridUid, Is.EqualTo(testMap.Grid.Owner), "precondition: the hull is on the grid");
+        });
         return (testMap.MapId, hull, hullPosition + new Vector2(1f, 0f), hullPosition + new Vector2(-1f, 0f));
     }
 

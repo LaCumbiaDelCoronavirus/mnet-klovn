@@ -1,4 +1,5 @@
 using System.Numerics;
+using Content.Shared.Damage;
 using Robust.Shared.Utility;
 
 namespace Content.Shared._KS14.CrewVehicle.Interior;
@@ -56,6 +57,18 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     /// </summary>
     [DataField]
     public float MaxExitSpeed = 0.5f;
+
+    /// <summary>
+    ///     Dealt to each mob thrown clear when the vehicle is destroyed.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier? EjectDamage;
+
+    /// <summary>
+    ///     How long each mob thrown clear when the vehicle is destroyed is knocked down.
+    /// </summary>
+    [DataField]
+    public TimeSpan EjectStun = TimeSpan.Zero;
 
     /// <summary>
     ///     The loaded interior map, once something has needed it. Always null on the client.
