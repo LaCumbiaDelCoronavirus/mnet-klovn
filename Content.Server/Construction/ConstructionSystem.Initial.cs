@@ -475,6 +475,11 @@ namespace Content.Server.Construction
                 return;
             }
 
+            // KS14 start: KsCanStartConstructionEvent, e.g. no building inside crew vehicles
+            if (!KsCanStartConstruction(user, GetCoordinates(ev.Location), constructionPrototype, ev.Ack, args.SenderSession))
+                return;
+            // KS14 end
+
             var startNode = constructionGraph.Nodes[constructionPrototype.StartNode];
             var targetNode = constructionGraph.Nodes[constructionPrototype.TargetNode];
             var pathFind = constructionGraph.Path(startNode.Name, targetNode.Name);

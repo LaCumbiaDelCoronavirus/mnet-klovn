@@ -1,0 +1,62 @@
+# Parents for everything placed in a crew vehicle's interior map. None of them has Damageable, Destructible,
+# Construction, Anchorable or Pullable: an interior cannot be damaged, taken apart, unbolted or dragged around.
+
+- type: entity
+  abstract: true
+  id: KsCrewVehicleInteriorBase
+  placement:
+    mode: SnapgridCenter
+  components:
+  - type: Transform
+    anchored: true
+  - type: Clickable
+  - type: Physics
+    bodyType: Static
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.45,-0.45,0.45,0.45"
+        density: 60
+        mask:
+        - MachineMask
+        layer:
+        - MidImpassable
+        - LowImpassable
+
+- type: entity
+  abstract: true
+  parent: KsCrewVehicleInteriorBase
+  id: KsCrewVehicleInteriorBaseWall
+  components:
+  - type: Occluder
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.5,-0.5,0.5,0.5"
+        density: 1000
+        mask:
+        - FullTileMask
+        layer:
+        - WallLayer
+
+# A wall piece that does not block sight: the outside drawn behind the interior shows through it.
+- type: entity
+  abstract: true
+  parent: KsCrewVehicleInteriorBase
+  id: KsCrewVehicleInteriorBaseWindow
+  components:
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.5,-0.5,0.5,0.5"
+        density: 1000
+        mask:
+        - FullTileMask
+        layer:
+        - GlassLayer
