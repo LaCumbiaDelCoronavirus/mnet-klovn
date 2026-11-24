@@ -15,3 +15,12 @@ ks-crew-vehicle-crash-lockout = The crash has stalled the engine!
 ks-crew-vehicle-alert-ammo-name = Rounds
 ks-crew-vehicle-alert-ammo-desc = Rounds left in the weapon you have selected.
 ks-crew-vehicle-select-weapon-examine = Fires { THE($weapon) }: { $rounds } rounds left.
+
+ks-crew-vehicle-ammo-port-examine = The weapon it loads has [color=yellow]{ $count }[/color] of { $capacity } rounds.
+ks-crew-vehicle-ammo-port-loaded = Loaded { $count } { $count ->
+    [one] round
+   *[other] rounds
+}.
+ks-crew-vehicle-ammo-port-full = The weapon is full.
+ks-crew-vehicle-ammo-port-wrong-ammo = That doesn't fit this weapon.
+ks-crew-vehicle-ammo-port-no-weapon = There is no weapon to load.

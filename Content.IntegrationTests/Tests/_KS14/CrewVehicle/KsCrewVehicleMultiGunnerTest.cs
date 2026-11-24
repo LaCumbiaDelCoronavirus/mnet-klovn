@@ -308,10 +308,63 @@ public sealed class KsCrewVehicleMultiGunnerTest : KsCrewVehicleGunnerTestBase
         }
 
         Assert.That(aligned, "the turret should finish turning");
+
+        // The client, which predicted the turn, ends where the server does, and its marker went with the server's.
+        await RunTicks(5);
+        var serverRotation = 0.0;
+        var leftNetEntity = NetEntity.Invalid;
+        await Server.WaitPost(() =>
+        {
+            serverRotation = SComp<TransformComponent>(multi.Left).LocalRotation.Theta;
+            leftNetEntity = SEntMan.GetNetEntity(multi.Left);
+        });
+        await Client.WaitAssertion(() =>
+        {
+            var clientLeft = ToClient(leftNetEntity);
+            Assert.That(CEntMan.HasComponent<KsCrewVehicleTurretTraversingComponent>(clientLeft), Is.False,
+                "the client's turret should stop turning when the server's does");
+            Assert.That(CEntMan.GetComponent<TransformComponent>(clientLeft).LocalRotation.Theta, Is.EqualTo(serverRotation).Within(0.001));
+        });
         await Server.WaitPost(() => ReceiveFrom(ServerSession, ShotAt(multi.Left, targetCoordinates)));
         await RunTicks(1);
         await Server.WaitAssertion(() =>
             Assert.That(Rounds(multi.Left), Has.Count.EqualTo(1), "pointing at its target, it fires"));
+    }
+
+    /// <summary>
+    ///     Sitting down through the client, which predicts it, hands out each of the seat's actions once.
+    /// </summary>
+    [Test]
+    public async Task PredictedSittingGrantsEachActionOnce()
+    {
+        var multi = await SpawnMultiAsync();
+        await PutInsideAsync(multi.Scene);
+
+        var seatNetEntity = NetEntity.Invalid;
+        var seatCoordinates = NetCoordinates.Invalid;
+        await Server.WaitPost(() =>
+        {
+            seatNetEntity = SEntMan.GetNetEntity(multi.SeatB);
+            seatCoordinates = SEntMan.GetNetCoordinates(SComp<TransformComponent>(multi.SeatB).Coordinates);
+        });
+        await PressKey(Robust.Shared.Input.EngineKeyFunctions.Use, coordinates: seatCoordinates, cursorEntity: seatNetEntity);
+        await RunTicks(10);
+
+        var expected = 0;
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(SEntMan.HasComponent<KsCrewVehicleGunnerComponent>(SPlayer), "precondition: the player sat down as gunner");
+            expected = SComp<KsCrewVehicleGunnerSeatComponent>(multi.SeatB).SelectActions.Count;
+            Assert.That(SelectActionCount(SEntMan, SPlayer), Is.EqualTo(expected), "the server gave each action once");
+        });
+        await Client.WaitAssertion(() =>
+            Assert.That(SelectActionCount(CEntMan, CPlayer), Is.EqualTo(expected), "the client has each action once"));
+    }
+
+    private static int SelectActionCount(IEntityManager entityManager, EntityUid performer)
+    {
+        return entityManager.GetComponent<ActionsComponent>(performer).Actions
+            .Count(entityManager.HasComponent<KsCrewVehicleSelectWeaponActionComponent>);
     }
 
     private async Task AimAsync(EntityUid weapon, NetCoordinates target)

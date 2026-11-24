@@ -15,3 +15,9 @@ ks-crew-vehicle-crash-lockout = От удара заглох двигатель!
 ks-crew-vehicle-alert-ammo-name = Патроны
 ks-crew-vehicle-alert-ammo-desc = Сколько патронов осталось в выбранном оружии.
 ks-crew-vehicle-select-weapon-examine = Стреляет { $weapon }: патронов осталось { $rounds }.
+
+ks-crew-vehicle-ammo-port-examine = В заряжаемом оружии [color=yellow]{ $count }[/color] из { $capacity } патронов.
+ks-crew-vehicle-ammo-port-loaded = Заряжено патронов: { $count }.
+ks-crew-vehicle-ammo-port-full = Оружие полностью заряжено.
+ks-crew-vehicle-ammo-port-wrong-ammo = Это не подходит к этому оружию.
+ks-crew-vehicle-ammo-port-no-weapon = Здесь нечего заряжать.

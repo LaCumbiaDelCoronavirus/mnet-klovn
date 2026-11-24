@@ -5,7 +5,7 @@ meta:
   forkId: ""
   forkVersion: ""
   time: 11/25/2026 00:00:00
-  entityCount: 7
+  entityCount: 8
 maps:
 - 1
 grids:
@@ -126,4 +126,13 @@ entities:
     - type: KsCrewVehicleViewSeat
       pvsScale: 4
       zoom: 1.5,1.5
+  - uid: 8
+    components:
+    - type: MetaData
+      name: ammo port on a mount the hull lacks
+    - type: Transform
+      pos: 2.5,4.5
+      parent: 2
+    - type: KsCrewVehicleAmmoPort
+      mount: missing
 ...

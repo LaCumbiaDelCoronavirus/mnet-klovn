@@ -70,6 +70,42 @@ public abstract class KsCrewVehicleGunnerTestBase : KsCrewVehicleDriveTestBase
   - type: CartridgeAmmo
     proto: KsCrewVehicleGunnerTestBullet
     deleteOnSpawn: true
+  - type: Item
+  - type: Tag
+    tags:
+    - KsCrewVehicleGunnerTestRound
+
+- type: Tag
+  id: KsCrewVehicleGunnerTestRound
+
+# A round of the same kind as the test gun's, which it doesn't take.
+- type: entity
+  parent: KsCrewVehicleGunnerTestCartridge
+  id: KsCrewVehicleGunnerTestWrongCartridge
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Tag
+    tags: []
+
+- type: entity
+  id: KsCrewVehicleGunnerTestAmmoBox
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Item
+  - type: BallisticAmmoProvider
+    proto: KsCrewVehicleGunnerTestCartridge
+    capacity: 8
+    whitelist:
+      tags:
+      - KsCrewVehicleGunnerTestRound
+
+- type: entity
+  parent: KsCrewVehicleInteriorBaseAmmoPort
+  id: KsCrewVehicleGunnerTestAmmoPort
+  components:
+  - type: KsCrewVehicleAmmoPort
+    mount: main
+    loadDelay: 0.5
 
 - type: entity
   id: KsCrewVehicleGunnerTestGun
@@ -87,6 +123,9 @@ public abstract class KsCrewVehicleGunnerTestBase : KsCrewVehicleDriveTestBase
   - type: BallisticAmmoProvider
     proto: KsCrewVehicleGunnerTestCartridge
     capacity: 10
+    whitelist:
+      tags:
+      - KsCrewVehicleGunnerTestRound
   - type: KsCrewVehicleWeapon
     muzzleOffset: 0,-0.6
     maxAimRange: 5

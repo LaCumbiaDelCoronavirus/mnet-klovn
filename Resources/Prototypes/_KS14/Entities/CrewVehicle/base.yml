@@ -79,6 +79,15 @@
         - MidImpassable
   - type: KsCrewVehicleExit
 
+# A console through which a mounted weapon is loaded from inside. Each placed port names its mount in the map file, or a
+#   child prototype names it.
+- type: entity
+  abstract: true
+  parent: KsCrewVehicleInteriorBase
+  id: KsCrewVehicleInteriorBaseAmmoPort
+  components:
+  - type: KsCrewVehicleAmmoPort
+
 # The hull of a crew vehicle, driven from the driver seat in its interior. Children give it a sprite, its body and
 #   contact fixtures, speeds, an interior and health. Parked it is a loose Dynamic body, solid to mobs and to driven
 #   vehicles; driven it is a kinematic controller (VehicleSystem.Klovn.BodyType.cs). It can't be pulled or thrown.

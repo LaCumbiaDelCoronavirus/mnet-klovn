@@ -308,6 +308,7 @@ public sealed class KsCrewVehicleGunnerTest : KsCrewVehicleGunnerTestBase
             Assert.That(errors, Has.Some.Contains("'absent'"), "a seat naming a mount the hull lacks");
             Assert.That(errors, Has.Some.Contains("not also a view seat"), "a gunner seat that is not a view seat");
             Assert.That(errors, Has.Some.Contains("already"), "a mount named by two seats");
+            Assert.That(errors, Has.Some.Contains("ammo port").And.Contains("'missing'"), "an ammo port on a mount the hull lacks");
         });
     }
 
