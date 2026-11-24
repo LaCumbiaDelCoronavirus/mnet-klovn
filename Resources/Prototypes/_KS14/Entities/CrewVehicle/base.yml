@@ -60,3 +60,21 @@
         - FullTileMask
         layer:
         - GlassLayer
+
+# A door out of the interior. Someone getting in arrives standing on it, so it does not block movement. Each placed
+#   door names its doorway in the map file.
+- type: entity
+  abstract: true
+  parent: KsCrewVehicleInteriorBase
+  id: KsCrewVehicleInteriorBaseExit
+  components:
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.45,-0.45,0.45,0.45"
+        hard: false
+        layer:
+        - MidImpassable
+  - type: KsCrewVehicleExit

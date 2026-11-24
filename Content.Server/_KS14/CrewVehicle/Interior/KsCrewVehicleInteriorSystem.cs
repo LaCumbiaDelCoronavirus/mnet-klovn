@@ -2,21 +2,32 @@ using System.Diagnostics.CodeAnalysis;
 using Content.Shared._KS14.CrewVehicle.Interior;
 using Content.Shared._KS14.RCD;
 using Content.Shared.Light.Components;
+using Content.Shared.Mobs.Components;
+using Content.Shared.Mobs.Systems;
+using Content.Shared.Movement.Pulling.Components;
+using Content.Shared.Movement.Pulling.Systems;
+using Robust.Shared.Map;
 using Robust.Shared.EntitySerialization;
 using Robust.Shared.EntitySerialization.Systems;
 
 namespace Content.Server._KS14.CrewVehicle.Interior;
 
 /// <summary>
-///     Loads each crew vehicle's interior map the first time it is needed, and refuses one that does not fit its
-///         vehicle.
+///     Loads each crew vehicle's interior map the first time it is needed, refusing one that does not fit its vehicle,
+///         and keeps track of what is inside.
 /// </summary>
 public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInteriorSystem
 {
     [Dependency] private MapLoaderSystem _mapLoaderSystem = default!;
     [Dependency] private SharedMapSystem _mapSystem = default!;
     [Dependency] private KsNoBuildZoneSystem _noBuildZoneSystem = default!;
+    [Dependency] private MetaDataSystem _metaDataSystem = default!;
+    [Dependency] private MobStateSystem _mobStateSystem = default!;
+    [Dependency] private PullingSystem _pullingSystem = default!;
+    [Dependency] private SharedTransformSystem _transformSystem = default!;
     [Dependency] private EntityQuery<KsCrewVehicleExitComponent> _exitQuery = default!;
+    [Dependency] private EntityQuery<KsCrewVehicleInteriorComponent> _interiorQuery = default!;
+    [Dependency] private EntityQuery<KsCrewVehicleOccupantComponent> _occupantQuery = default!;
 
     private const string DoorwayClaim = "doorway";
 
@@ -75,6 +86,137 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
 
         interiorMap = mapUid;
         return true;
+    }
+
+    /// <summary>
+    ///     The exit door inside <paramref name="interiorMap"/> leading out of <paramref name="doorway"/>.
+    /// </summary>
+    public bool TryGetExitDoor(EntityUid interiorMap, string doorway, [NotNullWhen(true)] out EntityUid? exitDoor)
+    {
+        exitDoor = null;
+        var query = EntityQueryEnumerator<KsCrewVehicleExitComponent, TransformComponent>();
+        while (query.MoveNext(out var uid, out var exitComponent, out var transform))
+        {
+            if (transform.MapUid != interiorMap || exitComponent.Doorway != doorway)
+                continue;
+
+            exitDoor = uid;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     How many of the vehicle's occupants are alive, which is what its capacity counts.
+    /// </summary>
+    public int CountLivingOccupants(EntityUid vehicleUid)
+    {
+        var count = 0;
+        var query = EntityQueryEnumerator<KsCrewVehicleOccupantComponent, MobStateComponent>();
+        while (query.MoveNext(out var uid, out var occupantComponent, out var mobStateComponent))
+        {
+            if (occupantComponent.Vehicle == vehicleUid
+                && occupantComponent.LifeStage <= ComponentLifeStage.Running
+                && !_mobStateSystem.IsDead(uid, mobStateComponent))
+                count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    ///     Starts tracking <paramref name="uid"/>, which must already be on the vehicle's interior map, as inside it.
+    /// </summary>
+    public void TrackOccupant(EntityUid uid, EntityUid vehicleUid)
+    {
+        if (_occupantQuery.TryComp(uid, out var existing))
+        {
+            if (existing.Vehicle == vehicleUid)
+                return;
+
+            RemComp(uid, existing);
+        }
+
+        var occupantComponent = AddComp<KsCrewVehicleOccupantComponent>(uid);
+        occupantComponent.Vehicle = vehicleUid;
+        // For MapUidChangedEvent, which tells when it has left the interior some other way.
+        _metaDataSystem.AddFlag(uid, MetaDataFlags.ExtraTransformEvents);
+
+        var ev = new KsCrewVehicleEnteredEvent(uid);
+        RaiseLocalEvent(vehicleUid, ref ev);
+    }
+
+    /// <summary>
+    ///     Stops tracking <paramref name="uid"/> as inside a vehicle.
+    /// </summary>
+    public void UntrackOccupant(EntityUid uid)
+    {
+        RemComp<KsCrewVehicleOccupantComponent>(uid);
+    }
+
+    // ComponentRemove, not ComponentShutdown: the occupant's startup and shutdown belong to KsCrewVehicleOutsidePvsSystem.
+    [SubscribeLocalEvent]
+    private void OnOccupantRemove(Entity<KsCrewVehicleOccupantComponent> entity, ref ComponentRemove args)
+    {
+        _metaDataSystem.RemoveFlag(entity.Owner, MetaDataFlags.ExtraTransformEvents);
+
+        if (TerminatingOrDeleted(entity.Comp.Vehicle))
+            return;
+
+        var ev = new KsCrewVehicleExitedEvent(entity.Owner);
+        RaiseLocalEvent(entity.Comp.Vehicle, ref ev);
+    }
+
+    [SubscribeLocalEvent]
+    private void OnOccupantMetaFlagRemoveAttempt(Entity<KsCrewVehicleOccupantComponent> entity, ref MetaFlagRemoveAttemptEvent args)
+    {
+        if (entity.Comp.LifeStage <= ComponentLifeStage.Running)
+            args.ToRemove &= ~MetaDataFlags.ExtraTransformEvents;
+    }
+
+    /// <summary>
+    ///     An occupant moved off the interior by anything but the doors (an admin teleport, a ghost warp) is no longer
+    ///         inside.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnOccupantMapUidChanged(Entity<KsCrewVehicleOccupantComponent> entity, ref MapUidChangedEvent args)
+    {
+        if (_interiorQuery.TryComp(entity.Comp.Vehicle, out var interiorComponent)
+            && interiorComponent.InteriorMap is { } interiorMap
+            && args.NewMap == interiorMap)
+            return;
+
+        // Deferred: the move that raised this is still being processed.
+        RemCompDeferred<KsCrewVehicleOccupantComponent>(entity.Owner);
+    }
+
+    /// <summary>
+    ///     Moves <paramref name="uid"/> to <paramref name="destination"/>, bringing along whatever it is pulling, still
+    ///         pulled. Whoever was pulling <paramref name="uid"/> lets go.
+    /// </summary>
+    /// <returns>The entity it brought along, if any.</returns>
+    public EntityUid? MoveWithPulled(EntityUid uid, EntityCoordinates destination)
+    {
+        if (TryComp<PullableComponent>(uid, out var pullableComponent) && pullableComponent.BeingPulled)
+            _pullingSystem.TryStopPull(uid, pullableComponent);
+
+        EntityUid? pulledUid = null;
+        if (TryComp<PullerComponent>(uid, out var pullerComponent)
+            && pullerComponent.Pulling is { } pulling
+            && TryComp<PullableComponent>(pulling, out var pulledPullableComponent))
+        {
+            _pullingSystem.TryStopPull(pulling, pulledPullableComponent);
+            pulledUid = pulling;
+        }
+
+        _transformSystem.SetCoordinates(uid, destination);
+        if (pulledUid is not { } pulled)
+            return null;
+
+        _transformSystem.SetCoordinates(pulled, destination);
+        _pullingSystem.TryStartPull(uid, pulled);
+        return pulled;
     }
 
     private void Validate(Entity<KsCrewVehicleInteriorComponent> vehicle,
