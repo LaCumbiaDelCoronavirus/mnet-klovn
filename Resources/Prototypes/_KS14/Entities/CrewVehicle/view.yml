@@ -1,0 +1,11 @@
+# Sends one occupant of a crew vehicle what is around the hull: a child of the hull, with its own eye, whose PVS range
+#   the occupant's session is subscribed to (KsCrewVehicleOutsidePvsSystem). Never drawn, never saved.
+- type: entity
+  id: KsCrewVehicleOutsideViewer
+  categories: [ HideSpawnMenu ]
+  name: crew vehicle outside view
+  description: What someone inside a vehicle is sent of the world around it.
+  save: false
+  components:
+  - type: Eye
+    drawFov: false

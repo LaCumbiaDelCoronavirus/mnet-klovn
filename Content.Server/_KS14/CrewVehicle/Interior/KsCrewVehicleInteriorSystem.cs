@@ -197,8 +197,9 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
             RemComp(uid, existing);
         }
 
-        var occupantComponent = AddComp<KsCrewVehicleOccupantComponent>(uid);
-        occupantComponent.Vehicle = vehicleUid;
+        // Filled in before it is added: its startup (KsCrewVehicleOutsidePvsSystem) needs the vehicle.
+        var occupantComponent = new KsCrewVehicleOccupantComponent { Vehicle = vehicleUid };
+        AddComp(uid, occupantComponent);
         // For MapUidChangedEvent, which tells when it has left the interior some other way.
         _metaDataSystem.AddFlag(uid, MetaDataFlags.ExtraTransformEvents);
 
