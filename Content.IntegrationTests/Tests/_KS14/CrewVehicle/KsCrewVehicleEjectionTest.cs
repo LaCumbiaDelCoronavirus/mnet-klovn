@@ -9,6 +9,10 @@ using Content.Shared._KS14.CrewVehicle.Interior;
 using Content.Shared.Damage.Systems;
 using Content.Shared.Destructible;
 using Content.Shared.Movement.Pulling.Systems;
+using Content.Shared.Stunnable;
+using Content.Server.Gravity;
+using Content.Shared.Gravity;
+using Robust.Shared.Maths;
 using NUnit.Framework;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Map;
@@ -31,6 +35,8 @@ public sealed class KsCrewVehicleEjectionTest : GameTest
     private readonly EntProtoId Hull = "KsCrewVehicleEjectionTestHull";
     private readonly EntProtoId Mob = "KsCrewVehicleEjectionTestMob";
     private readonly EntProtoId Crate = "KsCrewVehicleEjectionTestCrate";
+    private readonly EntProtoId _stunningHull = "KsCrewVehicleEjectionTestHullStunning";
+    private readonly EntProtoId _human = "MobHuman";
 
     [TestPrototypes]
     private const string Prototypes = @"
@@ -44,6 +50,18 @@ public sealed class KsCrewVehicleEjectionTest : GameTest
     ejectDamage:
       types:
         Blunt: 5
+    doorways:
+      left:
+        offset: 1,0
+      right:
+        offset: -1,0
+
+- type: entity
+  id: KsCrewVehicleEjectionTestHullStunning
+  components:
+  - type: KsCrewVehicleInterior
+    interiorPath: /Maps/Test/_KS14/CrewVehicle/basic.yml
+    ejectStun: 3
     doorways:
       left:
         offset: 1,0
@@ -183,6 +201,49 @@ public sealed class KsCrewVehicleEjectionTest : GameTest
         {
             AssertBeside(mob, hullPosition, "the mob");
             AssertBeside(item, hullPosition, "the item");
+        });
+    }
+
+    [Test]
+    public async Task AMobThrownClearIsKnockedDownForTheEjectStun()
+    {
+        var testMap = await Pair.CreateTestMap();
+        var hullPosition = new MapCoordinates(new Vector2(0.5f, -3.5f), testMap.MapId);
+        EntityUid hull = default;
+        EntityUid human = default;
+        await Server.WaitPost(() =>
+        {
+            // Floor with gravity around the hull: nothing is knocked down while weightless.
+            var mapSystem = SEntMan.System<SharedMapSystem>();
+            for (var x = -5; x <= 5; x++)
+            {
+                for (var y = -9; y <= 1; y++)
+                {
+                    mapSystem.SetTile(testMap.Grid.Owner, testMap.Grid.Comp, new Vector2i(x, y), testMap.Tile.Tile);
+                }
+            }
+
+            var gravityComponent = SEntMan.EnsureComponent<GravityComponent>(testMap.Grid.Owner);
+            SEntMan.System<GravitySystem>().EnableGravity(testMap.Grid.Owner, gravityComponent);
+
+            hull = SEntMan.Spawn(_stunningHull, hullPosition);
+            Assert.That(SEntMan.System<KsCrewVehicleInteriorSystem>().EnsureInterior(SEntity<KsCrewVehicleInteriorComponent>(hull), out var interiorMap), Is.True);
+            human = SEntMan.Spawn(_human, new MapCoordinates(new Vector2(2.5f, 2.5f), SComp<MapComponent>(interiorMap!.Value).MapId));
+        });
+        await Pair.RunTicksSync(2);
+
+        var stun = SComp<KsCrewVehicleInteriorComponent>(hull).EjectStun;
+        Assert.That(stun, Is.GreaterThan(TimeSpan.Zero), "precondition: the test hull stuns");
+        await Server.WaitPost(() => SEntMan.DeleteEntity(hull));
+        await Pair.RunTicksSync(2);
+
+        await Server.WaitAssertion(() =>
+        {
+            AssertBeside(human, hullPosition, "the mob");
+            Assert.That(STryComp<KnockedDownComponent>(human, out var knockedDown), Is.True, "thrown clear, it is knocked down");
+            var remaining = knockedDown!.NextUpdate - Server.Timing.CurTime;
+            Assert.That(remaining, Is.LessThanOrEqualTo(stun).And.GreaterThan(stun - TimeSpan.FromSeconds(0.5)),
+                "for the vehicle's eject stun, less the ticks since");
         });
     }
 }
