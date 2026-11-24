@@ -24,6 +24,7 @@
         layer:
         - MidImpassable
         - LowImpassable
+  - type: KsCrewVehicleInteriorPart
 
 - type: entity
   abstract: true
@@ -125,6 +126,7 @@
     anchored: false
   - type: Sprite
     drawdepth: FloorTiles
+  - type: KsCrewVehicleInteriorPart
 
 # The hull of a crew vehicle, driven from the driver seat in its interior. Children give it a sprite, its body and
 #   contact fixtures, speeds, an interior and health. Parked it is a loose Dynamic body, solid to mobs and to driven

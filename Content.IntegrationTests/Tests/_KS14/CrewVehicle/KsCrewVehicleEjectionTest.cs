@@ -37,6 +37,7 @@ public sealed class KsCrewVehicleEjectionTest : GameTest
     private readonly EntProtoId Crate = "KsCrewVehicleEjectionTestCrate";
     private readonly EntProtoId _stunningHull = "KsCrewVehicleEjectionTestHullStunning";
     private readonly EntProtoId _human = "MobHuman";
+    private readonly EntProtoId _seat = "KsCrewVehicleEjectionTestSeat";
 
     [TestPrototypes]
     private const string Prototypes = @"
@@ -80,6 +81,10 @@ public sealed class KsCrewVehicleEjectionTest : GameTest
   - type: Damageable
   - type: Injurable
     damageContainer: Biological
+
+- type: entity
+  parent: KsCrewVehicleInteriorBaseSeat
+  id: KsCrewVehicleEjectionTestSeat
 
 - type: entity
   id: KsCrewVehicleEjectionTestCrate
@@ -172,6 +177,42 @@ public sealed class KsCrewVehicleEjectionTest : GameTest
             AssertBeside(droppedItem, hullPosition, "an item on the floor");
             Assert.That(SEntMan.Deleted(interiorMap), Is.True, "the interior map is gone");
             Assert.That((float)SEntMan.System<DamageableSystem>().GetTotalDamage(driver), Is.GreaterThan(0f), "being thrown clear hurts");
+        });
+    }
+
+    /// <summary>
+    ///     A seat is unanchored so it can sit where the interior's art has it, but it is part of the interior: it goes with
+    ///         the map instead of being thrown out beside the vehicle with what was lying on the floor.
+    /// </summary>
+    [Test]
+    public async Task TheInteriorsOwnSeatsGoWithTheMap()
+    {
+        var testMap = await Pair.CreateTestMap();
+        var hullPosition = new MapCoordinates(new Vector2(0.5f, -3.5f), testMap.MapId);
+        EntityUid hull = default;
+        EntityUid seat = default;
+        EntityUid crate = default;
+        EntityUid interiorMap = default;
+        await Server.WaitPost(() =>
+        {
+            hull = SEntMan.Spawn(Hull, hullPosition);
+            Assert.That(SEntMan.System<KsCrewVehicleInteriorSystem>()
+                .EnsureInterior(SEntity<KsCrewVehicleInteriorComponent>(hull), out var loadedMap), Is.True);
+            interiorMap = loadedMap!.Value;
+            var inside = new MapCoordinates(new Vector2(2.5f, 2.5f), SComp<MapComponent>(interiorMap).MapId);
+            seat = SEntMan.Spawn(_seat, inside);
+            crate = SEntMan.Spawn(Crate, inside);
+        });
+        await Pair.RunTicksSync(2);
+
+        await Server.WaitPost(() => SEntMan.System<SharedDestructibleSystem>().DestroyEntity(hull));
+        await Pair.RunTicksSync(3);
+
+        await Server.WaitAssertion(() =>
+        {
+            AssertBeside(crate, hullPosition, "the control, an item on the floor");
+            Assert.That(SEntMan.Deleted(interiorMap), Is.True, "the interior map is gone");
+            Assert.That(SEntMan.Deleted(seat), Is.True, "the seat went with the interior map rather than out beside the vehicle");
         });
     }
 

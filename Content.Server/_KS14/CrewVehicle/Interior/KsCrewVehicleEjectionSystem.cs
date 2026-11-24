@@ -30,6 +30,7 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
     [Dependency] private SharedTransformSystem _transformSystem = default!;
     [Dependency] private EntityQuery<MapGridComponent> _gridQuery = default!;
     [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
+    [Dependency] private EntityQuery<KsCrewVehicleInteriorPartComponent> _interiorPartQuery = default!;
 
     /// <summary>
     ///     Where, around the vehicle, things are put: rings of eight, nearest first.
@@ -186,11 +187,13 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
     }
 
     /// <summary>
-    ///     Whether <paramref name="uid"/> is something lying about, rather than part of the interior.
+    ///     Whether <paramref name="uid"/> is something lying about, rather than part of the interior
+    ///         (<see cref="KsCrewVehicleInteriorPartComponent"/>).
     /// </summary>
     public bool IsLoose(EntityUid uid)
     {
-        return !Transform(uid).Anchored && _physicsQuery.HasComp(uid);
+        // A seat or the ammo loader is unanchored to sit where the art has it, but is the interior's own.
+        return !Transform(uid).Anchored && _physicsQuery.HasComp(uid) && !_interiorPartQuery.HasComp(uid);
     }
 
     /// <summary>
