@@ -416,15 +416,4 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
         Assert.That(errors.Any(error => error.Contains("blind driver seat") && error.Contains("view seat")), Is.True,
             $"the error should name the seat and say it needs to be a view seat; got: {string.Join("; ", errors)}");
     }
-
-    /// <summary>
-    ///     The movement key for the nearest of the four directions to <paramref name="direction"/>.
-    /// </summary>
-    private static DirectionFlag DirectionFor(Vector2 direction)
-    {
-        if (MathF.Abs(direction.X) > MathF.Abs(direction.Y))
-            return direction.X > 0 ? DirectionFlag.East : DirectionFlag.West;
-
-        return direction.Y > 0 ? DirectionFlag.North : DirectionFlag.South;
-    }
 }

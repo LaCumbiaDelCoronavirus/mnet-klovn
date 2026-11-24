@@ -82,8 +82,9 @@
 # The hull of a crew vehicle, driven from the driver seat in its interior. Children give it a sprite, its body and
 #   contact fixtures, speeds, an interior and health. Parked it is a loose Dynamic body, solid to mobs and to driven
 #   vehicles; driven it is a kinematic controller (VehicleSystem.Klovn.BodyType.cs). It can't be pulled or thrown.
-#   Children's fixtures: `fix1`, the hard body, mask MobMask; `contact`, non-hard and a little larger, with which a
-#   driven hull stops against another (KsCrewVehicleDrive.contactFixture).
+#   Children's fixtures: `fix1`, the hard body, mask MobMask; `contact`, non-hard and a little larger, mask MobMask
+#   and MobLayer, with which a driven hull stops against another (KsCrewVehicleDrive.contactFixture) and finds the
+#   mobs it runs over or is stopped by (KsCrewVehicleRunOver.fixture).
 - type: entity
   abstract: true
   id: KsCrewVehicleHullBase
@@ -119,3 +120,7 @@
     radius: 8
     energy: 2
   - type: KsCrewVehicleHeadlight
+  - type: KsCrewVehicleRunOver
+    damage:
+      types:
+        Blunt: 25

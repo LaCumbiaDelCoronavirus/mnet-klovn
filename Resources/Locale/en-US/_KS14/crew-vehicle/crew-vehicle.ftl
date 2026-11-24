@@ -8,3 +8,5 @@ ks-crew-vehicle-enter-failed = You can't get in.
 ks-crew-vehicle-buckled = Unbuckle first.
 ks-crew-vehicle-exit-blocked = Something outside is in the way.
 ks-crew-vehicle-exit-moving = It's moving too fast to get out.
+
+ks-crew-vehicle-run-over = { CAPITALIZE(THE($vehicle)) } runs { THE($victim) } over!

@@ -32,6 +32,7 @@ namespace Content.IntegrationTests.Tests._KS14.CrewVehicle;
 public abstract class KsCrewVehicleDriveTestBase : MovementTest
 {
     protected readonly EntProtoId HullPrototype = "KsCrewVehicleDriveTestHull";
+    protected readonly EntProtoId GentleHullPrototype = "KsCrewVehicleDriveTestHullGentle";
     protected readonly EntProtoId TwoDriversHullPrototype = "KsCrewVehicleDriveTestHullTwoDrivers";
     protected readonly EntProtoId BlindHullPrototype = "KsCrewVehicleDriveTestHullBlind";
     protected readonly EntProtoId CratePrototype = "KsCrewVehicleDriveTestCrate";
@@ -76,6 +77,7 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         hard: false
         mask:
         - MobMask
+        - MobLayer
   - type: InputMover
   - type: MovementSpeedModifier
     baseWalkSpeed: 3
@@ -108,6 +110,23 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
   - type: PointLight
     enabled: false
   - type: KsCrewVehicleHeadlight
+  - type: KsCrewVehicleRunOver
+    minSpeed: 2
+    damage:
+      types:
+        Blunt: 10
+    knockdown: 2
+
+# Never fast enough to run anyone over.
+- type: entity
+  parent: KsCrewVehicleDriveTestHull
+  id: KsCrewVehicleDriveTestHullGentle
+  components:
+  - type: KsCrewVehicleRunOver
+    minSpeed: 100
+    damage:
+      types:
+        Blunt: 10
 
 - type: entity
   parent: KsCrewVehicleDriveTestHull
@@ -328,5 +347,16 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         }
 
         return errors;
+    }
+
+    /// <summary>
+    ///     The movement key for the nearest of the four directions to <paramref name="direction"/>.
+    /// </summary>
+    protected static DirectionFlag DirectionFor(Vector2 direction)
+    {
+        if (MathF.Abs(direction.X) > MathF.Abs(direction.Y))
+            return direction.X > 0 ? DirectionFlag.East : DirectionFlag.West;
+
+        return direction.Y > 0 ? DirectionFlag.North : DirectionFlag.South;
     }
 }
