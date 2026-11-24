@@ -29,15 +29,8 @@ namespace Content.Client.Viewport
     {
         [Dependency] private IPlayerManager _playerManager = default!;
 
-        /// <summary>
-        ///     A stand-in for the viewer's own eye, repositioned and rescaled once per z-level pass.
-        ///     FOV and lights are turned back on per pass; they are off here only as the default.
-        /// </summary>
-        private Robust.Shared.Graphics.Eye _zLevelEye = new Robust.Shared.Graphics.Eye()
-        {
-            DrawFov = false,
-            DrawLight = false
-        };
+        // Every pass here is drawn through the stand-in eye in ScalingViewport.Klovn.StandInEye.cs, repositioned
+        //      and rescaled once per z-level.
 
         private MapSystem _mapSystem = default!;
         private KsZLevelSystem _zLevelSystem = null!;
@@ -158,10 +151,6 @@ namespace Content.Client.Viewport
                 _zLevelSystem.TryGetDepthBelow(topMapUid.Value, _mapsToIterate[0].Owner, out var stackDepth))
                 depth += stackDepth;
 
-            _zLevelEye.DrawLight = _eye!.DrawLight;
-            _zLevelEye.Offset = _eye.Offset;
-            _zLevelEye.Rotation = _eye.Rotation;
-
             // Everything from here to the finally is drawn with the captures in scope: the capture passes
             //      themselves want them, so that a z-level is already lit from above before it lights the one
             //      below it, and the drawing passes want them for the same reason.
@@ -191,7 +180,6 @@ namespace Content.Client.Viewport
             // default clearcolor is black
             // yes if the very first frame ever is on a zlevel that isnt the deepest one, then yes one frame will unintentionally not clear
             _viewport!.ClearColor = Color.Black;
-            _zLevelEye.DrawFov = _eye.DrawFov;
             return true;
         }
 
@@ -226,25 +214,28 @@ namespace Content.Client.Viewport
                 // The one exception is a frame that captured: those passes left their own output sitting in
                 //      the target, and the deepest pass here would otherwise be composited over a picture of
                 //      some other z-level rather than over last frame's near-identical one.
-                _viewport!.ClearColor = clearFirstPass ? Color.Black : null;
+                Color? clearColor = clearFirstPass ? Color.Black : null;
                 clearFirstPass = false;
-                // for maps below the highest, never draw FOV. on the highest map, only draw fov if we would for a non-zlevel
-                _zLevelEye.DrawFov = isViewerMap && eye.DrawFov;
 
-                _zLevelEye.Position = new MapCoordinates(eye.Position.Position, mapComponent.MapId);
-                _zLevelEye.Scale = _zLevelSystem.GetDepthScale(eye.Scale, depth);
+                var standInEye = AimStandInEye(
+                    new MapCoordinates(eye.Position.Position, mapComponent.MapId),
+                    eye.Offset,
+                    eye.Rotation,
+                    _zLevelSystem.GetDepthScale(eye.Scale, depth),
+                    // for maps below the highest, never draw FOV. on the highest map, only draw fov if we would for a non-zlevel
+                    drawFov: isViewerMap && eye.DrawFov,
+                    drawLight: eye.DrawLight);
+
                 // The viewer's own map is drawn through their real eye while they're standing on it, and
                 //      through the scaled copy while they're above it mid-transit.
-                _viewport.Eye = isViewerMap && depth <= 0f ? eye : _zLevelEye;
-
-                Content.Client._KS14.ZLevel.KsZLevelRenderPass.LowerLevel = !isViewerMap;
-                _viewport.Render();
-                Content.Client._KS14.ZLevel.KsZLevelRenderPass.LowerLevel = false;
-                _viewport.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
+                KsZLevelRenderPass.LowerLevel = !isViewerMap;
+                RenderPass(isViewerMap && depth <= 0f ? eye : standInEye, clearColor);
+                KsZLevelRenderPass.LowerLevel = false;
+                _viewport!.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
 
                 // Never blur the map the viewer is actually on
                 if (!isViewerMap && _zBlurBuffer != null)
-                    _clyde.BlurRenderTarget(_viewport, _viewport.RenderTarget, _zBlurBuffer, _zLevelEye, 2.5f * mapZLevelComponent.Depth);
+                    _clyde.BlurRenderTarget(_viewport, _viewport.RenderTarget, _zBlurBuffer, standInEye, 2.5f * mapZLevelComponent.Depth);
 
                 handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox);
                 _viewport.RenderScreenOverlaysAbove(handle, this, drawBoxGlobal);
@@ -321,28 +312,28 @@ namespace Content.Client.Viewport
                     modulate = Color.White.WithAlpha(alpha);
                 }
 
-                _viewport!.ClearColor = null;
+                var standInEye = AimStandInEye(
+                    new MapCoordinates(eye.Position.Position, mapComponent.MapId),
+                    eye.Offset,
+                    eye.Rotation,
+                    _zLevelSystem.GetDepthScale(eye.Scale, gapDepth),
+                    // A crossing at or above the viewer is on their eye level, so it is sight-blocked like
+                    //      anything else at their eye level - otherwise a lift arriving overhead hands everyone
+                    //      underneath it a free look at whoever is riding it, through walls they could not see
+                    //      through a moment earlier or a moment later.
+                    // One below them is not: they are looking down an open shaft at it, and the walls carving
+                    //      up their own floor are no business of a pass two floors down. That matches the rule
+                    //      the ordinary stack passes already use, where only the viewer's own z-level draws it.
+                    drawFov: eye.DrawFov && gapDepth <= 0f,
+                    drawLight: eye.DrawLight);
 
-                // A crossing at or above the viewer is on their eye level, so it is sight-blocked like
-                //      anything else at their eye level - otherwise a lift arriving overhead hands everyone
-                //      underneath it a free look at whoever is riding it, through walls they could not see
-                //      through a moment earlier or a moment later.
-                // One below them is not: they are looking down an open shaft at it, and the walls carving
-                //      up their own floor are no business of a pass two floors down. That matches the rule
-                //      the ordinary stack passes already use, where only the viewer's own z-level draws it.
-                _zLevelEye.DrawFov = eye.DrawFov && gapDepth <= 0f;
-
-                _zLevelEye.Position = new MapCoordinates(eye.Position.Position, mapComponent.MapId);
-                _zLevelEye.Scale = _zLevelSystem.GetDepthScale(eye.Scale, gapDepth);
-                _viewport.Eye = _zLevelEye;
-
-                _viewport.Render();
-                _viewport.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
+                RenderPass(standInEye, clearColor: null);
+                _viewport!.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
 
                 // Distance blur only, and only for a gap below. One overhead is nearer than the viewer's own
                 //      floor, so there is nothing to blur it by - and a negative radius is not a thing.
                 if (_zBlurBuffer != null && gapDepth > 0f)
-                    _clyde.BlurRenderTarget(_viewport, _viewport.RenderTarget, _zBlurBuffer, _zLevelEye, 2.5f * gapDepth);
+                    _clyde.BlurRenderTarget(_viewport, _viewport.RenderTarget, _zBlurBuffer, standInEye, 2.5f * gapDepth);
 
                 handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox, modulate);
                 _viewport.RenderScreenOverlaysAbove(handle, this, drawBoxGlobal);
@@ -517,34 +508,34 @@ namespace Content.Client.Viewport
 
             _capturesTakenThisFrame.Add(mapComponent.MapId);
 
-            // Never the viewer's FOV: this z-level is not the one they are standing on, and carving their
-            //      line of sight out of it would cut shadows into light that was never theirs to block.
-            _zLevelEye.DrawFov = false;
-            _zLevelEye.Position = new MapCoordinates(_eye!.Position.Position, mapComponent.MapId);
-
-            // Rendered through the eye of the z-level it is about to light rather than its own, widened by
-            //      the light target's skirt on top.
-            // Its own scale would buy nothing: light falls straight down, so a capture is projected onto the
-            //      z-level below at the same world coordinates whatever scale it was drawn at, and all its
-            //      own scale decides is how much of the world it covers. Drawn at its own scale it covers
-            //      less than the pass reading it can see, because that pass is further away and sees wider -
-            //      and the strip of screen past the edge of the capture is then lit by nothing at all.
-            _zLevelEye.Scale =
-                _zLevelSystem.GetDepthScale(_eye.Scale, consumerDepth) / _captureOversize;
-
-            _viewport!.Eye = _zLevelEye;
+            var eye = _eye!;
+            var standInEye = AimStandInEye(
+                new MapCoordinates(eye.Position.Position, mapComponent.MapId),
+                eye.Offset,
+                eye.Rotation,
+                // Rendered through the eye of the z-level it is about to light rather than its own, widened by
+                //      the light target's skirt on top.
+                // Its own scale would buy nothing: light falls straight down, so a capture is projected onto the
+                //      z-level below at the same world coordinates whatever scale it was drawn at, and all its
+                //      own scale decides is how much of the world it covers. Drawn at its own scale it covers
+                //      less than the pass reading it can see, because that pass is further away and sees wider -
+                //      and the strip of screen past the edge of the capture is then lit by nothing at all.
+                _zLevelSystem.GetDepthScale(eye.Scale, consumerDepth) / _captureOversize,
+                // Never the viewer's FOV: this z-level is not the one they are standing on, and carving their
+                //      line of sight out of it would cut shadows into light that was never theirs to block.
+                drawFov: false,
+                drawLight: eye.DrawLight);
 
             // Cleared, unlike the drawing passes: the colour image is about to be used as a mask, and it can
             //      only say where this z-level is solid if nothing else is left in it.
-            _viewport.ClearColor = Color.Transparent;
             KsZLevelRenderPass.Capture = true;
-            _viewport.Render();
+            RenderPass(standInEye, Color.Transparent);
             KsZLevelRenderPass.Capture = false;
 
             var capture = EnsureCapture(mapComponent.MapId);
-            capture.WorldBounds = GetEyeWorldBounds(_zLevelEye);
+            capture.WorldBounds = GetEyeWorldBounds(standInEye);
 
-            CopyIntoCapture(handle, _viewport.LightRenderTarget.Texture, capture.Light, capture.WorldBounds);
+            CopyIntoCapture(handle, _viewport!.LightRenderTarget.Texture, capture.Light, capture.WorldBounds);
             CopyIntoCapture(handle, _viewport.RenderTarget.Texture, capture.Colour, capture.WorldBounds);
         }
 
@@ -564,7 +555,7 @@ namespace Content.Client.Viewport
             //      through has to be corrected by the difference. The same correction every light overlay makes.
             var captureScale = destination.Size / (Vector2)_viewport!.Size;
             var scale = _viewport.RenderScale / (Vector2.One / captureScale);
-            var matrix = destination.GetWorldToLocalMatrix(_zLevelEye, scale);
+            var matrix = destination.GetWorldToLocalMatrix(_standInEye, scale);
 
             worldHandle.RenderInRenderTarget(
                 destination,

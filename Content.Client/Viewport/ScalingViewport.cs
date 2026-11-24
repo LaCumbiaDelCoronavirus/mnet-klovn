@@ -185,6 +185,8 @@ namespace Content.Client.Viewport
             DrawPortalPrePass(handle);
             try
             {
+                DrawCrewVehicleBackdropPass(); // KS14: inside a crew vehicle, the world outside is drawn first, under the passes below
+
                 if (TryDrawZLevels(handle, drawBox, drawBoxGlobal))
                     return;
 
