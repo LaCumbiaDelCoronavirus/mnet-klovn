@@ -295,7 +295,7 @@ public abstract partial class SharedMoverController : VirtualController
         }
 
         // KS14 Change Start: wishdir update
-        var ksUpdateWishDirEvent = new UpdateWishDirEvent(wishDir);
+        var ksUpdateWishDirEvent = new UpdateWishDirEvent(wishDir, frameTime);
         RaiseLocalEvent(entity.Owner, ref ksUpdateWishDirEvent);
 
         wishDir = ksUpdateWishDirEvent.WishDir;

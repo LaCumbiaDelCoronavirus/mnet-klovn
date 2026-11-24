@@ -78,3 +78,44 @@
         layer:
         - MidImpassable
   - type: KsCrewVehicleExit
+
+# The hull of a crew vehicle, driven from the driver seat in its interior. Children give it a sprite, its body and
+#   contact fixtures, speeds, an interior and health. Parked it is a loose Dynamic body, solid to mobs and to driven
+#   vehicles; driven it is a kinematic controller (VehicleSystem.Klovn.BodyType.cs). It can't be pulled or thrown.
+#   Children's fixtures: `fix1`, the hard body, mask MobMask; `contact`, non-hard and a little larger, with which a
+#   driven hull stops against another (KsCrewVehicleDrive.contactFixture).
+- type: entity
+  abstract: true
+  id: KsCrewVehicleHullBase
+  components:
+  - type: Transform
+    anchored: false
+  - type: Clickable
+  - type: InteractionOutline
+  - type: Physics
+    bodyType: Dynamic
+    fixedRotation: true
+  - type: InputMover
+  - type: MovementSpeedModifier
+  - type: NoRotateOnMove
+  - type: Vehicle
+    requiresHands: false
+    transferDamage: false
+  - type: KsCrewVehicleDrive
+  - type: DoorBumpOpener
+  - type: AmbientSound
+    enabled: false
+    volume: -4
+    range: 8
+    sound:
+      path: /Audio/Effects/Vehicle/vehicleengineidle.ogg
+  - type: ActionsContainer
+  - type: KsCrewVehicleHorn
+    sound:
+      path: /Audio/Effects/Vehicle/carhorn.ogg
+  - type: UnpoweredFlashlight
+  - type: PointLight
+    enabled: false
+    radius: 8
+    energy: 2
+  - type: KsCrewVehicleHeadlight
