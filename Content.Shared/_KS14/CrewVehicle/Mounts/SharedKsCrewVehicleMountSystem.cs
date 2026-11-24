@@ -46,6 +46,32 @@ public abstract partial class SharedKsCrewVehicleMountSystem : EntitySystem
     }
 
     /// <summary>
+    ///     Which way <paramref name="weapon"/>'s mount points at rest, relative to the hull it is on: the hull-local
+    ///         rotation of a fixed weapon, and the centre of the weapon's fire arc.
+    /// </summary>
+    public Angle GetRestRotation(Entity<KsCrewVehicleWeaponComponent> weapon)
+    {
+        return weapon.Comp.Vehicle is { } vehicleUid &&
+               weapon.Comp.MountId is { } mountId &&
+               MountsQuery.TryComp(vehicleUid, out var mountsComponent) &&
+               mountsComponent.Mounts.TryGetValue(mountId, out var mount)
+            ? mount.Rotation
+            : Angle.Zero;
+    }
+
+    /// <summary>
+    ///     Whether a shot from <paramref name="weapon"/> toward <paramref name="worldDirection"/> is inside its fire arc.
+    /// </summary>
+    public bool IsInFireArc(Entity<KsCrewVehicleWeaponComponent> weapon, Angle worldDirection)
+    {
+        if (weapon.Comp.FireArc is not { } fireArc || weapon.Comp.Vehicle is not { } vehicleUid)
+            return true;
+
+        var restWorld = _transformSystem.GetWorldRotation(vehicleUid) + GetRestRotation(weapon);
+        return Math.Abs(Angle.ShortestDistance(restWorld, worldDirection).Theta) <= fireArc.Theta / 2 + 0.0001;
+    }
+
+    /// <summary>
     ///     A mounted weapon fires from its hull, and its shots pass through it.
     /// </summary>
     [SubscribeLocalEvent]

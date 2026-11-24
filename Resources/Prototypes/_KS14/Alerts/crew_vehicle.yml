@@ -1,0 +1,28 @@
+# A crew vehicle gunner's selected weapon's rounds, counted on the client (KsCrewVehicleGunnerHudSystem).
+- type: alert
+  id: KsCrewVehicleAmmo
+  icons:
+  - sprite: /Textures/Objects/Weapons/Guns/Ammunition/Boxes/rifle.rsi
+    state: base
+  alertViewEntity: KsAlertCrewVehicleAmmoSpriteView
+  name: ks-crew-vehicle-alert-ammo-name
+  description: ks-crew-vehicle-alert-ammo-desc
+
+- type: entity
+  id: KsAlertCrewVehicleAmmoSpriteView
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: GenericCounterAlert
+    hideLeadingZeroes: true
+  - type: Sprite
+    layers:
+    - map: [ "enum.AlertVisualLayers.Base" ]
+    - map: [ "1" ]
+      sprite: /Textures/Interface/Alerts/essence_counter.rsi
+      state: "0"
+    - map: [ "10" ]
+      sprite: /Textures/Interface/Alerts/essence_counter.rsi
+      state: "0"
+    - map: [ "100" ]
+      sprite: /Textures/Interface/Alerts/essence_counter.rsi
+      state: "0"

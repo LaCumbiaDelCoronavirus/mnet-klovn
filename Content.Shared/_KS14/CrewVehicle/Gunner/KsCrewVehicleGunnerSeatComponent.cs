@@ -1,4 +1,7 @@
+using Content.Shared.Actions.Components;
+using Content.Shared.Alert;
 using Robust.Shared.GameStates;
+using Robust.Shared.Prototypes;
 
 namespace Content.Shared._KS14.CrewVehicle.Gunner;
 
@@ -20,4 +23,22 @@ public sealed partial class KsCrewVehicleGunnerSeatComponent : Component
     /// </summary>
     [DataField(required: true), AutoNetworkedField]
     public List<string> Mounts = new();
+
+    /// <summary>
+    ///     With more than one mount, one of these per mount picks it; each shows its weapon's rounds.
+    /// </summary>
+    [DataField]
+    public EntProtoId<InstantActionComponent> SelectAction = "KsCrewVehicleActionSelectWeapon";
+
+    /// <summary>
+    ///     Shown to the gunner while they sit here: the selected weapon's rounds.
+    /// </summary>
+    [DataField]
+    public ProtoId<AlertPrototype> AmmoAlert = "KsCrewVehicleAmmo";
+
+    /// <summary>
+    ///     The select actions, in the order of <see cref="Mounts"/>, made at map init in the seat's action container.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public List<EntityUid> SelectActions = new();
 }

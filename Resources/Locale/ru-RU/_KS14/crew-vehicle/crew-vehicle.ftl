@@ -11,3 +11,7 @@ ks-crew-vehicle-exit-moving = Слишком быстро едет, чтобы �
 
 ks-crew-vehicle-run-over = { CAPITALIZE($vehicle) } сбивает { $victim }!
 ks-crew-vehicle-crash-lockout = От удара заглох двигатель!
+
+ks-crew-vehicle-alert-ammo-name = Патроны
+ks-crew-vehicle-alert-ammo-desc = Сколько патронов осталось в выбранном оружии.
+ks-crew-vehicle-select-weapon-examine = Стреляет { $weapon }: патронов осталось { $rounds }.

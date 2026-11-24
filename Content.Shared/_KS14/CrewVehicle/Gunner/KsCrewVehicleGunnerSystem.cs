@@ -3,6 +3,8 @@ using Content.Shared._KS14.CrewVehicle.Mounts;
 using Content.Shared._KS14.CrewVehicle.View;
 using Content.Shared._KS14.Weapons.Ranged;
 using Content.Shared.ActionBlocker;
+using Content.Shared.Actions;
+using Content.Shared.Alert;
 using Content.Shared.Buckle.Components;
 using Content.Shared.Weapons.Ranged.Events;
 using Content.Shared.Weapons.Ranged.Systems;
@@ -24,6 +26,9 @@ namespace Content.Shared._KS14.CrewVehicle.Gunner;
 public sealed partial class KsCrewVehicleGunnerSystem : EntitySystem
 {
     [Dependency] private ActionBlockerSystem _actionBlockerSystem = default!;
+    [Dependency] private ActionContainerSystem _actionContainerSystem = default!;
+    [Dependency] private AlertsSystem _alertsSystem = default!;
+    [Dependency] private SharedActionsSystem _actionsSystem = default!;
     [Dependency] private IGameTiming _gameTiming = default!;
     [Dependency] private SharedGunSystem _gunSystem = default!;
     [Dependency] private SharedKsCrewVehicleInteriorSystem _interiorSystem = default!;
@@ -35,8 +40,36 @@ public sealed partial class KsCrewVehicleGunnerSystem : EntitySystem
     [Dependency] private EntityQuery<KsCrewVehicleViewSeatComponent> _viewSeatQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleWeaponComponent> _weaponQuery = default!;
     [Dependency] private EntityQuery<StrapComponent> _strapQuery = default!;
+    [Dependency] private EntityQuery<KsCrewVehicleGunnerSeatComponent> _gunnerSeatQuery = default!;
+    [Dependency] private EntityQuery<KsCrewVehicleSelectWeaponActionComponent> _selectActionQuery = default!;
 
     private const string GunnerMountClaim = "gunner-mount";
+
+    /// <summary>
+    ///     A seat with several weapons makes one select action per mount, kept in its own action container and handed to
+    ///         whoever sits there. Each shows its weapon's rounds: the action is its own icon.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnSeatMapInit(Entity<KsCrewVehicleGunnerSeatComponent> seat, ref MapInitEvent args)
+    {
+        if (seat.Comp.Mounts.Count < 2)
+            return;
+
+        foreach (var mountId in seat.Comp.Mounts)
+        {
+            EntityUid? actionUid = null;
+            if (!_actionContainerSystem.EnsureAction(seat.Owner, ref actionUid, seat.Comp.SelectAction))
+                continue;
+
+            var selectComponent = EnsureComp<KsCrewVehicleSelectWeaponActionComponent>(actionUid.Value);
+            selectComponent.MountId = mountId;
+            Dirty(actionUid.Value, selectComponent);
+            _actionsSystem.SetEntityIcon(actionUid.Value, actionUid.Value);
+            seat.Comp.SelectActions.Add(actionUid.Value);
+        }
+
+        Dirty(seat);
+    }
 
     [SubscribeLocalEvent]
     private void OnStrapped(Entity<KsCrewVehicleGunnerSeatComponent> seat, ref StrappedEvent args)
@@ -65,6 +98,7 @@ public sealed partial class KsCrewVehicleGunnerSystem : EntitySystem
             return;
 
         gunnerComponent.Selected = gunnerComponent.Weapons[0];
+        gunnerComponent.AmmoAlert = seat.Comp.AmmoAlert;
 
         var occupantUid = args.Buckle.Owner;
         if (_gunnerQuery.TryComp(occupantUid, out var oldGunnerComponent))
@@ -72,6 +106,77 @@ public sealed partial class KsCrewVehicleGunnerSystem : EntitySystem
 
         AddComp(occupantUid, gunnerComponent);
         Dirty(occupantUid, gunnerComponent);
+
+        _alertsSystem.ShowAlert(occupantUid, seat.Comp.AmmoAlert);
+        foreach (var actionUid in seat.Comp.SelectActions)
+        {
+            _actionsSystem.AddActionDirect(occupantUid, actionUid);
+        }
+
+        RefreshSelectActions((occupantUid, gunnerComponent));
+    }
+
+    /// <summary>
+    ///     Standing up, by any route, takes back the seat's actions and the ammo alert.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnGunnerShutdown(Entity<KsCrewVehicleGunnerComponent> gunner, ref ComponentShutdown args)
+    {
+        // The server's state carries both.
+        if (_gameTiming.ApplyingState || TerminatingOrDeleted(gunner.Owner))
+            return;
+
+        _alertsSystem.ClearAlert(gunner.Owner, gunner.Comp.AmmoAlert);
+
+        if (!_gunnerSeatQuery.TryComp(gunner.Comp.Seat, out var seatComponent))
+            return;
+
+        foreach (var actionUid in seatComponent.SelectActions)
+        {
+            // Removing an action from someone it isn't attached to logs an error.
+            if (_actionsSystem.GetAction(actionUid, logError: false) is { } action && action.Comp.AttachedEntity == gunner.Owner)
+                _actionsSystem.RemoveProvidedAction(gunner.Owner, gunner.Comp.Seat, actionUid);
+        }
+    }
+
+    /// <remarks>
+    ///     A by-value class event: the engine has <c>Entity&lt;T&gt;</c> handlers only for ref events.
+    /// </remarks>
+    [SubscribeLocalEvent]
+    private void OnSelectWeapon(EntityUid uid, KsCrewVehicleGunnerSeatComponent component, KsCrewVehicleSelectWeaponActionEvent args)
+    {
+        if (args.Handled ||
+            !_gunnerQuery.TryComp(args.Performer, out var gunnerComponent) ||
+            gunnerComponent.Seat != uid ||
+            !_selectActionQuery.TryComp(args.Action, out var selectComponent) ||
+            !_mountSystem.TryGetWeapon(gunnerComponent.Vehicle, selectComponent.MountId, out var weaponUid) ||
+            !gunnerComponent.Weapons.Contains(weaponUid.Value))
+            return;
+
+        args.Handled = true;
+        if (gunnerComponent.Selected == weaponUid)
+            return;
+
+        gunnerComponent.Selected = weaponUid;
+        Dirty(args.Performer, gunnerComponent);
+        RefreshSelectActions((args.Performer, gunnerComponent));
+    }
+
+    /// <summary>
+    ///     The selected weapon's action shows as toggled on, the others off.
+    /// </summary>
+    private void RefreshSelectActions(Entity<KsCrewVehicleGunnerComponent> gunner)
+    {
+        if (!_gunnerSeatQuery.TryComp(gunner.Comp.Seat, out var seatComponent))
+            return;
+
+        foreach (var actionUid in seatComponent.SelectActions)
+        {
+            var selected = _selectActionQuery.TryComp(actionUid, out var selectComponent) &&
+                           _mountSystem.TryGetWeapon(gunner.Comp.Vehicle, selectComponent.MountId, out var weaponUid) &&
+                           weaponUid == gunner.Comp.Selected;
+            _actionsSystem.SetToggled(actionUid, selected);
+        }
     }
 
     [SubscribeLocalEvent]
@@ -143,8 +248,23 @@ public sealed partial class KsCrewVehicleGunnerSystem : EntitySystem
         if (args.Used.Comp.ShootCoordinates is not { } aimCoordinates)
             return;
 
-        if (!_transformSystem.IsValid(aimCoordinates) ||
-            _transformSystem.GetMapId(aimCoordinates) != Transform(weapon.Owner).MapID)
+        if (!_transformSystem.IsValid(aimCoordinates))
+        {
+            args.Cancel();
+            return;
+        }
+
+        var aimMap = _transformSystem.ToMapCoordinates(aimCoordinates);
+        var transformComponent = Transform(weapon.Owner);
+        if (aimMap.MapId != transformComponent.MapID)
+        {
+            args.Cancel();
+            return;
+        }
+
+        // Outside its arc: a fixed weapon's, or a turret's, whose aim is kept inside it.
+        var direction = aimMap.Position - _transformSystem.GetWorldPosition(transformComponent);
+        if (direction.LengthSquared() > 0.0001f && !_mountSystem.IsInFireArc(weapon, direction.ToWorldAngle()))
             args.Cancel();
     }
 

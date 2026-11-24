@@ -73,6 +73,7 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         - MidImpassable
         - HighImpassable
         - BulletImpassable
+        - Opaque
       contact:
         shape:
           !type:PhysShapeAabb

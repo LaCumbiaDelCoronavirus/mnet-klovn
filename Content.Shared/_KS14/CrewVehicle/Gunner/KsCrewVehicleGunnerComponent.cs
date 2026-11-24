@@ -1,4 +1,6 @@
+using Content.Shared.Alert;
 using Robust.Shared.GameStates;
+using Robust.Shared.Prototypes;
 
 namespace Content.Shared._KS14.CrewVehicle.Gunner;
 
@@ -24,4 +26,10 @@ public sealed partial class KsCrewVehicleGunnerComponent : Component
 
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
     public EntityUid? Selected;
+
+    /// <summary>
+    ///     The seat's ammo alert, shown while this is here.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public ProtoId<AlertPrototype> AmmoAlert;
 }

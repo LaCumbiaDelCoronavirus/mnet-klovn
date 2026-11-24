@@ -11,3 +11,7 @@ ks-crew-vehicle-exit-moving = It's moving too fast to get out.
 
 ks-crew-vehicle-run-over = { CAPITALIZE(THE($vehicle)) } runs { THE($victim) } over!
 ks-crew-vehicle-crash-lockout = The crash has stalled the engine!
+
+ks-crew-vehicle-alert-ammo-name = Rounds
+ks-crew-vehicle-alert-ammo-desc = Rounds left in the weapon you have selected.
+ks-crew-vehicle-select-weapon-examine = Fires { THE($weapon) }: { $rounds } rounds left.

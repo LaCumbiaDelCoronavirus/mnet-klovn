@@ -9,3 +9,32 @@
     icon: { sprite: Objects/Fun/bikehorn.rsi, state: icon }
   - type: InstantAction
     event: !type:KsCrewVehicleHornActionEvent
+
+# One per weapon of a gunner seat that has several. Its own icon: the rounds of its weapon are drawn on it
+#   (KsCrewVehicleGunnerHudSystem), by the stock counter the alerts use.
+- type: entity
+  parent: BaseAction
+  id: KsCrewVehicleActionSelectWeapon
+  name: Select weapon
+  description: Fire this weapon.
+  components:
+  - type: Action
+    itemIconStyle: BigItem
+  - type: InstantAction
+    event: !type:KsCrewVehicleSelectWeaponActionEvent
+  - type: KsCrewVehicleSelectWeaponAction
+  - type: GenericCounterAlert
+    hideLeadingZeroes: true
+  - type: Sprite
+    layers:
+    - sprite: /Textures/Objects/Weapons/Guns/Ammunition/Boxes/rifle.rsi
+      state: base
+    - map: [ "1" ]
+      sprite: /Textures/Interface/Alerts/essence_counter.rsi
+      state: "0"
+    - map: [ "10" ]
+      sprite: /Textures/Interface/Alerts/essence_counter.rsi
+      state: "0"
+    - map: [ "100" ]
+      sprite: /Textures/Interface/Alerts/essence_counter.rsi
+      state: "0"

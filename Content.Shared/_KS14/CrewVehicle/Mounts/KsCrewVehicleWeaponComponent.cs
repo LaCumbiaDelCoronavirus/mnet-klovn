@@ -24,6 +24,13 @@ public sealed partial class KsCrewVehicleWeaponComponent : Component
     public float MaxAimRange = 20f;
 
     /// <summary>
+    ///     The full width of the arc it may fire into, centred on its mount's rest direction
+    ///         (<see cref="KsCrewVehicleMount.Rotation"/>). Null fires all round. A turret's aim is also kept inside it.
+    /// </summary>
+    [DataField]
+    public Angle? FireArc;
+
+    /// <summary>
     ///     The hull it is mounted on. Written at the hull's map init; a data field for the same reason as
     ///         <see cref="KsCrewVehicleMountsComponent.Weapons"/>.
     /// </summary>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Content.Server._KS14.KillCredit;
+using Content.Shared._KS14.CrewVehicle.Drive;
 using Content.Shared._KS14.CrewVehicle.Gunner;
 using Content.Shared._KS14.CrewVehicle.Mounts;
 using Content.Shared.CombatMode.Pacification;
@@ -22,6 +23,8 @@ using Robust.Shared.GameObjects;
 using Robust.Shared.IoC;
 using Robust.Shared.Map;
 using Robust.Shared.Network;
+using Robust.Shared.Physics;
+using Robust.Shared.Physics.Components;
 using Robust.Shared.Prototypes;
 
 namespace Content.IntegrationTests.Tests._KS14.CrewVehicle;
@@ -31,213 +34,8 @@ namespace Content.IntegrationTests.Tests._KS14.CrewVehicle;
 ///         client. Every number comes from the test prototypes.
 /// </summary>
 [TestOf(typeof(KsCrewVehicleGunnerSystem))]
-public sealed class KsCrewVehicleGunnerTest : KsCrewVehicleDriveTestBase
+public sealed class KsCrewVehicleGunnerTest : KsCrewVehicleGunnerTestBase
 {
-    private readonly EntProtoId _gunnerHull = "KsCrewVehicleGunnerTestHull";
-    private readonly EntProtoId _beamHull = "KsCrewVehicleGunnerTestHullBeam";
-    private readonly EntProtoId _badGunnerHull = "KsCrewVehicleGunnerTestHullBad";
-
-    // Interiors: Maps/Test/_KS14/CrewVehicle/gunner.yml is drive.yml with its driver seat also a gunner seat on `main`;
-    //      gunner_bad.yml has a seat on a mount the hull lacks, one that is not a view seat, and two on `main`.
-    [TestPrototypes]
-    private const string Prototypes = @"
-- type: entity
-  id: KsCrewVehicleGunnerTestBullet
-  categories: [ HideSpawnMenu ]
-  components:
-  - type: Physics
-    bodyType: Dynamic
-  - type: Fixtures
-    fixtures:
-      projectile:
-        shape:
-          !type:PhysShapeAabb
-          bounds: ""-0.1,-0.1,0.1,0.1""
-        hard: false
-        mask:
-        - Impassable
-        - BulletImpassable
-  - type: Projectile
-    damage:
-      types:
-        Blunt: 7
-
-- type: entity
-  id: KsCrewVehicleGunnerTestCartridge
-  categories: [ HideSpawnMenu ]
-  components:
-  - type: CartridgeAmmo
-    proto: KsCrewVehicleGunnerTestBullet
-    deleteOnSpawn: true
-
-- type: entity
-  id: KsCrewVehicleGunnerTestGun
-  categories: [ HideSpawnMenu ]
-  components:
-  - type: Gun
-    fireRate: 4
-    minAngle: 0
-    maxAngle: 0
-    selectedMode: SemiAuto
-    availableModes:
-    - SemiAuto
-    soundGunshot:
-      path: /Audio/Weapons/Guns/Gunshots/pistol.ogg
-  - type: BallisticAmmoProvider
-    proto: KsCrewVehicleGunnerTestCartridge
-    capacity: 10
-  - type: KsCrewVehicleWeapon
-    muzzleOffset: 0,-0.6
-    maxAimRange: 5
-
-- type: entity
-  id: KsCrewVehicleGunnerTestBeam
-  parent: BasicHitscan
-  categories: [ HideSpawnMenu ]
-  components:
-  # The test hulls are bullet-proof but not opaque.
-  - type: HitscanBasicRaycast
-    collisionMask: BulletImpassable
-  - type: HitscanBasicDamage
-    damage:
-      types:
-        Heat: 7
-
-- type: entity
-  id: KsCrewVehicleGunnerTestBeamGun
-  categories: [ HideSpawnMenu ]
-  components:
-  - type: Gun
-    fireRate: 4
-    minAngle: 0
-    maxAngle: 0
-    selectedMode: SemiAuto
-    availableModes:
-    - SemiAuto
-    soundGunshot:
-      path: /Audio/Weapons/Guns/Gunshots/laser.ogg
-  - type: Battery
-    maxCharge: 1000
-    startingCharge: 1000
-  - type: BatteryAmmoProvider
-    proto: KsCrewVehicleGunnerTestBeam
-    fireCost: 10
-  - type: KsCrewVehicleWeapon
-    muzzleOffset: 0,-0.6
-    maxAimRange: 5
-
-- type: entity
-  parent: KsCrewVehicleDriveTestHull
-  id: KsCrewVehicleGunnerTestHull
-  components:
-  - type: KsCrewVehicleInterior
-    interiorPath: /Maps/Test/_KS14/CrewVehicle/gunner.yml
-    interiorAnchor: 2.5,3
-    doorways:
-      left:
-        offset: 1,0
-      right:
-        offset: -1,0
-  - type: KsCrewVehicleMounts
-    mounts:
-      main:
-        prototype: KsCrewVehicleGunnerTestGun
-        offset: 0,-0.6
-
-- type: entity
-  parent: KsCrewVehicleGunnerTestHull
-  id: KsCrewVehicleGunnerTestHullBeam
-  components:
-  - type: KsCrewVehicleMounts
-    mounts:
-      main:
-        prototype: KsCrewVehicleGunnerTestBeamGun
-        offset: 0,-0.6
-
-- type: entity
-  parent: KsCrewVehicleGunnerTestHull
-  id: KsCrewVehicleGunnerTestHullBad
-  components:
-  - type: KsCrewVehicleInterior
-    interiorPath: /Maps/Test/_KS14/CrewVehicle/gunner_bad.yml
-    interiorAnchor: 2.5,3
-    doorways:
-      left:
-        offset: 1,0
-      right:
-        offset: -1,0
-";
-
-    private const string MountId = "main";
-
-    /// <summary>A generous wait for a shot request to reach the server and its round to fly.</summary>
-    private int ShotTicks => TickRate;
-
-    private EntityUid Weapon(EntityUid hull)
-    {
-        Assert.That(SEntMan.System<SharedKsCrewVehicleMountSystem>().TryGetWeapon(hull, MountId, out var weaponUid), Is.True,
-            "precondition: the hull has its weapon");
-        return weaponUid!.Value;
-    }
-
-    private int RoundsLeft(EntityUid weapon)
-    {
-        var ev = new GetAmmoCountEvent();
-        SEntMan.EventBus.RaiseLocalEvent(weapon, ref ev);
-        return ev.Count;
-    }
-
-    private List<Entity<ProjectileComponent>> Rounds(EntityUid weapon)
-    {
-        return SEntMan.AllEntities<ProjectileComponent>().Where(round => round.Comp.Weapon == weapon).ToList();
-    }
-
-    private Vector2 WorldPosition(EntityUid uid) => Transform.GetWorldPosition(uid);
-
-    private bool Damaged(EntityUid uid) =>
-        SEntMan.System<DamageableSystem>().GetAllDamage(SEntity<DamageableComponent>(uid).AsNullable()).AnyPositive();
-
-    private Vector2 MuzzlePosition(EntityUid weapon)
-    {
-        var muzzle = SEntMan.System<SharedKsCrewVehicleMountSystem>().GetMuzzleCoordinates(SEntity<KsCrewVehicleWeaponComponent>(weapon));
-        return Transform.ToMapCoordinates(muzzle).Position;
-    }
-
-    /// <summary>
-    ///     A point on the outside test grid at <paramref name="worldPosition"/>.
-    /// </summary>
-    private NetCoordinates OutsideAt(Vector2 worldPosition)
-    {
-        return SEntMan.GetNetCoordinates(Transform.ToCoordinates(MapData.Grid.Owner, new MapCoordinates(worldPosition, MapId)));
-    }
-
-    private async Task<(HullScene Scene, EntityUid Weapon)> SeatGunnerAsync(EntProtoId? hull = null, bool passenger = false)
-    {
-        var scene = await SpawnHullAsync(Vector2.Zero, hull ?? _gunnerHull);
-        await PutInsideAsync(scene);
-        await SitAsync(passenger ? scene.PassengerSeat : scene.DriverSeat);
-        await SetCombatMode(true);
-        await RunTicks(5);
-
-        var weapon = EntityUid.Invalid;
-        await Server.WaitPost(() => weapon = Weapon(scene.Hull));
-        return (scene, weapon);
-    }
-
-    /// <summary>
-    ///     The player's client asks to fire <paramref name="weapon"/> at <paramref name="target"/>, as its fire input does.
-    /// </summary>
-    private async Task RequestShotAsync(EntityUid weapon, NetCoordinates target)
-    {
-        var weaponNetEntity = SEntMan.GetNetEntity(weapon);
-        await Client.WaitPost(() => CEntMan.RaisePredictiveEvent(new RequestShootEvent
-        {
-            Gun = weaponNetEntity,
-            Coordinates = target,
-        }));
-        await RunTicks(ShotTicks);
-    }
-
     public enum Seat
     {
         Gunner,
@@ -547,44 +345,31 @@ public sealed class KsCrewVehicleGunnerTest : KsCrewVehicleDriveTestBase
             SEntMan.DeleteEntity(uninitialisedMap);
         });
     }
-}
 
-/// <summary>
-///     Records, as each hit lands, what dealt it and which player is paid for it.
-/// </summary>
-[RegisterComponent]
-public sealed partial class KsCrewVehicleGunnerTestHitRecorderComponent : Component
-{
-    public readonly List<(EntityUid? Origin, NetUserId? Recipient)> Hits = new();
-}
-
-/// <summary>
-///     Records where each shot of a gun was aimed, as it was fired.
-/// </summary>
-[RegisterComponent]
-public sealed partial class KsCrewVehicleGunnerTestShotRecorderComponent : Component
-{
-    public readonly List<Vector2> AimedAt = new();
-}
-
-public sealed partial class KsCrewVehicleGunnerTestHitRecorderSystem : EntitySystem
-{
-    [SubscribeLocalEvent]
-    private void OnGunShot(Entity<KsCrewVehicleGunnerTestShotRecorderComponent> entity, ref GunShotEvent args)
+    /// <summary>
+    ///     Every crew hull is on the layer lasers hit, so a beam fired at one from outside stops at it (while a weapon
+    ///         mounted on it still fires through it: <see cref="ShotsPassThroughTheirOwnHull"/>).
+    /// </summary>
+    [Test]
+    public async Task HullsAreOnTheLaserLayer()
     {
-        if (_netManager.IsServer)
-            entity.Comp.AimedAt.Add(EntityManager.System<SharedTransformSystem>().ToMapCoordinates(args.ToCoordinates).Position);
-    }
+        await Server.WaitAssertion(() =>
+        {
+            var factory = SEntMan.ComponentFactory;
+            var hulls = 0;
+            foreach (var prototype in ProtoMan.EnumeratePrototypes<EntityPrototype>())
+            {
+                if (prototype.Abstract ||
+                    !prototype.TryComp<KsCrewVehicleDriveComponent>(out _, factory) ||
+                    !prototype.TryComp<FixturesComponent>(out var fixturesComponent, factory))
+                    continue;
 
-    [Dependency] private INetManager _netManager = default!;
+                hulls++;
+                Assert.That(fixturesComponent.Fixtures.Values.Any(fixture => fixture.Hard && (fixture.CollisionLayer & (int)Content.Shared.Physics.CollisionGroup.Opaque) != 0),
+                    $"{prototype.ID} has no hard fixture on the Opaque layer, so lasers would pass through it");
+            }
 
-    [SubscribeLocalEvent]
-    private void OnDamageDealt(Entity<KsCrewVehicleGunnerTestHitRecorderComponent> entity, ref DamageDealtEvent args)
-    {
-        // The kill credit is the server's.
-        if (!_netManager.IsServer)
-            return;
-
-        entity.Comp.Hits.Add((args.Origin, EntityManager.System<KsKillCreditSystem>().GetHitRecipient(args.Origin)));
+            Assert.That(hulls, Is.GreaterThan(0), "precondition: there are hulls to check");
+        });
     }
 }
