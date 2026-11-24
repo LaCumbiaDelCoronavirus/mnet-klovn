@@ -3,7 +3,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Content.IntegrationTests.Fixtures;
-using Content.Server._KS14.Explosion;
+using Content.Server._KS14.Throwing;
 using Content.Server.Explosion.EntitySystems;
 using Content.Server.Gravity;
 using Content.Shared._KS14.Throwing;
@@ -21,7 +21,7 @@ using Robust.UnitTesting.Pool;
 namespace Content.IntegrationTests.Tests._KS14.Explosion;
 
 /// <summary>
-///     An explosion sends a mob with <see cref="KsExplosionThrownComponent"/> flying away from it, marked to slam
+///     An explosion sends a mob with <see cref="KsThrowableMobComponent"/> flying away from it, marked to slam
 ///         into what it hits, and further the stronger the blast is where the mob stands. A blast too weak leaves it
 ///         where it is.
 /// </summary>
@@ -53,7 +53,7 @@ public sealed class KsExplosionThrowsMobsTest : GameTest
   parent: MobHuman
   id: KsTestBlastThrownMob
   components:
-  - type: KsExplosionThrown
+  - type: KsThrowableMob
     minThrowForce: 15
     speedPerForce: 0.4
     maxSpeed: 100
@@ -66,7 +66,7 @@ public sealed class KsExplosionThrowsMobsTest : GameTest
   parent: MobHuman
   id: KsTestBlastThrownCappedMob
   components:
-  - type: KsExplosionThrown
+  - type: KsThrowableMob
     minThrowForce: 15
     speedPerForce: 0.4
     maxSpeed: 5
@@ -115,7 +115,7 @@ public sealed class KsExplosionThrowsMobsTest : GameTest
 
         await Server.WaitPost(() =>
         {
-            var throwForce = SEntMan.GetComponent<KsExplosionThrownComponent>(mobUid).MinThrowForce * forceOverThreshold;
+            var throwForce = SEntMan.GetComponent<KsThrowableMobComponent>(mobUid).MinThrowForce * forceOverThreshold;
             var rootIntensity = throwForce / ThrowForcePerRootIntensity;
             var tileIntensity = rootIntensity * rootIntensity;
 
@@ -164,7 +164,7 @@ public sealed class KsExplosionThrowsMobsTest : GameTest
         var maxSpeed = 0f;
         await Server.WaitPost(() =>
             maxSpeed = SProtoMan.Index(_cappedMob).Components.Values
-                .Select(entry => entry.Component).OfType<KsExplosionThrownComponent>().Single().MaxSpeed);
+                .Select(entry => entry.Component).OfType<KsThrowableMobComponent>().Single().MaxSpeed);
 
         Assert.Multiple(() =>
         {

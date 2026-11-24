@@ -428,7 +428,7 @@ nowhere, and loose things are hard bodies that the collision itself already push
 
 **Explosions** are the second user. Stock explosions throw only dynamic bodies, which a mob isn't, so
 `ExplosionSystem.KsThrowMob` (`ExplosionSystem.Klovn.ThrowMobs.cs`, called from `ProcessEntity`) throws any mob with
-`KsExplosionThrownComponent` (on `BaseSpeciesMob`) away from the epicenter and marks it, with no source. Everything
+`KsThrowableMobComponent` (thrown by `KsMobThrowSystem`) (on `BaseSpeciesMob`) away from the epicenter and marks it, with no source. Everything
 is data on the component: `MinThrowForce` (below it the mob stays put), `SpeedPerForce` and `MaxSpeed`,
 `DistancePerForce` and `MaxDistance`, `KnockdownTime` and `Slam`. The force is the explosion's own throw force on the
 mob's tile, ten times the square root of the intensity there, and is zero wherever the explosion throws nothing: a
