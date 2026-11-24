@@ -1,0 +1,75 @@
+using System.Diagnostics.CodeAnalysis;
+using Content.Shared._KS14.Vehicle;
+using Robust.Shared.Map;
+
+namespace Content.Shared._KS14.CrewVehicle.Mounts;
+
+/// <summary>
+///     Finds a crew vehicle's mounted weapons and where their shots leave. Spawning them is the server's
+///         <c>KsCrewVehicleMountSystem</c>.
+/// </summary>
+public abstract partial class SharedKsCrewVehicleMountSystem : EntitySystem
+{
+    [Dependency] private SharedTransformSystem _transformSystem = default!;
+    [Dependency] protected EntityQuery<KsCrewVehicleMountsComponent> MountsQuery = default!;
+
+    public bool HasMount(EntityUid vehicleUid, string mountId)
+    {
+        return MountsQuery.TryComp(vehicleUid, out var mountsComponent) && mountsComponent.Mounts.ContainsKey(mountId);
+    }
+
+    /// <summary>
+    ///     The weapon on <paramref name="vehicleUid"/>'s mount <paramref name="mountId"/>, if it is there.
+    /// </summary>
+    public bool TryGetWeapon(EntityUid vehicleUid, string mountId, [NotNullWhen(true)] out EntityUid? weaponUid)
+    {
+        weaponUid = null;
+        if (!MountsQuery.TryComp(vehicleUid, out var mountsComponent) ||
+            !mountsComponent.Weapons.TryGetValue(mountId, out var uid) ||
+            TerminatingOrDeleted(uid))
+            return false;
+
+        weaponUid = uid;
+        return true;
+    }
+
+    /// <summary>
+    ///     Where <paramref name="weapon"/>'s shots leave, as it stands now, on the grid or map under it: not on the weapon
+    ///         itself, or what a shot spawns (its round, its casing) would be the weapon's children.
+    /// </summary>
+    public EntityCoordinates GetMuzzleCoordinates(Entity<KsCrewVehicleWeaponComponent> weapon)
+    {
+        var transformComponent = Transform(weapon.Owner);
+        var (position, rotation) = _transformSystem.GetWorldPositionRotation(transformComponent);
+        var muzzle = new MapCoordinates(position + rotation.RotateVec(weapon.Comp.MuzzleOffset), transformComponent.MapID);
+        return _transformSystem.ToCoordinates(muzzle);
+    }
+
+    /// <summary>
+    ///     A mounted weapon fires from its hull, and its shots pass through it.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnGetShooterVehicle(Entity<KsCrewVehicleWeaponComponent> weapon, ref KsGetShooterVehicleEvent args)
+    {
+        args.Vehicle ??= weapon.Comp.Vehicle;
+    }
+
+    protected void SetWeapon(Entity<KsCrewVehicleMountsComponent> vehicle, string mountId, Entity<KsCrewVehicleWeaponComponent> weapon)
+    {
+        weapon.Comp.Vehicle = vehicle.Owner;
+        weapon.Comp.MountId = mountId;
+        Dirty(weapon);
+
+        vehicle.Comp.Weapons[mountId] = weapon.Owner;
+        Dirty(vehicle);
+    }
+
+    protected void ClearWeapon(Entity<KsCrewVehicleMountsComponent> vehicle, string mountId, EntityUid weaponUid)
+    {
+        if (!vehicle.Comp.Weapons.TryGetValue(mountId, out var mountedUid) || mountedUid != weaponUid)
+            return;
+
+        vehicle.Comp.Weapons.Remove(mountId);
+        Dirty(vehicle);
+    }
+}

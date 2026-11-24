@@ -169,7 +169,7 @@ public abstract partial class SharedGunSystem : EntitySystem
             vehicleOperator.Vehicle is { } mechUid && HasComp<MechComponent>(mechUid))
             user = mechUid;
 
-        if (!TryGetGun(user.Value, out var userGun) ||
+        if (!KsTryGetShotGun(args.SenderSession.AttachedEntity, ref user, out var userGun, out var ksShot) /* KS14: TryGetGun(user.Value, out var userGun) -> also a gun the player controls, see KsGetControlledGunEvent */ ||
             HasComp<ItemComponent>(user))
             return;
 
@@ -190,9 +190,11 @@ public abstract partial class SharedGunSystem : EntitySystem
 
         userGun.Comp.ShootCoordinates = ksShootCoordinates /* KS14: GetCoordinates(msg.Coordinates) -> checked above */;
         userGun.Comp.Target = GetEntity(msg.Target);
-        // KS14 start: the projectiles of this shot are the sender's own prediction, kept by their client
+        // KS14 start: the projectiles of this shot are the sender's own prediction, kept by their client, and the shot is
+        //      theirs even when it is fired as something else, a controlled gun from its muzzle: see KsBeginShot
         using (_ksPredictedSpawnSystem.BeginUserPrediction(args.SenderSession.AttachedEntity))
-            AttemptShoot(user.Value, userGun);
+        using (KsBeginShot(user.Value, args.SenderSession.AttachedEntity, userGun, ksShot))
+            AttemptShoot(user.Value, userGun, fromCoordinatesOverride: ksShot.Muzzle);
         // KS14 end
         // KS14: removed, client-requested continuous fire was a free autoclicker
         /*
@@ -215,7 +217,7 @@ public abstract partial class SharedGunSystem : EntitySystem
             vehicleOperator.Vehicle is { } mechUid && HasComp<MechComponent>(mechUid))
             user = mechUid;
 
-        if (!TryGetGun(user.Value, out var userGun))
+        if (!KsTryGetShotGun(args.SenderSession.AttachedEntity, ref user, out var userGun, out _) /* KS14: TryGetGun(user.Value, out var userGun) -> also a gun the player controls */)
             return;
 
         if (userGun.Owner != gunUid)
