@@ -28,6 +28,7 @@
   - [bold]Crates and parked vehicles.[/bold] You push them, slowing down the heavier they are; push one into a wall and you stop too. Dropped items and casings you just drive over.
   - [bold]Windows, grilles and tables.[/bold] Fast enough, you smash straight through and lose some speed. Doors are never smashed: one that would open anyway opens, and a locked one stops you.
   - [bold]Walls.[/bold] Hit one fast and you damage it and stop dead, and the humvee takes a beating too. A really hard crash stalls the engine for a few seconds.
+  - [bold]The edge of the floor.[/bold] The humvee won't go out over space or lattice: it stops at the edge as at a wall, even when something pushes it.
 
   ## Firing
   Turn on combat mode in the driver's seat and click, or hold, where you want to shoot. The turret swings round toward your cursor and fires once it points there, so give it a moment to come round. Aiming past its reach fires the same way, as far as it reaches.

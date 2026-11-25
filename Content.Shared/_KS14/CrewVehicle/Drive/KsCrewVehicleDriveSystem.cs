@@ -27,6 +27,7 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
 {
     [Dependency] private IGameTiming _gameTiming = default!;
     [Dependency] private SharedAmbientSoundSystem _ambientSoundSystem = default!;
+    [Dependency] private Floor.KsCrewVehicleFloorSystem _floorSystem = default!;
     [Dependency] private SharedKsCrewVehicleInteriorSystem _interiorSystem = default!;
     [Dependency] private SharedMoverController _moverController = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
@@ -124,6 +125,27 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
         //      hull's new rotation and the wish velocity to drive with, which must lie along that facing (the grip
         //      controller takes away anything else). Chosen by data on the drive component, should it ever need to be.
         var result = KsCrewVehicleSteering.Tank(input, hull.Comp);
+
+        // Held to the floor: none under its centre, it can't drive; and a turn may not swing its rim further off.
+        if (_floorSystem.KeepsToFloor(hull))
+        {
+            if (!_floorSystem.IsCentreOnFloor(hull.Owner))
+            {
+                args.WishDir = System.Numerics.Vector2.Zero;
+                return;
+            }
+
+            if (!result.HullRotation.EqualsApprox(worldRotation))
+            {
+                var position = _transformSystem.GetWorldPosition(transformComponent);
+                if (_floorSystem.OffFloorCount(hull, position, result.HullRotation) >
+                    _floorSystem.OffFloorCount(hull, position, worldRotation))
+                {
+                    var along = System.Numerics.Vector2.Dot(result.Wish, KsCrewVehicleHullFrame.Forward(result.HullRotation));
+                    result = new KsCrewVehicleSteeringResult(worldRotation, KsCrewVehicleHullFrame.Forward(worldRotation) * along);
+                }
+            }
+        }
 
         args.WishDir = result.Wish;
 

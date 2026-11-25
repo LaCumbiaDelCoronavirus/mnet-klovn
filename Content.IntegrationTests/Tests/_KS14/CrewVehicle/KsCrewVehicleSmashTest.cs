@@ -222,6 +222,44 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
             Assert.That(Vector2.Dot(HullPosition(hull) - before, -run.Facing), Is.GreaterThan(0.1f), "it drives again afterwards"));
     }
 
+    /// <summary>
+    ///     The stall ends on the driver's own client when it ends, not when that client hears from the server.
+    /// </summary>
+    [Test]
+    public async Task StallEndsOnTheDriversClientWhenItEnds()
+    {
+        var run = await SetUpAsync(TestWallPrototype);
+        var hull = run.Scene.Hull;
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 3, () => !CanMove(hull));
+
+        var until = TimeSpan.Zero;
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(CanMove(hull), Is.False, "precondition: stalled");
+            until = SComp<KsCrewVehicleCrashLockedComponent>(hull).Until;
+        });
+
+        // Each client tick past the stall's end, whether its hull may drive again.
+        var clientHull = ToClient(hull);
+        var lateTicks = 0;
+        var sampled = 0;
+        while (sampled < TickRate / 2)
+        {
+            await RunTicks(1);
+            await Client.WaitPost(() =>
+            {
+                if (CTiming.CurTime <= until + CTiming.TickPeriod)
+                    return;
+
+                sampled++;
+                if (!CEntMan.GetComponent<InputMoverComponent>(clientHull).CanMove)
+                    lateTicks++;
+            });
+        }
+
+        Assert.That(lateTicks, Is.Zero, "past the stall's end, the driver's client should let the hull drive at once");
+    }
+
     [Test]
     public async Task GentleBumpIntoAWallDoesNotStall()
     {

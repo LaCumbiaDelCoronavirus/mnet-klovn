@@ -117,7 +117,8 @@
     damageModifierSet: Metallic
   - type: Injurable
     damageContainer: StructuralInorganic
-  - type: ExaminableDamage
+  # Worked out on the examiner's client too, so the line shows at once.
+  - type: KsExaminableDamage
     messages: ShieldMessages
   - type: Repairable
     doAfterDelay: 3

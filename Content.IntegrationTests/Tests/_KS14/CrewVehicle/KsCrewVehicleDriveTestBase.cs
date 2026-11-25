@@ -33,6 +33,7 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
 {
     protected readonly EntProtoId HullPrototype = "KsCrewVehicleDriveTestHull";
     protected readonly EntProtoId WheeledHullPrototype = "KsCrewVehicleDriveTestHullWheeled";
+    protected readonly EntProtoId OffGridHullPrototype = "KsCrewVehicleDriveTestHullOffGrid";
     protected readonly EntProtoId GentleHullPrototype = "KsCrewVehicleDriveTestHullGentle";
     protected readonly EntProtoId ThrowerHullPrototype = "KsCrewVehicleDriveTestHullThrower";
     protected readonly EntProtoId ItemColliderHullPrototype = "KsCrewVehicleDriveTestHullItemCollider";
@@ -152,6 +153,17 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     minImpactSpeed: 2
     duration: 1
   - type: KsCrewVehiclePush
+
+# Opted in to leaving the floor: the off-grid tests' control.
+- type: entity
+  parent: KsCrewVehicleDriveTestHull
+  id: KsCrewVehicleDriveTestHullOffGrid
+  components:
+  - type: KsCrewVehicleDrive
+    driveTrain: Tracked
+    turnRate: 180
+    reverseSpeedFraction: 0.5
+    driveOffGrid: true
 
 # Wheeled: turns only while rolling.
 - type: entity
@@ -368,11 +380,13 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
             }
 
             MapSystem.SetTiles(MapData.Grid.Owner, MapData.Grid.Comp, tiles);
-
-            // A station doesn't drift under its crew; a small test grid, light enough for what stands on it to nudge, does,
-            //      and turns everything on it by its own turn. Held still, a heading is the hull's own.
-            SEntMan.System<Robust.Shared.Physics.Systems.SharedPhysicsSystem>().SetBodyType(MapData.Grid.Owner, Robust.Shared.Physics.BodyType.Static);
         });
+
+        // The test grids are open to space, and atmospherics trades air across their edges: the reaction thrust of that
+        //      (AtmosphereSystem.Klovn.SpacingThrust.cs) slowly turns and moves a grid this light, and everything on it
+        //      with it. A station's hull is closed; here a heading should be the hull's own.
+        // The pool puts it back when the pair is returned.
+        await Server.WaitPost(() => Server.CfgMan.SetCVar(KsCCVars.AtmosSpacingThrust, false));
         await RunTicks(1);
         await Server.WaitAssertion(() =>
             Assert.That(SEntMan.AllEntities<MapGridComponent>().Count(grid => SEntMan.GetComponent<TransformComponent>(grid).MapUid == MapData.MapUid),

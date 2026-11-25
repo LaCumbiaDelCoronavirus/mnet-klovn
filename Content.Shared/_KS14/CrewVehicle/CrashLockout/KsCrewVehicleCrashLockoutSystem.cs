@@ -43,8 +43,9 @@ public sealed partial class KsCrewVehicleCrashLockoutSystem : EntitySystem
     [SubscribeLocalEvent]
     private void OnCanRun(Entity<KsCrewVehicleCrashLockedComponent> vehicle, ref VehicleCanRunEvent args)
     {
-        // Still stored for the rest of the tick once it is let go, and then it no longer holds anything back.
-        if (vehicle.Comp.LifeStage <= ComponentLifeStage.Running)
+        // Still stored for the rest of the tick once it is let go, and then it no longer holds anything back. Over at
+        //      Until on both sides alike: the driver's client lets go the tick the server does, not a round trip later.
+        if (vehicle.Comp.LifeStage <= ComponentLifeStage.Running && _gameTiming.CurTime < vehicle.Comp.Until)
             args.CanRun = false;
     }
 
@@ -52,15 +53,19 @@ public sealed partial class KsCrewVehicleCrashLockoutSystem : EntitySystem
     {
         base.Update(frameTime);
 
-        // When it is over is the server's to say; the state that ends it reaches a predicting client as it does anyone.
-        if (_netManager.IsClient)
-            return;
-
         var query = EntityQueryEnumerator<KsCrewVehicleCrashLockedComponent>();
         while (query.MoveNext(out var uid, out var lockedComponent))
         {
             if (lockedComponent.LifeStage > ComponentLifeStage.Running || _gameTiming.CurTime < lockedComponent.Until)
                 continue;
+
+            // The client only lets go, for as long as it still has the marker: removing it is the server's, whose state
+            //      then reaches the client as it does anyone. A refresh that changes nothing raises nothing.
+            if (_netManager.IsClient)
+            {
+                _vehicleSystem.RefreshCanRun(uid);
+                continue;
+            }
 
             // Removed at the end of the tick, as this is enumerating them; shut down now, so the refresh sees it gone.
             RemCompDeferred(uid, lockedComponent);

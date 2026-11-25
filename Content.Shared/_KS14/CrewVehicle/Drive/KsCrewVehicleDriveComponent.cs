@@ -42,6 +42,26 @@ public sealed partial class KsCrewVehicleDriveComponent : Component
     /// </summary>
     [DataField]
     public string ContactFixture = "contact";
+
+    /// <summary>
+    ///     Whether the hull may be driven, turned or pushed off the floor, over space or lattice. Off, it stops at the
+    ///         edge as at a wall (<see cref="Floor.KsCrewVehicleFloorSystem"/>).
+    /// </summary>
+    [DataField]
+    public bool DriveOffGrid;
+
+    /// <summary>
+    ///     The hull's body fixture, whose rim must stay over floor.
+    /// </summary>
+    [DataField]
+    public string FloorFixture = "fix1";
+
+    /// <summary>
+    ///     The points round <see cref="FloorFixture"/>'s rim, hull-local, that must stay over floor. Worked out from the
+    ///         fixture on first use, on each side alike: neither saved nor networked.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), Access(typeof(Floor.KsCrewVehicleFloorSystem))]
+    public System.Numerics.Vector2[]? FloorSamples;
 }
 
 /// <summary>
