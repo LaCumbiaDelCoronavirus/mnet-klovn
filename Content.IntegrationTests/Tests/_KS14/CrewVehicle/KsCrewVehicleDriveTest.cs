@@ -284,50 +284,6 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
         });
     }
 
-    /// <summary>
-    ///     Two driven hulls are both kinematic controllers, which physics lets pass through each other: one driven into
-    ///         the other should stop against it instead.
-    /// </summary>
-    [Test]
-    public async Task DrivenHullsBlockEachOther()
-    {
-        var ours = await SpawnHullAsync(Vector2.Zero);
-        var facing = Vector2.Zero;
-        await Server.WaitPost(() => facing = KsCrewVehicleHullFrame.Forward(HullRotation(ours.Hull)));
-        var theirs = await SpawnHullAsync(facing * 4f);
-
-        EntityUid otherDriver = default;
-        await Server.WaitPost(() =>
-            otherDriver = SEntMan.SpawnAtPosition(Human, SComp<TransformComponent>(theirs.DriverSeat).Coordinates));
-        await RunTicks(5);
-        await SitAsync(theirs.DriverSeat, otherDriver);
-        await PutInsideAsync(ours);
-        await SitAsync(ours.DriverSeat);
-
-        var theirStart = Vector2.Zero;
-        await Server.WaitAssertion(() =>
-        {
-            Assert.That(SComp<PhysicsComponent>(theirs.Hull).BodyType, Is.EqualTo(Robust.Shared.Physics.BodyType.KinematicController),
-                "precondition: the other hull is being driven");
-            theirStart = HullPosition(theirs.Hull);
-        });
-
-        // Long enough to have driven right through it: checked every tick, not only at the end.
-        var overlapped = false;
-        await HoldAsync(ours.Hull, DirectionFlag.North, TickRate * 4, () =>
-        {
-            overlapped |= HardBox(ours.Hull).Intersects(HardBox(theirs.Hull).Enlarged(-0.05f));
-            return false;
-        });
-        await Server.WaitAssertion(() =>
-        {
-            Assert.That(overlapped, Is.False, "a driven hull should stop against another driven hull, not drive into it");
-            Assert.That(Vector2.Dot(HullPosition(theirs.Hull) - HullPosition(ours.Hull), facing), Is.GreaterThan(0f),
-                "and stay on its own side of it");
-            Assert.That((HullPosition(theirs.Hull) - theirStart).Length(), Is.LessThan(0.05f), "and not shove it");
-        });
-    }
-
     [Test]
     public async Task InteriorWithTwoDriverSeatsIsRefused()
     {

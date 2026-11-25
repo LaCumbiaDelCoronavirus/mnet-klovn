@@ -1,3 +1,4 @@
+using Robust.Shared.GameStates;
 using Content.Shared.Damage;
 using Robust.Shared.Audio;
 
@@ -27,7 +28,27 @@ public sealed partial class KsCrewVehicleRunOverComponent : Component
     public float MinSpeed = 3f;
 
     /// <summary>
-    ///     Dealt once to a standing mob run over.
+    ///     How fast, in m/s, the hull must close on a standing mob to throw it along its way rather than go over it.
+    ///         Null: it never does. A mob that can't be thrown (no <c>KsThrowableMob</c>) is run over instead.
+    /// </summary>
+    [DataField]
+    public float? ThrowSpeed;
+
+    /// <summary>
+    ///     The throw's force for each m/s the hull closes at: how far and how fast the mob flies is its own
+    ///         <c>KsThrowableMob</c>'s to say from that.
+    /// </summary>
+    [DataField]
+    public float ThrowForcePerSpeed = 5f;
+
+    /// <summary>
+    ///     How long a thrown mob is left alone by the hull that threw it, neither carried nor hit again, while it gets clear.
+    /// </summary>
+    [DataField]
+    public TimeSpan StruckIgnoreTime = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    ///     Dealt once to a standing mob run over or thrown.
     /// </summary>
     [DataField(required: true)]
     public DamageSpecifier Damage = default!;
@@ -47,4 +68,25 @@ public sealed partial class KsCrewVehicleRunOverComponent : Component
 
     [DataField]
     public SoundSpecifier? HitSound;
+}
+
+/// <summary>
+///     On a mob a crew vehicle has just thrown: left alone by hulls until <see cref="Until"/>, while it flies clear.
+/// </summary>
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause, Access(typeof(KsCrewVehicleRunOverSystem))]
+public sealed partial class KsCrewVehicleStruckComponent : Component
+{
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField, AutoPausedField]
+    public TimeSpan Until;
+}
+
+/// <summary>
+///     Raised, broadcast, when a crew vehicle strikes a standing mob hard enough to throw it, for the server's throw to
+///         answer. <see cref="Thrown"/> is false if the mob can't be thrown; it is then run over instead.
+/// </summary>
+/// <param name="Direction">Which way: the hull's travel.</param>
+[ByRefEvent]
+public record struct KsCrewVehicleThrowStruckMobEvent(EntityUid Hull, EntityUid Mob, System.Numerics.Vector2 Direction, float Force)
+{
+    public bool Thrown;
 }

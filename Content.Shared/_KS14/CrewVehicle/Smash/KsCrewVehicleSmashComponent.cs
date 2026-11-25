@@ -53,6 +53,12 @@ public sealed partial class KsCrewVehicleSmashComponent : Component
     [DataField]
     public float SmashSpeedRetained = 0.6f;
 
+    /// <summary>
+    ///     How long the hull passes through what it smashed, should it still stand, before it is solid again.
+    /// </summary>
+    [DataField]
+    public TimeSpan SmashedPassTime = TimeSpan.FromSeconds(1);
+
     [DataField]
     public DamageSpecifier? SmashSelfDamage;
 

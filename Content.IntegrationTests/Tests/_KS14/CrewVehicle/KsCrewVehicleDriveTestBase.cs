@@ -34,6 +34,9 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     protected readonly EntProtoId HullPrototype = "KsCrewVehicleDriveTestHull";
     protected readonly EntProtoId WheeledHullPrototype = "KsCrewVehicleDriveTestHullWheeled";
     protected readonly EntProtoId GentleHullPrototype = "KsCrewVehicleDriveTestHullGentle";
+    protected readonly EntProtoId ThrowerHullPrototype = "KsCrewVehicleDriveTestHullThrower";
+    protected readonly EntProtoId ItemColliderHullPrototype = "KsCrewVehicleDriveTestHullItemCollider";
+    protected readonly EntProtoId PushCratePrototype = "KsCrewVehicleDriveTestPushCrate";
     protected readonly EntProtoId BlockPrototype = "KsCrewVehicleDriveTestBlock";
     protected readonly EntProtoId GlassPrototype = "KsCrewVehicleDriveTestGlass";
     protected readonly EntProtoId TestWallPrototype = "KsCrewVehicleDriveTestWall";
@@ -70,9 +73,8 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         mask:
         - MobMask
         layer:
-        - Impassable
         - MidImpassable
-        - HighImpassable
+        - LowImpassable
         - BulletImpassable
         - Opaque
       contact:
@@ -149,6 +151,7 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
   - type: KsCrewVehicleCrashLockout
     minImpactSpeed: 2
     duration: 1
+  - type: KsCrewVehiclePush
 
 # Wheeled: turns only while rolling.
 - type: entity
@@ -160,6 +163,66 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     fullTurnSpeed: 2
     turnRate: 180
     reverseSpeedFraction: 0.5
+
+# Throws a standing mob it hits at its top speed.
+- type: entity
+  parent: KsCrewVehicleDriveTestHull
+  id: KsCrewVehicleDriveTestHullThrower
+  components:
+  - type: KsCrewVehicleRunOver
+    minSpeed: 1.5
+    throwSpeed: 2.5
+    throwForcePerSpeed: 10
+    damage:
+      types:
+        Blunt: 10
+
+# A hull whose body still has the layers items collide with: what the others were before.
+- type: entity
+  parent: KsCrewVehicleDriveTestHull
+  id: KsCrewVehicleDriveTestHullItemCollider
+  components:
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: ""-0.5,-0.8,0.5,0.8""
+        density: 400
+        mask:
+        - MobMask
+        layer:
+        - Impassable
+        - MidImpassable
+        - HighImpassable
+        - BulletImpassable
+        - Opaque
+      contact:
+        shape:
+          !type:PhysShapeAabb
+          bounds: ""-0.75,-1.05,0.75,1.05""
+        hard: false
+        mask:
+        - MobMask
+        - MobLayer
+
+# A loose crate, as crates and closets collide.
+- type: entity
+  id: KsCrewVehicleDriveTestPushCrate
+  components:
+  - type: Physics
+    bodyType: Dynamic
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: ""-0.4,-0.4,0.4,0.4""
+        density: 50
+        mask:
+        - MachineMask
+        layer:
+        - MachineLayer
 
 # Never fast enough to run anyone over, smash anything or crash.
 - type: entity

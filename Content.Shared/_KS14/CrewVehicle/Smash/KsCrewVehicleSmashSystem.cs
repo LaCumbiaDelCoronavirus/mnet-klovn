@@ -30,6 +30,7 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
     [Dependency] private DamageableSystem _damageableSystem = default!;
     [Dependency] private EntityWhitelistSystem _whitelistSystem = default!;
     [Dependency] private IGameTiming _gameTiming = default!;
+    [Dependency] private KsCrewVehicleSmashedSystem _smashedSystem = default!;
     [Dependency] private SharedAudioSystem _audioSystem = default!;
     [Dependency] private SharedPhysicsSystem _physicsSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
@@ -42,6 +43,7 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
     {
         if (_gameTiming.ApplyingState ||
             args.OurFixtureId != hull.Comp.Fixture ||
+            !args.OurFixture.Hard ||
             !args.OtherFixture.Hard ||
             _mobStateQuery.HasComp(args.OtherEntity))
         {
@@ -65,6 +67,7 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
         if (smashable)
         {
             _damageableSystem.TryChangeDamage(otherUid, hull.Comp.SmashDamage, origin: origin);
+            _smashedSystem.MarkSmashed(otherUid, hull.Owner, hull.Comp.SmashedPassTime);
             _physicsSystem.SetLinearVelocity(hull.Owner, velocity * hull.Comp.SmashSpeedRetained, body: args.OurBody);
             _audioSystem.PlayPredicted(hull.Comp.SmashSound, otherUid, driverUid);
             DamageSelf(hull, hull.Comp.SmashSelfDamage, origin);

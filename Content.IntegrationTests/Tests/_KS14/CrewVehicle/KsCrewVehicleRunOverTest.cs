@@ -132,11 +132,10 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
     }
 
     /// <summary>
-    ///     Too slow to run it over, the driven hull is stopped by a standing mob: it doesn't pass into it, nor hurt it,
-    ///         nor push it.
+    ///     Too slow to run it over, a driven hull carries a standing mob along ahead of it, unhurt and on its feet.
     /// </summary>
     [Test]
-    public async Task SlowHullIsStoppedByAStandingMob()
+    public async Task SlowHullCarriesAStandingMobAlong()
     {
         var course = await SetUpAsync(GentleHullPrototype);
         var hull = course.Scene.Hull;
@@ -156,12 +155,14 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
 
         await Server.WaitAssertion(() =>
         {
-            Assert.That(overlapped, Is.False, "a slow hull should stop at a standing mob, not drive into it");
+            Assert.That(overlapped, Is.False, "a slow hull shouldn't drive into a standing mob");
             Assert.That(Vector2.Dot(HullPosition(course.Mob) - HullPosition(hull), course.Facing), Is.GreaterThan(0f),
-                "and stay on its side of it");
+                "which stays ahead of it");
+            Assert.That(Vector2.Dot(HullPosition(course.Mob) - mobStart, course.Facing), Is.GreaterThan(1f),
+                "carried along");
             Assert.That(Damage(course.Mob), Is.EqualTo(FixedPoint2.Zero), "unhurt");
             Assert.That(IsDown(course.Mob), Is.False, "and standing");
-            Assert.That((HullPosition(course.Mob) - mobStart).Length(), Is.LessThan(0.1f), "and not pushed");
+            Assert.That(SEntMan.HasComponent<KsCrewVehicleUnderHullComponent>(course.Mob), Is.False, "and not under it");
         });
     }
 
@@ -202,6 +203,58 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
         await Move(DirectionFlag.West, 0.5f);
         await Server.WaitAssertion(() =>
             Assert.That(HullPosition(SPlayer).X, Is.LessThan(stoppedAt.X - 0.5f), "and it can walk away from it"));
+    }
+
+    /// <summary>
+    ///     Above its throw speed, a hull hurts a standing mob once and throws it along its way rather than going over it.
+    ///         Control: a mob that can't be thrown is run over instead.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task FastHullThrowsAStandingMob(bool throwable)
+    {
+        var course = await SetUpAsync(ThrowerHullPrototype);
+        var hull = course.Scene.Hull;
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(TopSpeed(hull), Is.GreaterThan(SComp<KsCrewVehicleRunOverComponent>(hull).ThrowSpeed),
+                "precondition: this hull is fast enough to throw");
+            if (!throwable)
+                SEntMan.RemoveComponent<Content.Server._KS14.Throwing.KsThrowableMobComponent>(course.Mob);
+        });
+
+        var hits = 0;
+        var lastDamage = FixedPoint2.Zero;
+        var thrown = false;
+        var under = false;
+        var fastestMob = 0f;
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 2, () =>
+        {
+            var damage = Damage(course.Mob);
+            if (damage > lastDamage)
+                hits++;
+            lastDamage = damage;
+            thrown |= SEntMan.HasComponent<Content.Shared._KS14.Throwing.KsThrownSlamComponent>(course.Mob);
+            under |= SEntMan.HasComponent<KsCrewVehicleUnderHullComponent>(course.Mob);
+            fastestMob = MathF.Max(fastestMob, Vector2.Dot(SComp<Robust.Shared.Physics.Components.PhysicsComponent>(course.Mob).LinearVelocity, course.Facing));
+            return false;
+        });
+
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(hits, Is.EqualTo(1), "it is hurt once");
+            if (throwable)
+            {
+                Assert.That(thrown, Is.True, "and thrown, marked to slam into what it hits");
+                Assert.That(under, Is.False, "not driven over");
+                Assert.That(fastestMob, Is.GreaterThan(TopSpeed(hull)), "flying ahead faster than the hull drives");
+            }
+            else
+            {
+                Assert.That(thrown, Is.False, "control: a mob that can't be thrown isn't");
+                Assert.That(under, Is.True, "it is run over instead");
+            }
+        });
     }
 
     [Test]

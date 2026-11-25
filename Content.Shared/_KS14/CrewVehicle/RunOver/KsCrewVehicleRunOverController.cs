@@ -1,5 +1,5 @@
 using System.Numerics;
-using Content.Shared._KS14.CrewVehicle.Drive;
+using Content.Shared._KS14.CrewVehicle.Push;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Movement.Components;
 using Content.Shared.Standing;
@@ -10,20 +10,19 @@ using Robust.Shared.Physics.Controllers;
 namespace Content.Shared._KS14.CrewVehicle.RunOver;
 
 /// <summary>
-///     A driven hull and a standing mob it touches stop against each other, as a parked hull and a mob do: the hull
-///         while it is too slow to run the mob over, the mob always.
+///     A standing mob a driven hull touches is carried along ahead of it, and can't walk into it: it never moves toward
+///         the hull faster than the hull moves toward it. Fast enough, the hull runs it over instead
+///         (<see cref="KsCrewVehicleRunOverSystem"/>), and from then it is no longer this one's.
 /// </summary>
 /// <remarks>
 ///     <para>
 ///         Physics can't do it: a driven hull and a mob are both kinematic controllers, which never collide. So after
-///             everyone's speed for the step is set (the mover, then <see cref="KsCrewVehicleGripController"/>), the part
-///             of each one's velocity that would take it further into the other is taken away, for every standing mob a
-///             driven hull's contact fixture touches. Neither pushes the other.
+///             everyone's speed for the step is set (the mover, the grip and the push controllers), the mob's speed along
+///             the line from the hull is raised to the hull's own. The hull isn't slowed by it.
 ///     </para>
 ///     <para>
-///         Only driven hulls are visited, a handful at most. On a client, the hull is stopped only if the client
-///             predicts the hull (its driver's), and a mob only if it predicts the mob (its own player): each is
-///             stopped where it is predicted, so neither its driver nor a player walking into it rubber-bands.
+///         Only driven hulls are visited, a handful at most, and a mob is written only where it is predicted: on the
+///             server, or on its own player's client, so a player walking into a hull doesn't rubber-band.
 ///     </para>
 /// </remarks>
 public sealed partial class KsCrewVehicleRunOverController : VirtualController
@@ -35,14 +34,9 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
     [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
     [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
 
-    /// <summary>
-    ///     Speeds below this, in m/s, are standing still.
-    /// </summary>
-    private const float MinSpeed = 0.001f;
-
     public override void Initialize()
     {
-        UpdatesAfter.Add(typeof(KsCrewVehicleGripController));
+        UpdatesAfter.Add(typeof(KsCrewVehiclePushController));
 
         base.Initialize();
     }
@@ -58,11 +52,7 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
             if (hullBody.BodyType != BodyType.KinematicController)
                 continue;
 
-            var stopHull = !prediction || hullBody.Predict;
-            var hullVelocity = hullBody.LinearVelocity;
-            var hullBlocked = false;
             var hullPosition = _transformSystem.GetWorldPosition(uid);
-
             var contacts = PhysicsSystem.GetContacts(uid);
             while (contacts.MoveNext(out var contact))
             {
@@ -74,36 +64,24 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
                 if (!otherFixture.Hard ||
                     !_mobStateQuery.HasComp(mobUid) ||
                     _runOverSystem.IsUnder(mobUid, uid) ||
+                    _runOverSystem.IsStruck(mobUid) ||
                     _standingSystem.IsDown(mobUid))
                 {
                     continue;
                 }
 
-                if (KsCrewVehicleHullFrame.TryGetSeparation(PhysicsSystem, _transformSystem, uid, hullPosition, mobUid) is not { } toward)
+                if (KsCrewVehicleHullFrame.TryGetSeparation(PhysicsSystem, _transformSystem, uid, hullPosition, mobUid) is not { } away)
                     continue;
 
-                if (stopHull)
-                {
-                    var closing = Vector2.Dot(hullVelocity, toward);
-                    if (closing > 0f && closing < runOverComponent.MinSpeed)
-                    {
-                        hullVelocity -= toward * closing;
-                        hullBlocked = true;
-                    }
-                }
-
-                StopMob(mobUid, -toward, prediction);
+                Carry(mobUid, away, MathF.Max(0f, Vector2.Dot(hullBody.LinearVelocity, away)), prediction);
             }
-
-            if (hullBlocked)
-                PhysicsSystem.SetLinearVelocity(uid, hullVelocity, body: hullBody);
         }
     }
 
     /// <summary>
-    ///     Takes away the part of <paramref name="mobUid"/>'s velocity along <paramref name="towardHull"/>.
+    ///     Raises <paramref name="mobUid"/>'s speed along <paramref name="away"/> to at least <paramref name="hullSpeed"/>.
     /// </summary>
-    private void StopMob(EntityUid mobUid, Vector2 towardHull, bool prediction)
+    private void Carry(EntityUid mobUid, Vector2 away, float hullSpeed, bool prediction)
     {
         if (!_physicsQuery.TryComp(mobUid, out var mobBody) ||
             prediction && !mobBody.Predict)
@@ -112,8 +90,8 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
         }
 
         var velocity = mobBody.LinearVelocity;
-        var closing = Vector2.Dot(velocity, towardHull);
-        if (closing > 0f)
-            PhysicsSystem.SetLinearVelocity(mobUid, velocity - towardHull * closing, body: mobBody);
+        var along = Vector2.Dot(velocity, away);
+        if (along < hullSpeed)
+            PhysicsSystem.SetLinearVelocity(mobUid, velocity + away * (hullSpeed - along), body: mobBody);
     }
 }

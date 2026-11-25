@@ -17,11 +17,14 @@ namespace Content.Shared._KS14.CrewVehicle.RunOver;
 
 /// <summary>
 ///     A crew vehicle closing on a standing mob at <see cref="KsCrewVehicleRunOverComponent.MinSpeed"/> or more runs it
-///         over: it is hurt once and knocked down, and stays down until the hull has gone. A slower hull is stopped by it
-///         (<see cref="KsCrewVehicleRunOverController"/>); a mob already down is simply driven over.
+///         over: it is hurt once and knocked down, and stays down until the hull has gone. From
+///         <see cref="KsCrewVehicleRunOverComponent.ThrowSpeed"/> it is hurt and thrown along the hull's way instead. A
+///         slower hull carries it along (<see cref="KsCrewVehicleRunOverController"/>); a mob already down is simply
+///         driven over.
 /// </summary>
 /// <remarks>
-///     Predicted by the driver's client, which predicts the hull. Nothing here is random.
+///     Predicted by the driver's client, which predicts the hull, except the throw, which is the server's
+///         (<see cref="KsCrewVehicleThrowStruckMobEvent"/>). Nothing here is random.
 /// </remarks>
 public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
 {
@@ -36,6 +39,7 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
     [Dependency] private StandingStateSystem _standingSystem = default!;
 
     [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
+    [Dependency] private EntityQuery<KsCrewVehicleStruckComponent> _struckQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleUnderHullComponent> _underHullQuery = default!;
     [Dependency] private EntityQuery<VehicleComponent> _vehicleQuery = default!;
 
@@ -48,13 +52,15 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
             args.OurFixtureId != hull.Comp.Fixture ||
             !args.OtherFixture.Hard ||
             !_mobStateQuery.HasComp(args.OtherEntity) ||
-            IsUnder(args.OtherEntity, hull.Owner))
+            IsUnder(args.OtherEntity, hull.Owner) ||
+            IsStruck(args.OtherEntity))
         {
             return;
         }
 
         var mobUid = args.OtherEntity;
-        if (ClosingSpeed(hull.Owner, args.OurBody, mobUid) < hull.Comp.MinSpeed)
+        var closingSpeed = ClosingSpeed(hull.Owner, args.OurBody, mobUid);
+        if (closingSpeed < hull.Comp.MinSpeed)
             return;
 
         // A mob already down is driven over, unhurt.
@@ -62,10 +68,14 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
         {
             var driverUid = _vehicleQuery.CompOrNull(hull.Owner)?.Operator;
             _damageableSystem.TryChangeDamage(mobUid, hull.Comp.Damage, origin: driverUid ?? hull.Owner);
-            _stunSystem.TryKnockdown(mobUid, hull.Comp.Knockdown, refresh: true);
             _audioSystem.PlayPredicted(hull.Comp.HitSound, mobUid, driverUid);
             _popupSystem.PopupEntity(KsPopupMessage.Create(RunOverPopup, ("vehicle", hull.Owner), ("victim", mobUid)),
                 mobUid, PopupType.MediumCaution);
+
+            if (closingSpeed >= hull.Comp.ThrowSpeed && TryThrow(hull, args.OurBody, mobUid, closingSpeed))
+                return;
+
+            _stunSystem.TryKnockdown(mobUid, hull.Comp.Knockdown, refresh: true);
         }
 
         var underHullComponent = EnsureComp<KsCrewVehicleUnderHullComponent>(mobUid);
@@ -78,6 +88,40 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
     {
         if (mob.Comp.LifeStage <= ComponentLifeStage.Running)
             args.Cancelled = true;
+    }
+
+    /// <summary>
+    ///     Sends a struck mob flying along the hull's way, and marks it to be left alone while it gets clear.
+    /// </summary>
+    private bool TryThrow(Entity<KsCrewVehicleRunOverComponent> hull, PhysicsComponent hullBody, EntityUid mobUid, float closingSpeed)
+    {
+        var velocity = hullBody.LinearVelocity;
+        if (velocity.LengthSquared() < 0.0001f)
+            return false;
+
+        var ev = new KsCrewVehicleThrowStruckMobEvent(hull.Owner, mobUid, Vector2.Normalize(velocity),
+            closingSpeed * hull.Comp.ThrowForcePerSpeed);
+        RaiseLocalEvent(ref ev);
+
+        // The throw is the server's, and whether a mob can be thrown is a server component's to say: a predicting
+        //      client takes it that it is, and the server's state corrects the rare mob that can't.
+        if (!ev.Thrown && !_netManager.IsClient)
+            return false;
+
+        var struckComponent = EnsureComp<KsCrewVehicleStruckComponent>(mobUid);
+        struckComponent.Until = _gameTiming.CurTime + hull.Comp.StruckIgnoreTime;
+        Dirty(mobUid, struckComponent);
+        return true;
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="mobUid"/> was just thrown by a hull and is still to be left alone.
+    /// </summary>
+    public bool IsStruck(EntityUid mobUid)
+    {
+        return _struckQuery.TryComp(mobUid, out var struckComponent) &&
+               struckComponent.LifeStage <= ComponentLifeStage.Running &&
+               _gameTiming.CurTime < struckComponent.Until;
     }
 
     /// <summary>
@@ -116,6 +160,14 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
         //      over again, and its state carries the removal anyway.
         if (_netManager.IsClient)
             return;
+
+        var struckQuery = EntityQueryEnumerator<KsCrewVehicleStruckComponent>();
+        while (struckQuery.MoveNext(out var struckUid, out var struckComponent))
+        {
+            // Removed at the end of the tick: this is enumerating them.
+            if (struckComponent.LifeStage <= ComponentLifeStage.Running && _gameTiming.CurTime >= struckComponent.Until)
+                RemCompDeferred(struckUid, struckComponent);
+        }
 
         var query = EntityQueryEnumerator<KsCrewVehicleUnderHullComponent, TransformComponent>();
         while (query.MoveNext(out var mobUid, out var underHullComponent, out var transformComponent))

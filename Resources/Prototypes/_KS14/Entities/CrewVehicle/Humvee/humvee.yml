@@ -38,10 +38,10 @@
         density: 400
         mask:
         - MobMask
+        # Not Impassable or HighImpassable, what items collide with: a hull drives over casings and dropped things.
         layer:
-        - Impassable
         - MidImpassable
-        - HighImpassable
+        - LowImpassable
         - BulletImpassable
         - Opaque
       contact:
@@ -66,6 +66,14 @@
     softness: 2
     lightMask: ConeSingle
     autoRot: true
+  # Run over from 3 tiles a second, thrown from 5: at its top speed of 6, a throw force of 36.
+  - type: KsCrewVehicleRunOver
+    minSpeed: 3
+    throwSpeed: 5
+    throwForcePerSpeed: 6
+    damage:
+      types:
+        Blunt: 25
   - type: KsCrewVehicleHorn
     sound:
       path: /Audio/_KS14/CrewVehicle/Humvee/horn.ogg

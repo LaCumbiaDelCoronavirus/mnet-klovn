@@ -96,6 +96,53 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
         });
     }
 
+    /// <summary>
+    ///     On the driver's own client, the hull drives straight on through what it smashes: it never steps backward,
+    ///         though that client hears the window broke only a round trip later.
+    /// </summary>
+    [Test]
+    public async Task SmashingNeverStepsBackOnTheDriversClient()
+    {
+        var run = await SetUpAsync(GlassPrototype);
+        var clientHull = ToClient(run.Scene.Hull);
+        float ClientAlong() => Vector2.Dot(CEntMan.GetComponent<TransformComponent>(clientHull).LocalPosition, run.Facing);
+
+        // Up to speed first: the smash is what this watches.
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Down);
+        await RunTicks(TickRate / 2);
+        var previous = 0f;
+        await Client.WaitPost(() => previous = ClientAlong());
+        var worstStepBack = 0f;
+        var longestStep = 0f;
+        for (var tick = 0; tick < TickRate * 3; tick++)
+        {
+            await RunTicks(1);
+            await Client.WaitPost(() =>
+            {
+                var along = ClientAlong();
+                worstStepBack = MathF.Max(worstStepBack, previous - along);
+                longestStep = MathF.Max(longestStep, along - previous);
+                previous = along;
+            });
+        }
+
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Up);
+        var topStep = 0f;
+        await Server.WaitPost(() => topStep = TopSpeed(run.Scene.Hull) / TickRate);
+        TestContext.Out.WriteLine($"worst client step back {worstStepBack}, longest step {longestStep} of {topStep} a tick");
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(SEntMan.Deleted(run.Obstacle) || EntityManagerQueued(run.Obstacle), Is.True, "precondition: smashed");
+            Assert.That(Vector2.Dot(HullPosition(run.Scene.Hull), run.Facing), Is.GreaterThan(4f), "precondition: and through");
+        });
+        // Stopped at the window until the server's word, the hull steps back out of it, then jumps on to catch up.
+        Assert.Multiple(() =>
+        {
+            Assert.That(worstStepBack, Is.LessThan(0.001f), "the driver's client shouldn't see the hull step backward");
+            Assert.That(longestStep, Is.LessThan(topStep * 1.05f), "nor jump forward to catch up");
+        });
+    }
+
     [Test]
     public async Task GentleHullBreaksNothing()
     {
