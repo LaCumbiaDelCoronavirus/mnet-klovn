@@ -367,6 +367,72 @@ public sealed class KsCrewVehicleMultiGunnerTest : KsCrewVehicleGunnerTestBase
             .Count(entityManager.HasComponent<KsCrewVehicleSelectWeaponActionComponent>);
     }
 
+    /// <summary>
+    ///     A client well ahead of the server finishes the turn it predicts first, and keeps the turret where the turn
+    ///         ended until the server's turret gets there too: the states it applies in between, still turning, don't
+    ///         put it back.
+    /// </summary>
+    [Test]
+    public async Task PredictedTurnHoldsUntilTheServerArrives()
+    {
+        var clientConfigurationManager = Client.ResolveDependency<Robust.Shared.Configuration.IConfigurationManager>();
+        await Client.WaitPost(() => clientConfigurationManager.SetCVar(Robust.Shared.CVars.NetPredictTickBias, 4));
+
+        var multi = await SpawnMultiAsync();
+        await SeatPlayerAsync(multi, multi.SeatA);
+
+        var target = Vector2.Zero;
+        var step = 0.0;
+        var leftNetEntity = NetEntity.Invalid;
+        await Server.WaitPost(() =>
+        {
+            var (position, rotation) = Transform.GetWorldPositionRotation(multi.Left);
+            target = position + (rotation + Angle.FromDegrees(90)).ToWorldVec() * 2f;
+            step = SComp<KsCrewVehicleTurretComponent>(multi.Left).TraverseRate.Theta / TickRate;
+            leftNetEntity = SEntMan.GetNetEntity(multi.Left);
+        });
+
+        var weaponNetEntity = leftNetEntity;
+        var targetCoordinates = OutsideAt(target);
+        await Client.WaitPost(() => CEntMan.RaisePredictiveEvent(new KsCrewVehicleAimEvent
+        {
+            Weapon = weaponNetEntity,
+            Target = targetCoordinates,
+        }));
+
+        var clientArrived = false;
+        var serverArrived = false;
+        var heldTicks = 0;
+        for (var tick = 0; tick < TickRate * 5 && !serverArrived; tick++)
+        {
+            await RunTicks(1);
+            await Server.WaitPost(() => serverArrived = SEntMan.HasComponent<KsCrewVehicleTurretAimComponent>(multi.Left) &&
+                                                        !SEntMan.HasComponent<KsCrewVehicleTurretTraversingComponent>(multi.Left));
+            if (serverArrived)
+                break;
+
+            await Client.WaitAssertion(() =>
+            {
+                var clientLeft = ToClient(leftNetEntity);
+                if (!CEntMan.TryGetComponent<KsCrewVehicleTurretAimComponent>(clientLeft, out var clientAim))
+                    return;
+
+                var off = Math.Abs(Angle.ShortestDistance(CEntMan.GetComponent<TransformComponent>(clientLeft).LocalRotation, clientAim.TargetAngle).Theta);
+                if (!clientArrived)
+                {
+                    clientArrived = off < 0.0001;
+                    return;
+                }
+
+                heldTicks++;
+                Assert.That(off, Is.LessThan(step * 0.5), $"tick {tick}: the client's turret went back from where its predicted turn ended");
+            });
+        }
+
+        Assert.That(serverArrived, "precondition: the server's turret finished turning");
+        Assert.That(heldTicks, Is.GreaterThan(0), "precondition: the client finished its turn before the server did");
+    }
+
     private async Task AimAsync(EntityUid weapon, NetCoordinates target)
     {
         var weaponNetEntity = SEntMan.GetNetEntity(weapon);

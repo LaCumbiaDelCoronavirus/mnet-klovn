@@ -99,6 +99,24 @@ public abstract class KsCrewVehicleGunnerTestBase : KsCrewVehicleDriveTestBase
       tags:
       - KsCrewVehicleGunnerTestRound
 
+# A round the test gun takes, but not the one it is filled with: a box of these has to make each round to move it.
+- type: entity
+  parent: KsCrewVehicleGunnerTestCartridge
+  id: KsCrewVehicleGunnerTestOtherCartridge
+  categories: [ HideSpawnMenu ]
+
+- type: entity
+  parent: KsCrewVehicleGunnerTestAmmoBox
+  id: KsCrewVehicleGunnerTestOtherAmmoBox
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: BallisticAmmoProvider
+    proto: KsCrewVehicleGunnerTestOtherCartridge
+    capacity: 8
+    whitelist:
+      tags:
+      - KsCrewVehicleGunnerTestRound
+
 - type: entity
   parent: KsCrewVehicleInteriorBaseAmmoPort
   id: KsCrewVehicleGunnerTestAmmoPort

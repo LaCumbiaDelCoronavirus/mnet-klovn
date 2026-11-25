@@ -7,18 +7,31 @@ namespace Content.Shared.Weapons.Ranged.Systems;
 public abstract partial class SharedGunSystem
 {
     /// <summary>
-    ///     Moves one round from <paramref name="source"/> (a box, a magazine) into <paramref name="target"/>, through the
-    ///         providers' own taking and inserting. A round <paramref name="target"/> refuses goes back where it came from.
+    ///     Moves one round from <paramref name="source"/> (a box, a magazine) into <paramref name="target"/>. Predicted:
+    ///         a round that exists is moved between the two containers, and one that doesn't yet, of the round the target
+    ///         is filled with, is moved as a count. A round the target refuses goes back where it came from.
     /// </summary>
-    /// <returns>False when the target is full, the source empty, or the round refused.</returns>
-    /// <remarks>
-    ///     Server only: what the source takes out may be a fresh spawn, which a client would only have predicted.
-    /// </remarks>
+    /// <returns>False when the target is full, the source empty, or the round refused; on a client, also when only the
+    ///     server can move it (<see cref="KsCanTransferBallisticPredicted"/>).</returns>
     public bool KsTryTransferBallisticRound(Entity<BallisticAmmoProviderComponent> source,
         Entity<BallisticAmmoProviderComponent> target,
         EntityUid? user)
     {
         if (IsFull(target) || GetBallisticShots(source.Comp) == 0)
+            return false;
+
+        // Not yet a round, and the round the target is filled with: the same thing to both, so only the counts move.
+        //      The target's whitelist takes its own fill round (KsCrewVehicleWeaponWhitelistTest checks mounted guns).
+        if (source.Comp.Entities.Count == 0 && source.Comp.Proto != null && source.Comp.Proto == target.Comp.Proto)
+        {
+            SetBallisticUnspawned(source, source.Comp.UnspawnedCount - 1);
+            SetBallisticUnspawned(target, target.Comp.UnspawnedCount + 1);
+            return true;
+        }
+
+        // A round of another kind has to be made to be moved. A client's would be a predicted spawn put into a
+        //      networked container, which the next state contradicts, so the server moves it and the client is told.
+        if (!KsCanTransferBallisticPredicted(source, target) && _netManager.IsClient)
             return false;
 
         var ammo = new List<(EntityUid? Entity, IShootable Shootable)>(1);
@@ -37,5 +50,15 @@ public abstract partial class SharedGunSystem
         }
 
         return false;
+    }
+
+    /// <summary>
+    ///     Whether a client can predict <see cref="KsTryTransferBallisticRound"/>'s next round: it already exists, or it
+    ///         is the target's own fill round, moved as a count.
+    /// </summary>
+    public bool KsCanTransferBallisticPredicted(Entity<BallisticAmmoProviderComponent> source,
+        Entity<BallisticAmmoProviderComponent> target)
+    {
+        return source.Comp.Entities.Count > 0 || source.Comp.Proto != null && source.Comp.Proto == target.Comp.Proto;
     }
 }

@@ -2,7 +2,6 @@ using Content.Shared._KS14.CrewVehicle.Gunner;
 using Content.Shared._KS14.CrewVehicle.Mounts;
 using Content.Shared.Weapons.Ranged.Events;
 using Robust.Shared.Map;
-using Robust.Shared.Network;
 using Robust.Shared.Player;
 using Robust.Shared.Timing;
 
@@ -19,7 +18,6 @@ namespace Content.Shared._KS14.CrewVehicle.Turret;
 public sealed partial class KsCrewVehicleTurretSystem : EntitySystem
 {
     [Dependency] private IGameTiming _gameTiming = default!;
-    [Dependency] private INetManager _netManager = default!;
     [Dependency] private ISharedPlayerManager _playerManager = default!;
     [Dependency] private SharedKsCrewVehicleMountSystem _mountSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
@@ -112,11 +110,9 @@ public sealed partial class KsCrewVehicleTurretSystem : EntitySystem
             {
                 _transformSystem.SetLocalRotation(uid, aimComponent.TargetAngle, transformComponent);
 
-                // The server's state takes the marker off the client: a networked component the client removed while
-                //      predicting would stay gone through the state reset that puts the turret back where the server
-                //      has it, still turning, and the client would stop predicting the rest of the turn.
-                if (_netManager.IsServer)
-                    RemCompDeferred<KsCrewVehicleTurretTraversingComponent>(uid);
+                // Predicted on the client too: a state reset that puts the turret back where the server has it, still
+                //      turning, brings the marker back with it (KsCrewVehicleMultiGunnerTest.PredictedTurnHoldsUntilTheServerArrives).
+                RemCompDeferred<KsCrewVehicleTurretTraversingComponent>(uid);
                 continue;
             }
 
