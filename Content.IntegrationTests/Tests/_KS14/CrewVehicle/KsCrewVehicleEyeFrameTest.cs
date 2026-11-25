@@ -151,10 +151,12 @@ public sealed class KsCrewVehicleEyeFrameTest : KsCrewVehicleGunnerTestBase
         var scene = await SitInsideAsync(driver: false);
         Assert.That(SameAngle((await SettleEyeAsync())[^1], mobRotation), Is.True, "precondition: seated on the turned grid");
 
-        // A second, upright grid beside the first, and the hull put on it.
+        // A second, upright grid beside the first, and the hull put on it. Held still, as the floor grid is: a grid this
+        //      light turns a little under the hull put on it, and the view should then end at that turn instead.
         await Server.WaitPost(() =>
         {
             var gridEntity = MapSystem.CreateGridEntity(MapId);
+            SEntMan.System<Robust.Shared.Physics.Systems.SharedPhysicsSystem>().SetBodyType(gridEntity.Owner, Robust.Shared.Physics.BodyType.Static);
             Transform.SetWorldPosition(gridEntity.Owner, new Vector2(FloorRadius * 4f, 0f));
             for (var x = -2; x <= 2; x++)
             {

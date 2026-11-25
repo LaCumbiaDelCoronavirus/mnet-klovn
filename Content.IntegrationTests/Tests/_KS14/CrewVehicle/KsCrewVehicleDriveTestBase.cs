@@ -350,18 +350,33 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     {
         await base.Setup();
 
+        // In one batch, and only where there's no tile yet: set one by one, the first new tiles are islands apart from
+        //      the player's, and the grid splits them off. A second grid under the player and every hull, overlapping
+        //      the floor, which the client and the server then each parent things to differently.
         await Server.WaitPost(() =>
         {
             var tile = new Tile(ProtoMan.Index<ContentTileDefinition>(Plating).TileId);
+            var tiles = new List<(Vector2i GridIndices, Tile Tile)>();
             for (var x = -FloorRadius; x <= FloorRadius; x++)
             {
                 for (var y = -FloorRadius; y <= FloorRadius; y++)
                 {
-                    MapSystem.SetTile(MapData.Grid, new Vector2i(x, y), tile);
+                    var indices = new Vector2i(x, y);
+                    if (MapSystem.GetTileRef(MapData.Grid, indices).Tile.IsEmpty)
+                        tiles.Add((indices, tile));
                 }
             }
+
+            MapSystem.SetTiles(MapData.Grid.Owner, MapData.Grid.Comp, tiles);
+
+            // A station doesn't drift under its crew; a small test grid, light enough for what stands on it to nudge, does,
+            //      and turns everything on it by its own turn. Held still, a heading is the hull's own.
+            SEntMan.System<Robust.Shared.Physics.Systems.SharedPhysicsSystem>().SetBodyType(MapData.Grid.Owner, Robust.Shared.Physics.BodyType.Static);
         });
         await RunTicks(1);
+        await Server.WaitAssertion(() =>
+            Assert.That(SEntMan.AllEntities<MapGridComponent>().Count(grid => SEntMan.GetComponent<TransformComponent>(grid).MapUid == MapData.MapUid),
+                Is.EqualTo(1), "precondition: one floor grid"));
     }
 
     /// <summary>

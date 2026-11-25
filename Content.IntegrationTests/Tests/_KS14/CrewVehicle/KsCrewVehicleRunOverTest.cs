@@ -217,7 +217,7 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
         var hull = course.Scene.Hull;
         await Server.WaitAssertion(() =>
         {
-            Assert.That(TopSpeed(hull), Is.GreaterThan(SComp<KsCrewVehicleRunOverComponent>(hull).ThrowSpeed),
+            Assert.That(TopSpeed(hull), Is.GreaterThan(SComp<KsCrewVehicleRunOverComponent>(hull).ThrowSpeed ?? float.PositiveInfinity),
                 "precondition: this hull is fast enough to throw");
             if (!throwable)
                 SEntMan.RemoveComponent<Content.Server._KS14.Throwing.KsThrowableMobComponent>(course.Mob);
