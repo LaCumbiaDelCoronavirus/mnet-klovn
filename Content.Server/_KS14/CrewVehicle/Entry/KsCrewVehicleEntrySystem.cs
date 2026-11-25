@@ -169,7 +169,7 @@ public sealed partial class KsCrewVehicleEntrySystem : EntitySystem
 
         // Tracked at once rather than when KsCrewVehiclePresenceSystem next looks, so that someone else getting in
         //      this same tick counts them against the capacity.
-        var pulled = _interiorSystem.MoveWithPulled(user, Transform(exitDoor.Value).Coordinates);
+        var pulled = _interiorSystem.MoveWithPulled(user, _transformSystem.GetMapCoordinates(exitDoor.Value));
         _interiorSystem.TrackOccupant(user, vehicle);
         if (pulled is { } pulledUid && IsLiving(pulledUid))
             _interiorSystem.TrackOccupant(pulledUid, vehicle);

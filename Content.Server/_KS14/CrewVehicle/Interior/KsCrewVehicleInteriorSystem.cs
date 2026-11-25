@@ -252,11 +252,22 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
     }
 
     /// <summary>
+    ///     Puts <paramref name="uid"/> at <paramref name="destination"/>, on whatever grid is there, or on the map
+    ///         where there is none: how everything is moved into, out of and away from a vehicle.
+    /// </summary>
+    public void PlaceAt(EntityUid uid, MapCoordinates destination)
+    {
+        // SetMapCoordinates, not SetCoordinates(ToCoordinates(...)): that makes coordinates relative to the map,
+        //      whatever grid is under them, and leaves the entity parented to the map.
+        _transformSystem.SetMapCoordinates(uid, destination);
+    }
+
+    /// <summary>
     ///     Moves <paramref name="uid"/> to <paramref name="destination"/>, bringing along whatever it is pulling, still
     ///         pulled. Whoever was pulling <paramref name="uid"/> lets go.
     /// </summary>
     /// <returns>The entity it brought along, if any.</returns>
-    public EntityUid? MoveWithPulled(EntityUid uid, EntityCoordinates destination)
+    public EntityUid? MoveWithPulled(EntityUid uid, MapCoordinates destination)
     {
         if (TryComp<PullableComponent>(uid, out var pullableComponent) && pullableComponent.BeingPulled)
             _pullingSystem.TryStopPull(uid, pullableComponent);
@@ -270,11 +281,11 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
             pulledUid = pulling;
         }
 
-        _transformSystem.SetCoordinates(uid, destination);
+        PlaceAt(uid, destination);
         if (pulledUid is not { } pulled)
             return null;
 
-        _transformSystem.SetCoordinates(pulled, destination);
+        PlaceAt(pulled, destination);
         _pullingSystem.TryStartPull(uid, pulled);
         return pulled;
     }

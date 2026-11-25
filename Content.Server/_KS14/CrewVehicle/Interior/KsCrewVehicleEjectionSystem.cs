@@ -212,7 +212,7 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
         _interiorSystem.UntrackOccupant(uid);
         _buckleSystem.Unbuckle(uid, null);
         _containerSystem.TryRemoveFromContainer(uid, force: true);
-        _transformSystem.SetMapCoordinates(uid, FindLanding(centre, index));
+        _interiorSystem.PlaceAt(uid, FindLanding(centre, index));
     }
 
     /// <summary>

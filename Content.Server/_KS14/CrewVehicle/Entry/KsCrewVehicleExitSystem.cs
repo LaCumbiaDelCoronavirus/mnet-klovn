@@ -27,7 +27,6 @@ public sealed partial class KsCrewVehicleExitSystem : EntitySystem
     [Dependency] private SharedBuckleSystem _buckleSystem = default!;
     [Dependency] private SharedDoAfterSystem _doAfterSystem = default!;
     [Dependency] private SharedPopupSystem _popupSystem = default!;
-    [Dependency] private SharedTransformSystem _transformSystem = default!;
     [Dependency] private EntityQuery<GhostComponent> _ghostQuery = default!;
     [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
 
@@ -136,7 +135,7 @@ public sealed partial class KsCrewVehicleExitSystem : EntitySystem
 
         // Untracked first: moving out would otherwise remove it later in the tick, from the map change.
         _interiorSystem.UntrackOccupant(user);
-        var pulled = _interiorSystem.MoveWithPulled(user, _transformSystem.ToCoordinates(landing));
+        var pulled = _interiorSystem.MoveWithPulled(user, landing);
         if (pulled is { } pulledUid)
             _interiorSystem.UntrackOccupant(pulledUid);
 
