@@ -32,6 +32,7 @@ public abstract partial class SharedKsCrewVehicleExitSystem : EntitySystem
     private static readonly LocId BuckledMessage = "ks-crew-vehicle-buckled";
     private static readonly LocId BlockedMessage = "ks-crew-vehicle-exit-blocked";
     private static readonly LocId MovingMessage = "ks-crew-vehicle-exit-moving";
+    private static readonly LocId NoFloorMessage = "ks-crew-vehicle-exit-no-floor";
     private static readonly LocId ExitVerb = "ks-crew-vehicle-verb-exit";
 
     [SubscribeLocalEvent]
@@ -134,6 +135,13 @@ public abstract partial class SharedKsCrewVehicleExitSystem : EntitySystem
         if (_interiorSystem.IsBlockedForMobs(landing))
         {
             _popupSystem.PopupEntity(KsPopupMessage.Create(BlockedMessage), exit, user);
+            return false;
+        }
+
+        // A vehicle parked at the floor's edge would otherwise let people out into space on that side.
+        if (_interiorSystem.StandsOnFloor(vehicle.Value) && !_interiorSystem.IsFloor(landing))
+        {
+            _popupSystem.PopupEntity(KsPopupMessage.Create(NoFloorMessage), exit, user);
             return false;
         }
 

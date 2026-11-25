@@ -8,6 +8,7 @@ ks-crew-vehicle-enter-failed = You can't get in.
 ks-crew-vehicle-buckled = Unbuckle first.
 ks-crew-vehicle-exit-blocked = Something outside is in the way.
 ks-crew-vehicle-exit-moving = It's moving too fast to get out.
+ks-crew-vehicle-exit-no-floor = There's no floor to step out onto.
 
 ks-crew-vehicle-run-over = { CAPITALIZE(THE($vehicle)) } runs { THE($victim) } over!
 ks-crew-vehicle-crash-lockout = The crash has stalled the engine!

@@ -7,7 +7,9 @@ using Content.Shared.Stunnable;
 using Robust.Shared.Containers;
 using Robust.Shared.Map;
 using Robust.Shared.Map.Components;
+using Content.Shared.Projectiles;
 using Robust.Shared.Physics.Components;
+using Robust.Shared.Physics.Systems;
 
 namespace Content.Server._KS14.CrewVehicle.Interior;
 
@@ -26,24 +28,20 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
     [Dependency] private SharedBuckleSystem _buckleSystem = default!;
     [Dependency] private SharedContainerSystem _containerSystem = default!;
     [Dependency] private SharedMapSystem _mapSystem = default!;
+    [Dependency] private SharedPhysicsSystem _physicsSystem = default!;
     [Dependency] private SharedStunSystem _stunSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
     [Dependency] private EntityQuery<MapGridComponent> _gridQuery = default!;
     [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
+    [Dependency] private EntityQuery<ProjectileComponent> _projectileQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleInteriorPartComponent> _interiorPartQuery = default!;
-
-    /// <summary>
-    ///     Where, around the vehicle, things are put: rings of eight, nearest first.
-    /// </summary>
-    private static readonly Vector2[] LandingOffsets = CreateLandingOffsets();
 
     /// <summary>
     ///     A vehicle's interior emptied all at once, and how hard it throws mobs out.
     /// </summary>
     private readonly record struct PendingEjection(
-        EntityUid Vehicle,
         EntityUid InteriorMap,
-        MapCoordinates Centre,
+        Landing Landing,
         DamageSpecifier? Damage,
         TimeSpan Stun);
 
@@ -56,19 +54,15 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
 
     private readonly List<EntityUid> _toEject = new();
 
-    private static Vector2[] CreateLandingOffsets()
-    {
-        var offsets = new List<Vector2>();
-        foreach (var radius in new[] { 1.5f, 2.5f, 3.5f })
-        {
-            for (var i = 0; i < 8; i++)
-            {
-                offsets.Add(Angle.FromDegrees(45 * i).RotateVec(new Vector2(0f, radius)));
-            }
-        }
+    /// <summary>
+    ///     Where, around a vehicle, things thrown out of it are put, and whether they must be put on floor.
+    /// </summary>
+    private readonly record struct Landing(MapCoordinates Centre, IReadOnlyList<float> Radii, bool NeedsFloor);
 
-        return offsets.ToArray();
-    }
+    /// <summary>
+    ///     How many places each ring of <see cref="KsCrewVehicleInteriorComponent.EjectRadii"/> has.
+    /// </summary>
+    private const int PlacesPerRing = 8;
 
     /// <summary>
     ///     Deleted: destroyed (destruction always ends in deletion), or deleted outright by an admin or the round
@@ -100,11 +94,7 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
         if (_interiorSystem.DetachInterior(vehicle) is not { } interiorMap)
             return;
 
-        _pending.Add(new PendingEjection(vehicle,
-            interiorMap,
-            _transformSystem.GetMapCoordinates(vehicle.Owner),
-            vehicle.Comp.EjectDamage,
-            vehicle.Comp.EjectStun));
+        _pending.Add(new PendingEjection(interiorMap, GetLanding(vehicle), vehicle.Comp.EjectDamage, vehicle.Comp.EjectStun));
     }
 
     public override void Update(float frameTime)
@@ -132,7 +122,7 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
             return;
 
         // Nowhere to put anything when the vehicle's own map is going too: everything goes with the interior.
-        if (_mapSystem.GetMapOrInvalid(ejection.Centre.MapId) is { Valid: true } outsideMap && !TerminatingOrDeleted(outsideMap))
+        if (_mapSystem.GetMapOrInvalid(ejection.Landing.Centre.MapId) is { Valid: true } outsideMap && !TerminatingOrDeleted(outsideMap))
         {
             _toEject.Clear();
             CollectEjected(ejection.InteriorMap, directlyOnTheFloor: true);
@@ -143,12 +133,13 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
                 if (TerminatingOrDeleted(uid))
                     continue;
 
-                Eject(uid, ejection.Centre, index++);
-                if (!_interiorSystem.CanBeOccupant(uid))
+                Eject(uid, ejection.Landing, index++);
+                if (TerminatingOrDeleted(uid) || !_interiorSystem.CanBeOccupant(uid))
                     continue;
 
+                // No origin: the vehicle has been deleted by now.
                 if (ejection.Damage is { } damage)
-                    _damageableSystem.TryChangeDamage(uid, damage, origin: ejection.Vehicle);
+                    _damageableSystem.TryChangeDamage(uid, damage);
 
                 if (ejection.Stun > TimeSpan.Zero)
                     _stunSystem.TryKnockdown(uid, ejection.Stun);
@@ -201,33 +192,59 @@ public sealed partial class KsCrewVehicleEjectionSystem : EntitySystem
     /// </summary>
     public void EjectBesideVehicle(EntityUid uid, EntityUid vehicleUid)
     {
-        if (TerminatingOrDeleted(vehicleUid))
+        if (TerminatingOrDeleted(vehicleUid) || !TryComp<KsCrewVehicleInteriorComponent>(vehicleUid, out var interiorComponent))
             return;
 
-        Eject(uid, _transformSystem.GetMapCoordinates(vehicleUid), 0);
+        Eject(uid, GetLanding((vehicleUid, interiorComponent)), 0);
     }
 
-    private void Eject(EntityUid uid, MapCoordinates centre, int index)
+    private Landing GetLanding(Entity<KsCrewVehicleInteriorComponent> vehicle)
     {
+        return new Landing(_transformSystem.GetMapCoordinates(vehicle.Owner),
+            vehicle.Comp.EjectRadii,
+            _interiorSystem.StandsOnFloor(vehicle));
+    }
+
+    private void Eject(EntityUid uid, Landing landing, int index)
+    {
+        // A shot flying inside is not carried out of the hull: it is spent.
+        if (_projectileQuery.HasComp(uid))
+        {
+            QueueDel(uid);
+            return;
+        }
+
         _interiorSystem.UntrackOccupant(uid);
         _buckleSystem.Unbuckle(uid, null);
         _containerSystem.TryRemoveFromContainer(uid, force: true);
-        _interiorSystem.PlaceAt(uid, FindLanding(centre, index));
+        _interiorSystem.PlaceAt(uid, FindLanding(landing, index));
+
+        // Put down, not thrown out: whatever was flying about inside arrives at rest.
+        if (_physicsQuery.TryComp(uid, out var physicsComponent))
+        {
+            _physicsSystem.SetLinearVelocity(uid, Vector2.Zero, body: physicsComponent);
+            _physicsSystem.SetAngularVelocity(uid, 0f, body: physicsComponent);
+        }
     }
 
     /// <summary>
-    ///     The <paramref name="index"/>th free place around <paramref name="centre"/>, so that what is thrown out at
-    ///         once is scattered; the centre itself if there is none.
+    ///     The <paramref name="index"/>th free place around the vehicle, so that what is thrown out at once is
+    ///         scattered: not blocked, and on floor if the vehicle is. The vehicle's own place if there is none, so
+    ///         that nobody is lost.
     /// </summary>
-    private MapCoordinates FindLanding(MapCoordinates centre, int index)
+    private MapCoordinates FindLanding(Landing landing, int index)
     {
-        for (var i = 0; i < LandingOffsets.Length; i++)
+        var places = landing.Radii.Count * PlacesPerRing;
+        for (var i = 0; i < places; i++)
         {
-            var candidate = centre.Offset(LandingOffsets[(index + i) % LandingOffsets.Length]);
-            if (!_interiorSystem.IsBlockedForMobs(candidate))
+            var place = (index + i) % places;
+            var offset = Angle.FromDegrees(360f / PlacesPerRing * (place % PlacesPerRing))
+                .RotateVec(new Vector2(0f, landing.Radii[place / PlacesPerRing]));
+            var candidate = landing.Centre.Offset(offset);
+            if (!_interiorSystem.IsBlockedForMobs(candidate) && (!landing.NeedsFloor || _interiorSystem.IsFloor(candidate)))
                 return candidate;
         }
 
-        return centre;
+        return landing.Centre;
     }
 }

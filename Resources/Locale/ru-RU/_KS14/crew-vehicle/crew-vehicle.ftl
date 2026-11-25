@@ -8,6 +8,7 @@ ks-crew-vehicle-enter-failed = Сесть не получается.
 ks-crew-vehicle-buckled = Сначала отстегнитесь.
 ks-crew-vehicle-exit-blocked = Снаружи что-то мешает.
 ks-crew-vehicle-exit-moving = Слишком быстро едет, чтобы выйти.
+ks-crew-vehicle-exit-no-floor = Снаружи нет пола, выходить некуда.
 
 ks-crew-vehicle-run-over = { CAPITALIZE($vehicle) } сбивает { $victim }!
 ks-crew-vehicle-crash-lockout = От удара заглох двигатель!

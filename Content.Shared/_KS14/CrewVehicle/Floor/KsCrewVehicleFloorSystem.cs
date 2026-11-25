@@ -1,6 +1,5 @@
 using System.Numerics;
 using Content.Shared._KS14.CrewVehicle.Drive;
-using Content.Shared.Maps;
 using Robust.Shared.Map;
 using Robust.Shared.Map.Components;
 using Robust.Shared.Physics;
@@ -25,12 +24,10 @@ namespace Content.Shared._KS14.CrewVehicle.Floor;
 /// </remarks>
 public sealed partial class KsCrewVehicleFloorSystem : EntitySystem
 {
-    [Dependency] private ITileDefinitionManager _tileDefinitionManager = default!;
-    [Dependency] private SharedMapSystem _mapSystem = default!;
+    [Dependency] private KsCrewVehicleFloorTileSystem _floorTileSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
 
     [Dependency] private EntityQuery<FixturesComponent> _fixturesQuery = default!;
-    [Dependency] private EntityQuery<MapGridComponent> _gridQuery = default!;
 
     /// <summary>
     ///     The most room between two of the rim's points, in tiles: less than a tile, so no gap goes between them.
@@ -101,25 +98,7 @@ public sealed partial class KsCrewVehicleFloorSystem : EntitySystem
     /// </summary>
     public bool IsFloor(EntityUid mapUid, EntityUid? hintGridUid, Vector2 worldPoint)
     {
-        if (_gridQuery.TryComp(hintGridUid, out var hintGridComponent) &&
-            IsFloorTile((hintGridUid.Value, hintGridComponent), worldPoint))
-        {
-            return true;
-        }
-
-        return _mapSystem.TryFindGridAt(mapUid, worldPoint, out var gridUid, out var gridComponent) &&
-               gridUid != hintGridUid &&
-               IsFloorTile((gridUid, gridComponent), worldPoint);
-    }
-
-    private bool IsFloorTile(Entity<MapGridComponent> grid, Vector2 worldPoint)
-    {
-        var indices = _mapSystem.WorldToTile(grid.Owner, grid.Comp, worldPoint);
-        if (!_mapSystem.TryGetTileRef(grid.Owner, grid.Comp, indices, out var tileRef) || tileRef.Tile.IsEmpty)
-            return false;
-
-        // Lattice is open to space: a walkway, not a road.
-        return _tileDefinitionManager[tileRef.Tile.TypeId] is ContentTileDefinition { MapAtmosphere: false };
+        return _floorTileSystem.IsFloor(mapUid, hintGridUid, worldPoint);
     }
 
     private Vector2[] ResolveSamples(Entity<KsCrewVehicleDriveComponent> hull)

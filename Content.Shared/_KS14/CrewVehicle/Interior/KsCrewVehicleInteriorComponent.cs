@@ -74,6 +74,13 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     public TimeSpan EjectStun = TimeSpan.Zero;
 
     /// <summary>
+    ///     How far from the hull's centre, in tiles, things thrown out of it are put: rings of eight places each, the
+    ///         nearest free one first.
+    /// </summary>
+    [DataField]
+    public List<float> EjectRadii = new() { 1.5f, 2.5f, 3.5f };
+
+    /// <summary>
     ///     How many living occupants are inside, as the server last counted them: what <see cref="MaxOccupants"/> is
     ///         checked against.
     /// </summary>

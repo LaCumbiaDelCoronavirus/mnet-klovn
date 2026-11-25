@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Content.Shared._KS14.CrewVehicle.Floor;
 using Content.Shared.Construction.EntitySystems;
 using Content.Shared.Physics;
 using Robust.Shared.Map;
@@ -14,6 +15,7 @@ public abstract partial class SharedKsCrewVehicleInteriorSystem : EntitySystem
     [Dependency] private EntityQuery<KsCrewVehicleInteriorComponent> _interiorQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleInteriorMapComponent> _interiorMapQuery = default!;
     [Dependency] private AnchorableSystem _anchorableSystem = default!;
+    [Dependency] private KsCrewVehicleFloorTileSystem _floorTileSystem = default!;
     [Dependency] private SharedMapSystem _mapSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
 
@@ -110,6 +112,28 @@ public abstract partial class SharedKsCrewVehicleInteriorSystem : EntitySystem
 
         var indices = _mapSystem.TileIndicesFor(gridUid, gridComponent, position);
         return !_anchorableSystem.TileFree((gridUid, gridComponent), indices, (int)CollisionGroup.MobLayer, (int)CollisionGroup.MobMask);
+    }
+
+    /// <summary>
+    ///     Whether the vehicle stands on floor, in which case whoever leaves it must be put down on floor too.
+    /// </summary>
+    /// <remarks>
+    ///     A vehicle out in space (one that may drive off the floor) lets people out where it is, floor or not: being
+    ///         let out into space is better than being kept in.
+    /// </remarks>
+    public bool StandsOnFloor(EntityUid vehicleUid)
+    {
+        var transformComponent = Transform(vehicleUid);
+        return transformComponent.MapUid is { } mapUid &&
+               _floorTileSystem.IsFloor(mapUid, transformComponent.GridUid, _transformSystem.GetWorldPosition(transformComponent));
+    }
+
+    /// <summary>
+    ///     Whether there is a floor tile at <paramref name="position"/>.
+    /// </summary>
+    public bool IsFloor(MapCoordinates position)
+    {
+        return _floorTileSystem.IsFloor(position);
     }
 
     /// <summary>
