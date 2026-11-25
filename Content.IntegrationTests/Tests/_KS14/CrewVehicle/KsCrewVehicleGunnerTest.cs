@@ -284,13 +284,72 @@ public sealed class KsCrewVehicleGunnerTest : KsCrewVehicleGunnerTestBase
             Assert.That(recipient, Is.EqualTo(gunnerUserId), "and its gunner is paid for it");
         });
 
-        await StandAsync();
+        await Server.WaitAssertion(() =>
+            Assert.That(SEntMan.System<KsKillCreditSystem>().GetHitRecipient(Weapon(idleHull)), Is.Null, "a weapon nobody fired pays nobody"));
+    }
+
+    /// <summary>
+    ///     Each round pays the gunner who fired it, even after they stood up and someone else fired the same weapon while
+    ///         it was still flying; a round whose gunner is gone by the time it lands pays nobody.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task EachRoundPaysItsOwnGunner(bool firstGunnerGone)
+    {
+        // The player is the second gunner here, another player the first, so that the first can be deleted.
+        var scene = await SpawnHullAsync(Vector2.Zero, _slowHull);
+        var weapon = EntityUid.Invalid;
+        var target = EntityUid.Invalid;
+        await Server.WaitPost(() =>
+        {
+            weapon = Weapon(scene.Hull);
+            target = SEntMan.SpawnAtPosition(HullPrototype, OriginCoordinates.Offset(new Vector2(0f, -4f)));
+            SEntMan.AddComponent<KsCrewVehicleGunnerTestHitRecorderComponent>(target);
+        });
+        var (firstMob, firstSession) = await AddPlayerInsideAsync(scene);
+        await SitAsync(scene.DriverSeat, firstMob);
+
+        var targetCoordinates = NetCoordinates.Invalid;
+        await Server.WaitPost(() =>
+        {
+            targetCoordinates = OutsideAt(WorldPosition(target));
+            ReceiveFrom(firstSession, ShotAt(weapon, targetCoordinates));
+        });
+        await RunTicks(2);
+        await Server.WaitAssertion(() => Assert.That(Rounds(weapon), Has.Count.EqualTo(1), "precondition: the first gunner fired"));
+
+        await StandAsync(firstMob);
+        if (firstGunnerGone)
+            await Server.WaitPost(() => SEntMan.DeleteEntity(firstMob));
+
+        await PutInsideAsync(scene);
+        await SitAsync(scene.DriverSeat);
+        await SetCombatMode(true);
+        await Server.WaitPost(() => ReceiveFrom(ServerSession, ShotAt(weapon, targetCoordinates)));
+
+        List<(EntityUid? Origin, NetUserId? Recipient)> hits = default!;
+        for (var tick = 0; tick < TickRate * 10; tick++)
+        {
+            await RunTicks(1);
+            var landed = false;
+            await Server.WaitPost(() =>
+            {
+                hits = SComp<KsCrewVehicleGunnerTestHitRecorderComponent>(target).Hits;
+                landed = hits.Count >= 2;
+            });
+            if (landed)
+                break;
+        }
+
+        var firstUserId = firstSession.UserId;
+        var secondUserId = ServerSession.UserId;
         await Server.WaitAssertion(() =>
         {
-            var killCreditSystem = SEntMan.System<KsKillCreditSystem>();
-            Assert.That(killCreditSystem.GetHitRecipient(weapon), Is.EqualTo(gunnerUserId),
-                "a round landing after its gunner stood up still pays them");
-            Assert.That(killCreditSystem.GetHitRecipient(Weapon(idleHull)), Is.Null, "a weapon nobody fired pays nobody");
+            Assert.That(hits, Has.Count.EqualTo(2), "precondition: both rounds landed");
+            Assert.That(hits[0].Origin, Is.EqualTo(weapon));
+            Assert.That(hits[0].Recipient, Is.EqualTo(firstGunnerGone ? null : firstUserId),
+                firstGunnerGone ? "a round whose gunner is gone pays nobody" : "the first round pays the gunner who fired it, not the one who fired last");
+            Assert.That(hits[1].Recipient, Is.EqualTo(secondUserId), "the second round pays the second gunner");
         });
     }
 

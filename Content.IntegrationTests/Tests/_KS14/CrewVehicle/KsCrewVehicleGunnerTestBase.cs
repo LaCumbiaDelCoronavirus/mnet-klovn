@@ -37,6 +37,7 @@ public abstract class KsCrewVehicleGunnerTestBase : KsCrewVehicleDriveTestBase
     protected readonly EntProtoId _gunnerHull = "KsCrewVehicleGunnerTestHull";
     protected readonly EntProtoId _beamHull = "KsCrewVehicleGunnerTestHullBeam";
     protected readonly EntProtoId _badGunnerHull = "KsCrewVehicleGunnerTestHullBad";
+    protected readonly EntProtoId _slowHull = "KsCrewVehicleGunnerTestHullSlow";
 
     // Interiors: Maps/Test/_KS14/CrewVehicle/gunner.yml is drive.yml with its driver seat also a gunner seat on `main`;
     //      gunner_bad.yml has a seat on a mount the hull lacks, one that is not a view seat, and two on `main`.
@@ -207,6 +208,34 @@ public abstract class KsCrewVehicleGunnerTestBase : KsCrewVehicleDriveTestBase
     mounts:
       main:
         prototype: KsCrewVehicleGunnerTestBeamGun
+        offset: 0,-0.6
+
+# Rounds slow enough to still be flying when the next gunner fires; full-auto, so a gunner who stood up mid-shot leaves
+#   nothing that stops the next one.
+- type: entity
+  parent: KsCrewVehicleGunnerTestGun
+  id: KsCrewVehicleGunnerTestSlowGun
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Gun
+    fireRate: 4
+    minAngle: 0
+    maxAngle: 0
+    projectileSpeed: 1.5
+    selectedMode: FullAuto
+    availableModes:
+    - FullAuto
+    soundGunshot:
+      path: /Audio/Weapons/Guns/Gunshots/pistol.ogg
+
+- type: entity
+  parent: KsCrewVehicleGunnerTestHull
+  id: KsCrewVehicleGunnerTestHullSlow
+  components:
+  - type: KsCrewVehicleMounts
+    mounts:
+      main:
+        prototype: KsCrewVehicleGunnerTestSlowGun
         offset: 0,-0.6
 
 - type: entity

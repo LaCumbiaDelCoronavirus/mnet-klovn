@@ -37,8 +37,9 @@ public sealed partial class KsCrewVehicleGunnerSeatComponent : Component
     public ProtoId<AlertPrototype> AmmoAlert = "KsCrewVehicleAmmo";
 
     /// <summary>
-    ///     The select actions, in the order of <see cref="Mounts"/>, made at map init in the seat's action container.
+    ///     The select actions, in the order of <see cref="Mounts"/>, made at map init in the seat's action container. A data
+    ///         field, because the actions are saved in that container with the seat.
     /// </summary>
-    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadOnly)]
     public List<EntityUid> SelectActions = new();
 }
