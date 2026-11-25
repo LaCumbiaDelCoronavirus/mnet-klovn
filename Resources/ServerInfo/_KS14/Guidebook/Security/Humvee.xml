@@ -17,9 +17,9 @@
   Click a seat with an empty hand to sit down. Sitting in the [bold]driver's seat[/bold] puts you at the wheel and on the gun: your view moves outside, above the humvee, and zooms out a little. From the passenger seats, and on your feet, you see the inside, and the world outside through its windows.
 
   ## Driving
-  Drive with your movement keys. How they work depends on the server:
-  - [bold]Pressing a direction.[/bold] The humvee turns to face the way you press, crawling while it turns, then drives on at full speed. Press the way behind you and it backs up without turning.
-  - [bold]Tank controls.[/bold] Left and right turn it, even while it stands still. Forward drives, and back reverses.
+  Drive with your movement keys. [color=yellow][bold][keybind="MoveUp"][/bold][/color] drives forward and [color=yellow][bold][keybind="MoveDown"][/bold][/color] backs up, the way the humvee faces, whichever way that is on your screen. [color=yellow][bold][keybind="MoveLeft"][/bold][/color] and [color=yellow][bold][keybind="MoveRight"][/bold][/color] steer.
+
+  It has wheels, so it steers only while it rolls, more sharply the faster it goes: standing still, the steering keys do nothing. Backing up, it turns the other way, as any car does.
 
   Let go and it rolls to a stop. Your action bar has its [bold]horn[/bold] and its [bold]headlights[/bold] while you drive.
 

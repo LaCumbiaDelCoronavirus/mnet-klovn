@@ -3,82 +3,44 @@ using System.Numerics;
 namespace Content.Shared._KS14.CrewVehicle.Drive;
 
 /// <summary>
-///     What steering is given for one tick.
+///     What steering is given for one movement step.
 /// </summary>
 /// <param name="Wish">The mover's wish velocity, in world axes, as a speed: what the driver's held keys ask for.</param>
 /// <param name="StickFrame">
 ///     The turn the mover applied to the keys to get <paramref name="Wish"/> (<c>GetParentGridAngle</c> of the hull's
-///         mover): turning <paramref name="Wish"/> back by it gives the keys as pressed.
+///         mover): turning <paramref name="Wish"/> back by it gives the keys as pressed, whichever way the screen faces.
 /// </param>
 /// <param name="HullRotation">The hull's world rotation.</param>
-/// <param name="HeadingFrame">
-///     The world rotation of the grid the hull is on, zero off grid: pressed directions are snapped to its axes.
-/// </param>
-/// <param name="FrameTime">The tick's length, in seconds.</param>
+/// <param name="Velocity">The hull's world velocity, as the mover read it this step: how a wheeled hull may turn.</param>
+/// <param name="FrameTime">The step's length, in seconds.</param>
 public readonly record struct KsCrewVehicleSteeringInput(
     Vector2 Wish,
     Angle StickFrame,
     Angle HullRotation,
-    Angle HeadingFrame,
+    Vector2 Velocity,
     float FrameTime);
 
 /// <summary>
-///     What steering decides for one tick: the hull's new rotation, and the wish velocity the mover should use instead.
+///     What steering decides for one step: the hull's new rotation, and the wish velocity the mover should use instead.
 /// </summary>
 public readonly record struct KsCrewVehicleSteeringResult(Angle HullRotation, Vector2 Wish);
 
 /// <summary>
-///     The two steering modes, as pure functions of the hull's rotation and this tick's keys. Their wish always lies
-///         along the hull's facing, forward or back.
+///     Crew vehicle steering, as pure functions of the hull's rotation and velocity and this step's keys, for either drive
+///         train. The wish always lies along the hull's facing, forward or back.
 /// </summary>
 public static class KsCrewVehicleSteering
 {
-    /// <summary>
-    ///     A pressed direction opposite the facing, give or take this much, backs up rather than turning round.
-    /// </summary>
-    public static readonly Angle ReverseCone = Angle.FromDegrees(45);
-
     /// <summary>
     ///     Below this wish speed, in m/s, nothing is pressed.
     /// </summary>
     private const float NoInput = 0.0001f;
 
     /// <summary>
-    ///     Within this of a 45-degree split between two headings, the press counts as exactly diagonal.
-    /// </summary>
-    private const double DiagonalTolerance = 0.001;
-
-    /// <summary>
-    ///     Press a direction and the hull turns to face it, crawling while it turns, then drives that way; press the way
-    ///         behind it and it backs up without turning. Directions snap to the four axes of the grid the hull is on.
-    /// </summary>
-    public static KsCrewVehicleSteeringResult PressDirection(in KsCrewVehicleSteeringInput input, KsCrewVehicleDriveComponent drive)
-    {
-        var speed = input.Wish.Length();
-        if (speed < NoInput)
-            return new KsCrewVehicleSteeringResult(input.HullRotation, Vector2.Zero);
-
-        var heading = SnapHeading(input.Wish.ToWorldAngle(), input.HeadingFrame, input.HullRotation);
-        var toHeading = Angle.ShortestDistance(input.HullRotation, heading);
-
-        if (Math.Abs(toHeading.Theta) > Math.PI - ReverseCone.Theta)
-        {
-            return new KsCrewVehicleSteeringResult(input.HullRotation,
-                -KsCrewVehicleHullFrame.Forward(input.HullRotation) * speed * drive.ReverseSpeedFraction);
-        }
-
-        var maxStep = drive.TurnRate.Theta * input.FrameTime;
-        var step = Math.Clamp(toHeading.Theta, -maxStep, maxStep);
-        var rotation = new Angle(input.HullRotation.Theta + step);
-        var aligned = Math.Abs(toHeading.Theta - step) <= drive.AlignTolerance.Theta;
-
-        return new KsCrewVehicleSteeringResult(rotation,
-            KsCrewVehicleHullFrame.Forward(rotation) * speed * (aligned ? 1f : drive.TurningSpeedFraction));
-    }
-
-    /// <summary>
-    ///     Left and right turn the hull on the spot or while moving; up drives forward and down backs up, whichever way
-    ///         the hull faces.
+    ///     Tank controls. Up drives forward and down backs up, along the hull's facing and nothing else; left and right
+    ///         turn it. Tracked, it turns on the spot; wheeled, only while rolling, and the other way backing up: a turn
+    ///         key alone at rest does nothing. Only the keys and the hull's facing count, never which way the screen is
+    ///         turned.
     /// </summary>
     public static KsCrewVehicleSteeringResult Tank(in KsCrewVehicleSteeringInput input, KsCrewVehicleDriveComponent drive)
     {
@@ -94,7 +56,8 @@ public static class KsCrewVehicleSteering
         if (Math.Abs(stick.X) > threshold)
         {
             // Right turns clockwise, which is a negative angle.
-            rotation = new Angle(rotation.Theta - Math.Sign(stick.X) * drive.TurnRate.Theta * input.FrameTime);
+            rotation = new Angle(rotation.Theta -
+                Math.Sign(stick.X) * drive.TurnRate.Theta * TurnFactor(input, drive) * input.FrameTime);
         }
 
         var forward = KsCrewVehicleHullFrame.Forward(rotation);
@@ -108,24 +71,15 @@ public static class KsCrewVehicleSteering
     }
 
     /// <summary>
-    ///     The axis of <paramref name="frame"/> nearest <paramref name="pressed"/>; on an exact diagonal, of the two
-    ///         nearest, the one nearer <paramref name="hullRotation"/>, so holding two keys keeps going the way it goes.
+    ///     How much of its turn rate the hull has, and which way round: 1 for tracks; for wheels its speed along its facing
+    ///         over <see cref="KsCrewVehicleDriveComponent.FullTurnSpeed"/>, between -1 and 1, negative backing up.
     /// </summary>
-    public static Angle SnapHeading(Angle pressed, Angle frame, Angle hullRotation)
+    public static float TurnFactor(in KsCrewVehicleSteeringInput input, KsCrewVehicleDriveComponent drive)
     {
-        var quarter = Math.PI / 2;
-        var quarters = Angle.ShortestDistance(frame, pressed).Theta / quarter;
-        var lower = new Angle(frame.Theta + Math.Floor(quarters) * quarter);
-        var upper = new Angle(frame.Theta + Math.Ceiling(quarters) * quarter);
-        var fraction = quarters - Math.Floor(quarters);
+        if (drive.DriveTrain == KsCrewVehicleDriveTrain.Tracked || drive.FullTurnSpeed <= 0f)
+            return 1f;
 
-        if (Math.Abs(fraction - 0.5) < DiagonalTolerance)
-        {
-            var toLower = Math.Abs(Angle.ShortestDistance(hullRotation, lower).Theta);
-            var toUpper = Math.Abs(Angle.ShortestDistance(hullRotation, upper).Theta);
-            return toLower <= toUpper ? lower : upper;
-        }
-
-        return fraction < 0.5 ? lower : upper;
+        var forwardSpeed = Vector2.Dot(input.Velocity, KsCrewVehicleHullFrame.Forward(input.HullRotation));
+        return Math.Clamp(forwardSpeed / drive.FullTurnSpeed, -1f, 1f);
     }
 }

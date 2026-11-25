@@ -11,10 +11,23 @@ namespace Content.Shared._KS14.CrewVehicle.Drive;
 public sealed partial class KsCrewVehicleDriveComponent : Component
 {
     /// <summary>
-    ///     How fast the hull turns: toward a pressed heading, or while left or right is held with tank controls.
+    ///     How fast the hull turns while left or right is held: always for tracks, at full speed for wheels.
     /// </summary>
     [DataField]
     public Angle TurnRate = Angle.FromDegrees(120);
+
+    /// <summary>
+    ///     Wheels or tracks: whether the hull can turn on the spot.
+    /// </summary>
+    [DataField]
+    public KsCrewVehicleDriveTrain DriveTrain = KsCrewVehicleDriveTrain.Wheeled;
+
+    /// <summary>
+    ///     Wheeled: the speed along its facing, in m/s, at which the hull turns at the full <see cref="TurnRate"/>.
+    ///         Slower it turns slower, at rest not at all, and backing up it turns the other way.
+    /// </summary>
+    [DataField]
+    public float FullTurnSpeed = 2f;
 
     /// <summary>
     ///     Fraction of the driving speed used while backing up.
@@ -23,22 +36,26 @@ public sealed partial class KsCrewVehicleDriveComponent : Component
     public float ReverseSpeedFraction = 0.66f;
 
     /// <summary>
-    ///     Pressing a direction: fraction of the driving speed used while the hull is still turning to face it.
-    /// </summary>
-    [DataField]
-    public float TurningSpeedFraction = 0.35f;
-
-    /// <summary>
-    ///     Pressing a direction: how far off it the hull may be and still count as facing it.
-    /// </summary>
-    [DataField]
-    public Angle AlignTolerance = Angle.FromDegrees(5);
-
-    /// <summary>
     ///     The hull's non-hard fixture, a little larger than its body, that finds what it is about to touch. Two hulls
     ///         being driven are kinematic controllers, which physics never lets collide; this is how they still stop
     ///         against each other.
     /// </summary>
     [DataField]
     public string ContactFixture = "contact";
+}
+
+/// <summary>
+///     How a crew vehicle's hull turns.
+/// </summary>
+public enum KsCrewVehicleDriveTrain : byte
+{
+    /// <summary>
+    ///     Turns only while rolling, faster the faster it goes, in an arc; the other way when backing up.
+    /// </summary>
+    Wheeled,
+
+    /// <summary>
+    ///     Turns at its full rate whether moving or not, on the spot if need be.
+    /// </summary>
+    Tracked,
 }

@@ -1,4 +1,3 @@
-using Content.Shared._KS14.CCVar;
 using Content.Shared._KS14.CrewVehicle.Interior;
 using Content.Shared._KS14.CrewVehicle.View;
 using Content.Shared._KS14.Movement;
@@ -10,7 +9,6 @@ using Content.Shared.Movement.Systems;
 using Content.Shared.Vehicle;
 using Content.Shared.Vehicle.Components;
 using Content.Shared.Vehicle.Systems;
-using Robust.Shared.Configuration;
 using Robust.Shared.Timing;
 
 namespace Content.Shared._KS14.CrewVehicle.Drive;
@@ -27,7 +25,6 @@ namespace Content.Shared._KS14.CrewVehicle.Drive;
 /// </remarks>
 public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
 {
-    [Dependency] private IConfigurationManager _configurationManager = default!;
     [Dependency] private IGameTiming _gameTiming = default!;
     [Dependency] private SharedAmbientSoundSystem _ambientSoundSystem = default!;
     [Dependency] private SharedKsCrewVehicleInteriorSystem _interiorSystem = default!;
@@ -36,20 +33,12 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
     [Dependency] private VehicleSystem _vehicleSystem = default!;
 
     [Dependency] private EntityQuery<InputMoverComponent> _moverQuery = default!;
+    [Dependency] private EntityQuery<Robust.Shared.Physics.Components.PhysicsComponent> _physicsQuery = default!;
     [Dependency] private EntityQuery<StrapComponent> _strapQuery = default!;
     [Dependency] private EntityQuery<VehicleComponent> _vehicleQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleViewSeatComponent> _viewSeatQuery = default!;
 
     private const string DriverSeatClaim = "driver-seat";
-
-    private bool _tankControls;
-
-    public override void Initialize()
-    {
-        base.Initialize();
-
-        Subs.CVar(_configurationManager, KsCCVars.CrewVehicleTankControls, value => _tankControls = value, true);
-    }
 
     [SubscribeLocalEvent]
     private void OnStrapped(Entity<KsCrewVehicleDriverSeatComponent> seat, ref StrappedEvent args)
@@ -122,19 +111,19 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
 
         var transformComponent = Transform(hull.Owner);
         var worldRotation = _transformSystem.GetWorldRotation(transformComponent);
-        var headingFrame = transformComponent.GridUid is { } gridUid
-            ? _transformSystem.GetWorldRotation(gridUid)
-            : Angle.Zero;
 
         var input = new KsCrewVehicleSteeringInput(args.WishDir,
             _moverController.GetParentGridAngle(hullMover),
             worldRotation,
-            headingFrame,
+            // The velocity the mover read at the start of this step: predicted state, like the transform.
+            _physicsQuery.CompOrNull(hull.Owner)?.LinearVelocity ?? System.Numerics.Vector2.Zero,
             args.FrameTime);
 
-        var result = _tankControls
-            ? KsCrewVehicleSteering.Tank(input, hull.Comp)
-            : KsCrewVehicleSteering.PressDirection(input, hull.Comp);
+        // The one place a control scheme is chosen. Another one plugs in here as a pure function like Tank: from this
+        //      step's keys (the wish and the frame they were turned by), the hull's facing and velocity, it returns the
+        //      hull's new rotation and the wish velocity to drive with, which must lie along that facing (the grip
+        //      controller takes away anything else). Chosen by data on the drive component, should it ever need to be.
+        var result = KsCrewVehicleSteering.Tank(input, hull.Comp);
 
         args.WishDir = result.Wish;
 

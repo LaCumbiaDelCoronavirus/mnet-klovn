@@ -32,6 +32,7 @@ namespace Content.IntegrationTests.Tests._KS14.CrewVehicle;
 public abstract class KsCrewVehicleDriveTestBase : MovementTest
 {
     protected readonly EntProtoId HullPrototype = "KsCrewVehicleDriveTestHull";
+    protected readonly EntProtoId WheeledHullPrototype = "KsCrewVehicleDriveTestHullWheeled";
     protected readonly EntProtoId GentleHullPrototype = "KsCrewVehicleDriveTestHullGentle";
     protected readonly EntProtoId BlockPrototype = "KsCrewVehicleDriveTestBlock";
     protected readonly EntProtoId GlassPrototype = "KsCrewVehicleDriveTestGlass";
@@ -90,10 +91,11 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
   - type: Vehicle
     requiresHands: false
     transferDamage: false
+  # Tracked, so the steering tests turn on the spot at the full rate; the wheeled child is the drive-train tests'.
   - type: KsCrewVehicleDrive
+    driveTrain: Tracked
     turnRate: 180
     reverseSpeedFraction: 0.5
-    turningSpeedFraction: 0.25
   - type: KsCrewVehicleInterior
     interiorPath: /Maps/Test/_KS14/CrewVehicle/drive.yml
     interiorAnchor: 2.5,3
@@ -147,6 +149,17 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
   - type: KsCrewVehicleCrashLockout
     minImpactSpeed: 2
     duration: 1
+
+# Wheeled: turns only while rolling.
+- type: entity
+  parent: KsCrewVehicleDriveTestHull
+  id: KsCrewVehicleDriveTestHullWheeled
+  components:
+  - type: KsCrewVehicleDrive
+    driveTrain: Wheeled
+    fullTurnSpeed: 2
+    turnRate: 180
+    reverseSpeedFraction: 0.5
 
 # Never fast enough to run anyone over, smash anything or crash.
 - type: entity
@@ -340,13 +353,6 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     {
         var mobUid = mob ?? SPlayer;
         await Server.WaitPost(() => Server.System<SharedBuckleSystem>().Unbuckle((mobUid, null), mobUid));
-        await RunTicks(5);
-    }
-
-    protected async Task SetTankControlsAsync(bool tankControls)
-    {
-        await Server.WaitPost(() =>
-            Server.ResolveDependency<IConfigurationManager>().SetCVar(KsCCVars.CrewVehicleTankControls, tankControls));
         await RunTicks(5);
     }
 

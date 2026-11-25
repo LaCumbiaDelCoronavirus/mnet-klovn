@@ -62,15 +62,10 @@ public sealed class KsCrewVehicleHumveeTest : KsCrewVehicleGunnerTestBase
 
         await SitAsync(driverSeat);
 
-        // Forward, which at rotation 0 is south.
+        // Up is forward, whichever way it faces.
         var start = Vector2.Zero;
-        var forwardKey = DirectionFlag.South;
-        await Server.WaitPost(() =>
-        {
-            start = HullPosition(hull);
-            forwardKey = DirectionFor(KsCrewVehicleHullFrame.Forward(HullRotation(hull)));
-        });
-        await HoldAsync(hull, forwardKey, TickRate);
+        await Server.WaitPost(() => start = HullPosition(hull));
+        await HoldAsync(hull, DirectionFlag.North, TickRate);
         await SettleAsync(hull);
 
         await Server.WaitAssertion(() =>

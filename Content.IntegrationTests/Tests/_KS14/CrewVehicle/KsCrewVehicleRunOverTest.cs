@@ -30,7 +30,6 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
     /// </summary>
     private async Task<Course> SetUpAsync(Robust.Shared.Prototypes.EntProtoId? hullPrototype = null)
     {
-        await SetTankControlsAsync(false);
         var scene = await SpawnHullAsync(Vector2.Zero, hullPrototype);
         await PutInsideAsync(scene);
         await SitAsync(scene.DriverSeat);
@@ -81,7 +80,7 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
         }
 
         // Up to it, until it is under the hull; then stop on top of it.
-        await HoldAsync(hull, DirectionFor(course.Facing), TickRate * 4, CountHits);
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 4, CountHits);
         await SettleAsync(hull);
         await Server.WaitAssertion(() =>
         {
@@ -105,7 +104,7 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
         });
 
         // Drive on until the hull has left it; then it gets up.
-        await HoldAsync(hull, DirectionFor(course.Facing), TickRate * 4, () =>
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 4, () =>
         {
             CountHits();
             return !SEntMan.HasComponent<KsCrewVehicleUnderHullComponent>(course.Mob);
@@ -149,7 +148,7 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
         await Server.WaitPost(() => mobStart = HullPosition(course.Mob));
 
         var overlapped = false;
-        await HoldAsync(hull, DirectionFor(course.Facing), TickRate * 3, () =>
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 3, () =>
         {
             overlapped |= HardBox(hull).Intersects(HardBox(course.Mob).Enlarged(-0.05f));
             return false;
@@ -173,7 +172,6 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
     [Test]
     public async Task MobWalkingIntoADrivenHullIsStopped()
     {
-        await SetTankControlsAsync(false);
         var scene = await SpawnHullAsync(new Vector2(3f, 0f));
         EntityUid driver = default;
         await Server.WaitPost(() =>

@@ -39,7 +39,7 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
         var start = Vector2.Zero;
         await Server.WaitPost(() => start = HullPosition(scene.Hull));
 
-        await HoldAsync(scene.Hull, DirectionFlag.South, TickRate);
+        await HoldAsync(scene.Hull, DirectionFlag.North, TickRate);
         await Server.WaitAssertion(() =>
         {
             Assert.That((HullPosition(scene.Hull) - start).Length(), Is.LessThan(0.05f),
@@ -53,7 +53,7 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
         await Server.WaitAssertion(() =>
             Assert.That(SComp<VehicleComponent>(scene.Hull).Operator, Is.EqualTo(SPlayer), "sitting at the wheel makes them the driver"));
 
-        await HoldAsync(scene.Hull, DirectionFlag.South, TickRate);
+        await HoldAsync(scene.Hull, DirectionFlag.North, TickRate);
         var driven = Vector2.Zero;
         await Server.WaitAssertion(() =>
         {
@@ -65,7 +65,7 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
         await StandAsync();
         await SettleAsync(scene.Hull);
         await Server.WaitPost(() => driven = HullPosition(scene.Hull));
-        await HoldAsync(scene.Hull, DirectionFlag.South, TickRate);
+        await HoldAsync(scene.Hull, DirectionFlag.North, TickRate);
         await Server.WaitAssertion(() =>
         {
             Assert.That((HullPosition(scene.Hull) - driven).Length(), Is.LessThan(0.05f),
@@ -75,80 +75,11 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
     }
 
     /// <summary>
-    ///     Pressing a direction: the way it faces drives on, the way behind backs up without turning, and a side turns it
-    ///         to face that way.
-    /// </summary>
-    [Test]
-    public async Task PressDirectionSteering()
-    {
-        await SetTankControlsAsync(false);
-        var scene = await SpawnHullAsync(Vector2.Zero);
-        await PutInsideAsync(scene);
-        await SitAsync(scene.DriverSeat);
-        var hull = scene.Hull;
-
-        var start = Vector2.Zero;
-        var startRotation = Angle.Zero;
-        await Server.WaitPost(() =>
-        {
-            start = HullPosition(hull);
-            startRotation = HullRotation(hull);
-        });
-        var facing = KsCrewVehicleHullFrame.Forward(startRotation);
-        var facingKey = DirectionFor(facing);
-        var behindKey = DirectionFor(-facing);
-
-        // On the way it faces.
-        await HoldAsync(hull, facingKey, TickRate);
-        await Server.WaitAssertion(() =>
-        {
-            Assert.That(Vector2.Dot(HullPosition(hull) - start, facing), Is.GreaterThan(TopSpeed(hull) * 0.25f),
-                "pressing the way it faces drives it that way");
-            Assert.That(Angle.ShortestDistance(startRotation, HullRotation(hull)).Degrees, Is.EqualTo(0).Within(0.5),
-                "without turning it");
-        });
-        await SettleAsync(hull);
-
-        // Behind it: backs up, slower, still facing the same way.
-        var beforeReverse = Vector2.Zero;
-        var fastestReverse = 0f;
-        await Server.WaitPost(() => beforeReverse = HullPosition(hull));
-        await HoldAsync(hull, behindKey, TickRate, () =>
-        {
-            fastestReverse = MathF.Max(fastestReverse, HullVelocity(hull).Length());
-            return false;
-        });
-        await Server.WaitAssertion(() =>
-        {
-            Assert.That(Vector2.Dot(HullPosition(hull) - beforeReverse, -facing), Is.GreaterThan(0.1f),
-                "pressing the way behind backs it up");
-            Assert.That(Angle.ShortestDistance(startRotation, HullRotation(hull)).Degrees, Is.EqualTo(0).Within(0.5),
-                "without turning it round");
-            Assert.That(fastestReverse, Is.LessThanOrEqualTo(TopSpeed(hull) * Drive(hull).ReverseSpeedFraction * 1.05f),
-                "at its reverse speed");
-        });
-        await SettleAsync(hull);
-
-        // To the side: turns to face it, then drives that way.
-        var side = new Vector2(facing.Y, -facing.X);
-        var sideHeading = side.ToWorldAngle();
-        var maxTurnTicks = (int)(Math.PI / 2 / Drive(hull).TurnRate.Theta * TickRate) * 2 + TickRate;
-        await HoldAsync(hull, DirectionFor(side), maxTurnTicks + TickRate);
-        await Server.WaitAssertion(() =>
-        {
-            Assert.That(Angle.ShortestDistance(sideHeading, HullRotation(hull)).Degrees, Is.EqualTo(0).Within(1),
-                "pressing a side turns it to face that way");
-            Assert.That(Vector2.Dot(HullVelocity(hull), side), Is.GreaterThan(0f), "and drives that way");
-        });
-    }
-
-    /// <summary>
-    ///     Tank controls: up drives forward and down backs up, whichever way it faces; left and right turn it.
+    ///     Up drives forward and down backs up, whichever way it faces; left and right turn it (a tracked hull: on the spot).
     /// </summary>
     [Test]
     public async Task TankSteering()
     {
-        await SetTankControlsAsync(true);
         var scene = await SpawnHullAsync(Vector2.Zero);
         await PutInsideAsync(scene);
         await SitAsync(scene.DriverSeat);
@@ -221,7 +152,6 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
     [Test]
     public async Task HullStopsAtAWall()
     {
-        await SetTankControlsAsync(false);
         var scene = await SpawnHullAsync(Vector2.Zero);
         EntityUid wall = default;
         var facing = Vector2.Zero;
@@ -235,7 +165,7 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
 
         // Bounds compared in the same tick: the test grid drifts.
         var intoWall = 0f;
-        await HoldAsync(scene.Hull, DirectionFor(facing), TickRate * 4, () =>
+        await HoldAsync(scene.Hull, DirectionFlag.North, TickRate * 4, () =>
         {
             intoWall = MathF.Max(intoWall, HardBox(wall).Top - HardBox(scene.Hull).Bottom);
             return false;
@@ -299,7 +229,7 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
         await SitAsync(scene.DriverSeat);
         var hull = scene.Hull;
 
-        await SetMovementKey(DirectionFlag.South, Robust.Shared.Input.BoundKeyState.Down);
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Down);
         await RunTicks(TickRate / 2);
         await Server.WaitPost(() =>
         {
@@ -314,7 +244,7 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
             await Server.WaitPost(() => stopped = HullVelocity(hull).Length() < 0.01f);
         }
 
-        await SetMovementKey(DirectionFlag.South, Robust.Shared.Input.BoundKeyState.Up);
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Up);
         Assert.That(stopped, Is.True, "with its driver critical, the key they still hold shouldn't keep the hull going");
     }
 
@@ -361,7 +291,6 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
     [Test]
     public async Task DrivenHullsBlockEachOther()
     {
-        await SetTankControlsAsync(false);
         var ours = await SpawnHullAsync(Vector2.Zero);
         var facing = Vector2.Zero;
         await Server.WaitPost(() => facing = KsCrewVehicleHullFrame.Forward(HullRotation(ours.Hull)));
@@ -385,7 +314,7 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
 
         // Long enough to have driven right through it: checked every tick, not only at the end.
         var overlapped = false;
-        await HoldAsync(ours.Hull, DirectionFor(facing), TickRate * 4, () =>
+        await HoldAsync(ours.Hull, DirectionFlag.North, TickRate * 4, () =>
         {
             overlapped |= HardBox(ours.Hull).Intersects(HardBox(theirs.Hull).Enlarged(-0.05f));
             return false;

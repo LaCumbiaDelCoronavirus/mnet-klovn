@@ -11,6 +11,7 @@ using Content.Shared.Movement.Components;
 using Content.Shared.Whitelist;
 using NUnit.Framework;
 using Robust.Shared.GameObjects;
+using Robust.Shared.Maths;
 using Robust.Shared.Prototypes;
 
 namespace Content.IntegrationTests.Tests._KS14.CrewVehicle;
@@ -44,7 +45,6 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     /// </summary>
     private async Task<Run> SetUpAsync(EntProtoId obstacle, EntProtoId? hullPrototype = null)
     {
-        await SetTankControlsAsync(false);
         var scene = await SpawnHullAsync(Vector2.Zero, hullPrototype);
         await PutInsideAsync(scene);
         await SitAsync(scene.DriverSeat);
@@ -72,7 +72,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
         var smashed = false;
         var speedAtImpact = 0f;
         var slowest = float.MaxValue;
-        await HoldAsync(hull, DirectionFor(run.Facing), TickRate * 3, () =>
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 3, () =>
         {
             // The tick it breaks is the tick it was hit: the speed then is already the one it kept.
             var speed = HullVelocity(hull).Length();
@@ -100,7 +100,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     public async Task GentleHullBreaksNothing()
     {
         var run = await SetUpAsync(GlassPrototype, GentleHullPrototype);
-        await HoldAsync(run.Scene.Hull, DirectionFor(run.Facing), TickRate * 3);
+        await HoldAsync(run.Scene.Hull, DirectionFlag.North, TickRate * 3);
         await Server.WaitAssertion(() =>
         {
             Assert.That(TopSpeed(run.Scene.Hull), Is.LessThan(SComp<KsCrewVehicleSmashComponent>(run.Scene.Hull).MinSpeed),
@@ -116,7 +116,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     public async Task OtherObstaclesNeverBreak()
     {
         var run = await SetUpAsync(BlockPrototype);
-        await HoldAsync(run.Scene.Hull, DirectionFor(run.Facing), TickRate * 3);
+        await HoldAsync(run.Scene.Hull, DirectionFlag.North, TickRate * 3);
         await Server.WaitAssertion(() =>
         {
             Assert.That(SEntMan.Deleted(run.Obstacle), Is.False, "an obstacle on neither list isn't broken");
@@ -134,7 +134,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
         var run = await SetUpAsync(TestWallPrototype);
         var hull = run.Scene.Hull;
         var stalledAt = TimeSpan.Zero;
-        await HoldAsync(hull, DirectionFor(run.Facing), TickRate * 3, () =>
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 3, () =>
         {
             if (!CanMove(hull))
                 stalledAt = STiming.CurTime;
@@ -170,7 +170,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
         // And it drives again: backing away from the wall.
         var before = Vector2.Zero;
         await Server.WaitPost(() => before = HullPosition(hull));
-        await HoldAsync(hull, DirectionFor(-run.Facing), TickRate);
+        await HoldAsync(hull, DirectionFlag.South, TickRate);
         await Server.WaitAssertion(() =>
             Assert.That(Vector2.Dot(HullPosition(hull) - before, -run.Facing), Is.GreaterThan(0.1f), "it drives again afterwards"));
     }
@@ -180,7 +180,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     {
         var run = await SetUpAsync(TestWallPrototype, GentleHullPrototype);
         var everStalled = false;
-        await HoldAsync(run.Scene.Hull, DirectionFor(run.Facing), TickRate * 3, () =>
+        await HoldAsync(run.Scene.Hull, DirectionFlag.North, TickRate * 3, () =>
         {
             everStalled |= !CanMove(run.Scene.Hull);
             return false;

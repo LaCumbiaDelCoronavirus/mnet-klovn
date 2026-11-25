@@ -472,7 +472,7 @@ public sealed class KsCrewVehicleMultiGunnerTest : KsCrewVehicleGunnerTestBase
         await Server.WaitPost(() =>
         {
             start = HullPosition(multi.Scene.Hull);
-            facingKey = DirectionFor(Content.Shared._KS14.CrewVehicle.KsCrewVehicleHullFrame.Forward(HullRotation(multi.Scene.Hull)));
+            facingKey = DirectionFlag.North;
         });
 
         await SetMovementKey(facingKey, Robust.Shared.Input.BoundKeyState.Down);
