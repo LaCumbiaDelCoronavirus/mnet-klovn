@@ -47,7 +47,6 @@
         # Not Impassable or HighImpassable, what items collide with: a hull drives over casings and dropped things.
         layer:
         - MidImpassable
-        - LowImpassable
         - BulletImpassable
         - Opaque
       contact:
