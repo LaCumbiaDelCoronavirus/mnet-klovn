@@ -2,10 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 using Content.Shared._KS14.CrewVehicle.Interior;
 using Content.Shared._KS14.RCD;
 using Content.Shared.Atmos.Components;
-using Content.Shared.Construction.EntitySystems;
 using Content.Shared.Ghost;
-using Content.Shared.Physics;
 using Content.Shared.Light.Components;
+using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.Movement.Pulling.Components;
@@ -25,7 +24,6 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
     [Dependency] private MapLoaderSystem _mapLoaderSystem = default!;
     [Dependency] private SharedMapSystem _mapSystem = default!;
     [Dependency] private KsNoBuildZoneSystem _noBuildZoneSystem = default!;
-    [Dependency] private AnchorableSystem _anchorableSystem = default!;
     [Dependency] private MetaDataSystem _metaDataSystem = default!;
     [Dependency] private MobStateSystem _mobStateSystem = default!;
     [Dependency] private PullingSystem _pullingSystem = default!;
@@ -115,19 +113,6 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
     }
 
     /// <summary>
-    ///     Whether a mob cannot stand at <paramref name="position"/>: an anchored structure in its way, such as a wall.
-    ///         Unanchored things, the hull and whatever is mounted on it among them, do not count.
-    /// </summary>
-    public bool IsBlockedForMobs(MapCoordinates position)
-    {
-        if (!_mapSystem.TryFindGridAt(position, out var gridUid, out var gridComponent))
-            return false;
-
-        var indices = _mapSystem.TileIndicesFor(gridUid, gridComponent, position);
-        return !_anchorableSystem.TileFree((gridUid, gridComponent), indices, (int)CollisionGroup.MobLayer, (int)CollisionGroup.MobMask);
-    }
-
-    /// <summary>
     ///     Whether <paramref name="uid"/> is the kind of thing that is an occupant while on an interior grid.
     /// </summary>
     public bool CanBeOccupant(EntityUid uid)
@@ -203,8 +188,24 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
         // For MapUidChangedEvent, which tells when it has left the interior some other way.
         _metaDataSystem.AddFlag(uid, MetaDataFlags.ExtraTransformEvents);
 
+        RefreshLivingOccupants(vehicleUid);
         var ev = new KsCrewVehicleEnteredEvent(uid);
         RaiseLocalEvent(vehicleUid, ref ev);
+    }
+
+    /// <summary>
+    ///     Counts the vehicle's living occupants again, into the field clients check its capacity against.
+    /// </summary>
+    private void RefreshLivingOccupants(EntityUid vehicleUid)
+    {
+        if (_interiorQuery.TryComp(vehicleUid, out var interiorComponent) && !TerminatingOrDeleted(vehicleUid))
+            SetLivingOccupants((vehicleUid, interiorComponent), CountLivingOccupants(vehicleUid));
+    }
+
+    [SubscribeLocalEvent]
+    private void OnOccupantMobStateChanged(Entity<KsCrewVehicleOccupantComponent> entity, ref MobStateChangedEvent args)
+    {
+        RefreshLivingOccupants(entity.Comp.Vehicle);
     }
 
     /// <summary>
@@ -224,6 +225,8 @@ public sealed partial class KsCrewVehicleInteriorSystem : SharedKsCrewVehicleInt
         if (Deleted(entity.Comp.Vehicle))
             return;
 
+        // The component is being removed, so the count no longer includes it.
+        RefreshLivingOccupants(entity.Comp.Vehicle);
         var ev = new KsCrewVehicleExitedEvent(entity.Owner);
         RaiseLocalEvent(entity.Comp.Vehicle, ref ev);
     }

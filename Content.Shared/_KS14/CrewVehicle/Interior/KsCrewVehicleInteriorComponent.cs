@@ -1,6 +1,7 @@
 using System.Numerics;
 using Content.Shared.Damage;
 using Content.Shared.Guidebook;
+using Robust.Shared.GameStates;
 using Robust.Shared.Utility;
 
 namespace Content.Shared._KS14.CrewVehicle.Interior;
@@ -10,10 +11,11 @@ namespace Content.Shared._KS14.CrewVehicle.Interior;
 ///         needed, that is its inside.
 /// </summary>
 /// <remarks>
-///     Not networked: the client has the prototype's data anyway, and <see cref="InteriorMap"/> is only ever known to
-///         the server. Clients find a vehicle from the inside through <see cref="KsCrewVehicleInteriorMapComponent"/>.
+///     Only <see cref="LivingOccupants"/> is networked, for the client's predicted capacity check: the client has the
+///         prototype's data anyway, and <see cref="InteriorMap"/> is only ever known to the server. Clients find a
+///         vehicle from the inside through <see cref="KsCrewVehicleInteriorMapComponent"/>.
 /// </remarks>
-[RegisterComponent, Access(typeof(SharedKsCrewVehicleInteriorSystem))]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState, Access(typeof(SharedKsCrewVehicleInteriorSystem))]
 public sealed partial class KsCrewVehicleInteriorComponent : Component
 {
     /// <summary>
@@ -70,6 +72,13 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     /// </summary>
     [DataField]
     public TimeSpan EjectStun = TimeSpan.Zero;
+
+    /// <summary>
+    ///     How many living occupants are inside, as the server last counted them: what <see cref="MaxOccupants"/> is
+    ///         checked against.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public int LivingOccupants;
 
     /// <summary>
     ///     The loaded interior map, once something has needed it. Always null on the client.

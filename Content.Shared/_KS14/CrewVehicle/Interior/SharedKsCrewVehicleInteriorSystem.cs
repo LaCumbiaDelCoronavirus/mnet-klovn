@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using Content.Shared.Construction.EntitySystems;
+using Content.Shared.Physics;
 using Robust.Shared.Map;
 
 namespace Content.Shared._KS14.CrewVehicle.Interior;
@@ -11,6 +13,8 @@ public abstract partial class SharedKsCrewVehicleInteriorSystem : EntitySystem
 {
     [Dependency] private EntityQuery<KsCrewVehicleInteriorComponent> _interiorQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleInteriorMapComponent> _interiorMapQuery = default!;
+    [Dependency] private AnchorableSystem _anchorableSystem = default!;
+    [Dependency] private SharedMapSystem _mapSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
 
     /// <summary>
@@ -93,6 +97,31 @@ public abstract partial class SharedKsCrewVehicleInteriorSystem : EntitySystem
         var (hullPosition, hullRotation) = _transformSystem.GetWorldPositionRotation(vehicle.Owner);
         return new MapCoordinates(KsCrewVehicleHullFrame.HullToWorld(hullPosition, hullRotation, doorway.Offset),
             Transform(vehicle.Owner).MapID);
+    }
+
+    /// <summary>
+    ///     Whether a mob cannot stand at <paramref name="position"/>: an anchored structure in its way, such as a wall.
+    ///         Unanchored things, the hull and whatever is mounted on it among them, do not count.
+    /// </summary>
+    public bool IsBlockedForMobs(MapCoordinates position)
+    {
+        if (!_mapSystem.TryFindGridAt(position, out var gridUid, out var gridComponent))
+            return false;
+
+        var indices = _mapSystem.TileIndicesFor(gridUid, gridComponent, position);
+        return !_anchorableSystem.TileFree((gridUid, gridComponent), indices, (int)CollisionGroup.MobLayer, (int)CollisionGroup.MobMask);
+    }
+
+    /// <summary>
+    ///     Sets the networked count of living occupants, which only the server keeps.
+    /// </summary>
+    protected void SetLivingOccupants(Entity<KsCrewVehicleInteriorComponent> vehicle, int count)
+    {
+        if (vehicle.Comp.LivingOccupants == count)
+            return;
+
+        vehicle.Comp.LivingOccupants = count;
+        Dirty(vehicle);
     }
 
     /// <summary>
