@@ -4,6 +4,8 @@ using Content.Shared.Movement.Components;
 using Robust.Shared.Physics;
 using Robust.Shared.Physics.Components;
 using Robust.Shared.Physics.Controllers;
+using Robust.Shared.Network;
+using Robust.Shared.Timing;
 
 namespace Content.Shared._KS14.CrewVehicle.Push;
 
@@ -32,6 +34,8 @@ namespace Content.Shared._KS14.CrewVehicle.Push;
 /// </remarks>
 public sealed partial class KsCrewVehiclePushController : VirtualController
 {
+    [Dependency] private IGameTiming _gameTiming = default!;
+    [Dependency] private INetManager _netManager = default!;
     [Dependency] private KsCrewVehiclePushSystem _pushSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
 
@@ -79,7 +83,7 @@ public sealed partial class KsCrewVehiclePushController : VirtualController
                         normal = -normal;
 
                     Shove((uid, hullBody), position, (otherUid, otherBody), pushComponent, prediction, stuckDistance: null,
-                        normal.LengthSquared() > 0.25f ? Vector2.Normalize(normal) : null);
+                        normal.LengthSquared() > 0.25f ? Vector2.Normalize(normal) : null, frameTime);
                 }
                 else if (_driveQuery.TryComp(uid, out var driveComponent) &&
                          ourFixtureId == driveComponent.ContactFixture &&
@@ -91,10 +95,26 @@ public sealed partial class KsCrewVehiclePushController : VirtualController
                          (prediction || uid.Id < otherUid.Id))
                 {
                     Shove((uid, hullBody), position, (otherUid, otherBody), pushComponent, prediction, pushComponent.StuckDistance,
-                        normal: null);
+                        normal: null, frameTime: frameTime);
                 }
             }
         }
+    }
+
+    /// <summary>
+    ///     The first step of a push, from the contact's start: it is made after this step's controllers have run, and the
+    ///         solver would stop the hull dead at the loose body, as it always lets a loose body stop a kinematic one.
+    /// </summary>
+    public void ShoveOnImpact(Entity<PhysicsComponent> hull,
+        KsCrewVehiclePushComponent pushComponent,
+        Entity<PhysicsComponent> other,
+        Vector2? normal)
+    {
+        if (hull.Comp.BodyType != BodyType.KinematicController || !_relayTargetQuery.HasComp(hull))
+            return;
+
+        Shove(hull, _transformSystem.GetWorldPosition(hull), other, pushComponent, prediction: _netManager.IsClient,
+            stuckDistance: null, normal, frameTime: (float)_gameTiming.TickPeriod.TotalSeconds);
     }
 
     /// <summary>
@@ -108,7 +128,8 @@ public sealed partial class KsCrewVehiclePushController : VirtualController
         KsCrewVehiclePushComponent pushComponent,
         bool prediction,
         float? stuckDistance,
-        Vector2? normal)
+        Vector2? normal,
+        float frameTime)
     {
         if ((normal ?? KsCrewVehicleHullFrame.TryGetSeparation(PhysicsSystem, _transformSystem, hull.Owner, hullPosition, other.Owner)) is not { } toward)
             return;
@@ -145,7 +166,22 @@ public sealed partial class KsCrewVehiclePushController : VirtualController
         if (writeHull)
             PhysicsSystem.SetLinearVelocity(hull.Owner, hullVelocity + toward * (common - hullAlong), body: hull.Comp);
 
-        if (writeOther)
-            PhysicsSystem.SetLinearVelocity(other.Owner, otherVelocity + toward * (common - otherAlong), body: other.Comp);
+        if (!writeOther)
+            return;
+
+        // A loose body's ground friction is its damping, which the solver takes off its speed before it resolves the
+        //      contact, and the solver then holds the hull (a kinematic controller, which a loose body always stops) to
+        //      what is left: the whole pair would lose speed as if it all were the loose body, a crate slowing a hull as
+        //      a wall would. So the loose body is given back the part of its friction the hull's mass should carry: after
+        //      damping, the pair has lost what that friction takes from both of them together, by mass.
+        var otherTarget = common;
+        if (stuckDistance == null && other.Comp.BodyType == BodyType.Dynamic)
+        {
+            var kept = Math.Clamp(1f - frameTime * other.Comp.LinearDamping, 0f, 1f);
+            if (kept > 0f)
+                otherTarget = common * (1f - frameTime * other.Comp.LinearDamping * otherMass / (hullMass + otherMass)) / kept;
+        }
+
+        PhysicsSystem.SetLinearVelocity(other.Owner, otherVelocity + toward * (otherTarget - otherAlong), body: other.Comp);
     }
 }

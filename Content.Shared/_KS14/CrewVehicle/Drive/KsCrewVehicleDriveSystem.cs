@@ -5,6 +5,7 @@ using Content.Shared._KS14.Throwing;
 using Content.Shared.Audio;
 using Content.Shared.Buckle.Components;
 using Content.Shared.Movement.Components;
+using Content.Shared.Movement.Events;
 using Content.Shared.Movement.Systems;
 using Content.Shared.Vehicle;
 using Content.Shared.Vehicle.Components;
@@ -81,6 +82,17 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
     {
         if (!TerminatingOrDeleted(hull.Owner))
             _ambientSoundSystem.SetAmbience(hull.Owner, args.NewOperator != null);
+    }
+
+    /// <summary>
+    ///     A parked hull rolls: its ground friction, as a loose body's, is scaled by
+    ///         <see cref="KsCrewVehicleDriveComponent.ParkedFrictionModifier"/>. Driven, the mover's own friction applies.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnTileFriction(Entity<KsCrewVehicleDriveComponent> hull, ref TileFrictionEvent args)
+    {
+        if (_physicsQuery.CompOrNull(hull.Owner)?.BodyType == Robust.Shared.Physics.BodyType.Dynamic)
+            args.Modifier *= hull.Comp.ParkedFrictionModifier;
     }
 
     /// <summary>

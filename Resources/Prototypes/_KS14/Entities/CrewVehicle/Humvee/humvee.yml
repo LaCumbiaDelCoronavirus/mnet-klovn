@@ -65,6 +65,9 @@
     baseAcceleration: 2
     baseFriction: 2
     baseWeightlessModifier: 0
+  # Parked, it rolls when shoved: a quarter of the ground friction its brakes give it while driven.
+  - type: KsCrewVehicleDrive
+    parkedFrictionModifier: 0.25
   - type: PointLight
     enabled: false
     radius: 12

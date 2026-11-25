@@ -51,6 +51,14 @@ public sealed partial class KsCrewVehicleDriveComponent : Component
     public bool DriveOffGrid;
 
     /// <summary>
+    ///     Scales the ground friction of the hull while nobody drives it, on top of what its movement's friction gives it:
+    ///         a parked vehicle rolls when shoved rather than sliding on locked wheels. Below 1, it is pushed further and
+    ///         coasts further when its driver gets off.
+    /// </summary>
+    [DataField]
+    public float ParkedFrictionModifier = 1f;
+
+    /// <summary>
     ///     The hull's body fixture, whose rim must stay over floor.
     /// </summary>
     [DataField]

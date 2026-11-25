@@ -41,4 +41,11 @@ public sealed partial class KsCrewVehiclePushedComponent : Component
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
     public HashSet<EntityUid> Hulls = new();
+
+    /// <summary>
+    ///     Below this speed, in m/s, and no longer touched, it is let go: until then the driver's client keeps predicting
+    ///         it sliding on.
+    /// </summary>
+    [DataField]
+    public float RestSpeed = 0.05f;
 }
