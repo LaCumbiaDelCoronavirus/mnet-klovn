@@ -5,7 +5,7 @@
     "y": 96
   },
   "license": "CC-BY-SA-3.0",
-  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/icons/obj/vehicles/humvee.dmi. From cmss13 pull request 11308 (https://github.com/cmss13-devs/cmss13/pull/11308) by Zenith00000, which was not merged; the commit is that pull request's head. Art credited in the pull request to dimdimich1996 and others; unused states removed and the two wheel states renamed (humvee_wheels_1 -> wheels_idle, humvee_wheels_0 movement state -> wheels_moving) and damaged_frame renamed to DamageOverlay_1, the name the damage visualiser looks for",
+  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/icons/obj/vehicles/humvee.dmi. From cmss13 pull request 11308 (https://github.com/cmss13-devs/cmss13/pull/11308) by Zenith00000, which was not merged; the commit is that pull request's head. Art credited in the pull request to dimdimich1996 and others; unused states removed. Renamed: humvee_wheels_0 (still) -> wheels_idle and humvee_wheels_0 (movement) -> wheels_moving, the intact wheels; humvee_wheels_1 -> Wheels_Brute_1, the destroyed wheels; damaged_frame -> Hull_Brute_1 (named as the damage visualiser looks them up). Every wheel state is four directions, one per hull facing. turret is humveeturret_0 with humveecannon_0 over it, both from their hull-facing-north frame, merged and turned half a circle to point south",
   "metaAtlas": false,
   "states": [
     {
@@ -13,7 +13,7 @@
       "directions": 4
     },
     {
-      "name": "DamageOverlay_1",
+      "name": "Hull_Brute_1",
       "directions": 4
     },
     {
@@ -67,15 +67,14 @@
       ]
     },
     {
-      "name": "humveeturret_0",
+      "name": "Wheels_Brute_1",
       "directions": 4
+    },
+    {
+      "name": "turret"
     },
     {
       "name": "humveeturret_1",
-      "directions": 4
-    },
-    {
-      "name": "humveecannon_0",
       "directions": 4
     },
     {

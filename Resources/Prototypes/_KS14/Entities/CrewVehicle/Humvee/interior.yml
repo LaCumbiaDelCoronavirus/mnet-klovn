@@ -1,5 +1,6 @@
 # The inside of the humvee (Maps/_KS14/CrewVehicle/humvee.yml). Its front is north; the art it was drawn from faced east,
-#   so the floor plan and doors are turned in the map file.
+#   so the floor plan and doors are turned in the map file. Its grid has floor only under the floor plan, two tiles by
+#   three; everything here is unanchored so that it can sit where the art has it, the walls and glass just off the floor.
 
 - type: entity
   parent: KsCrewVehicleInteriorBaseSeat
@@ -41,7 +42,11 @@
   categories: [ HideSpawnMenu ]
   name: humvee door
   description: The way out.
+  placement:
+    mode: PlaceFree
   components:
+  - type: Transform
+    anchored: false
   - type: Sprite
     sprite: _KS14/CrewVehicle/Humvee/interior.rsi
     drawdepth: HighFloorObjects
@@ -86,6 +91,11 @@
   categories: [ HideSpawnMenu ]
   name: humvee wall
   description: Armour plate, from the inside.
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
 
 - type: entity
   parent: KsCrewVehicleInteriorBaseWindow
@@ -93,6 +103,11 @@
   categories: [ HideSpawnMenu ]
   name: humvee window
   description: Thick, scratched glass.
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
 
 # The floor plan: seats, doors and loader stand on it. The windscreen's glass is drawn over its front.
 - type: entity

@@ -12,8 +12,9 @@
     drawdepth: Mobs
     layers:
     - state: humvee_base
+      map: [ "enum.KsCrewVehicleVisualLayers.Hull" ]
     - state: wheels_idle
-      map: [ "wheels" ]
+      map: [ "enum.KsCrewVehicleVisualLayers.Wheels", "wheels" ]
   - type: SpriteMovement
     movementLayers:
       wheels:
@@ -22,13 +23,18 @@
       wheels:
         state: wheels_idle
   - type: Appearance
-  # The battered frame shows from half health, as the engine starts to smoke.
+  # Past half health in brute damage the frame is battered (Hull_Brute_1) and the wheels wrecked (Wheels_Brute_1, drawn
+  #   over the intact ones, still or turning). The art has the two steps only. By damage group rather than all damage
+  #   because the visualiser updates target layers only by group, and Brute is the only group the hull's container has.
   - type: DamageVisuals
     thresholds: [ 1 ]
     damageDivisor: 500
-    trackAllDamage: true
-    damageOverlay:
-      sprite: _KS14/CrewVehicle/Humvee/hull.rsi
+    targetLayers:
+    - enum.KsCrewVehicleVisualLayers.Hull
+    - enum.KsCrewVehicleVisualLayers.Wheels
+    damageOverlayGroups:
+      Brute:
+        sprite: _KS14/CrewVehicle/Humvee/hull.rsi
   - type: Fixtures
     fixtures:
       fix1:
@@ -80,7 +86,7 @@
   - type: KsCrewVehicleInterior
     interiorPath: /Maps/_KS14/CrewVehicle/humvee.yml
     # The cabin is the rear of the hull: the bonnet ahead of it is engine.
-    interiorAnchor: 2.5,2.35
+    interiorAnchor: 1,1.5
     maxOccupants: 4
     ejectDamage:
       types:
@@ -100,8 +106,8 @@
       rearRight:
         offset: -1,0.8
         radius: 0.45
-  # The gun sits a little behind the centre: with its sprite's lift (KsCrewVehicleWeaponHumveeMachineGun) that puts the
-  #   turret over the roof hatch whichever way the hull is drawn.
+  # The gun sits a little behind the centre, near the roof hatch; its sprite is drawn on the hatch itself
+  #   (KsCrewVehicleWeaponHumveeMachineGun).
   - type: KsCrewVehicleMounts
     mounts:
       turret:
@@ -150,11 +156,9 @@
       - !type:DoActsBehavior
         acts: [ "Destruction" ]
 
-# The roof gun. Its sprite is the turret and barrel drawn for each of four directions, at the hull sprite's scale and
-#   origin, so it is shown as the frame nearest to where the gun points (noRot) rather than turned. The art draws the
-#   roof higher in the frame than the turret, by an amount that differs with the hull's direction; the sprite's lift
-#   here and the mount's offset behind the centre (KsCrewVehicleHumvee) together land it within a few pixels of the
-#   hatch in all four.
+# The roof gun. Its sprite, the turret and barrel seen from above, turns freely with the gun. The hull's four drawings put
+#   the roof hatch in a different spot each, so the sprite is moved onto the hatch of whichever is shown
+#   (KsCrewVehicleTurretSprite); the gun itself, and its muzzle, stay where the mount puts them.
 - type: entity
   id: KsCrewVehicleWeaponHumveeMachineGun
   categories: [ HideSpawnMenu ]
@@ -164,11 +168,14 @@
   - type: Sprite
     sprite: _KS14/CrewVehicle/Humvee/hull.rsi
     drawdepth: OverMobs
-    noRot: true
-    offset: 0,0.4
-    layers:
-    - state: humveeturret_0
-    - state: humveecannon_0
+    state: turret
+  # The middle of the hatch in each drawing of hull.rsi's humvee_base: its pixel from the frame's centre, over 32.
+  - type: KsCrewVehicleTurretSprite
+    pivotOffsets:
+      South: -0.016,0.328
+      North: -0.016,0.109
+      East: -0.156,0.391
+      West: 0.156,0.391
   - type: Gun
     fireRate: 5
     minAngle: 1
@@ -210,13 +217,13 @@
     drawdepth: Mobs
     layers:
     - state: humvee_base
-    - state: wheels_idle
-    - state: DamageOverlay_1
-    # The broken turret and barrel, lifted onto the roof as the gun's sprite is when the hull faces south.
+    - state: Hull_Brute_1
+    - state: Wheels_Brute_1
+    # The broken turret and barrel, lifted onto the roof hatch of the south-facing drawing.
     - state: humveeturret_1
-      offset: 0,0.47
+      offset: 0,0.34
     - state: humveecannon_1
-      offset: 0,0.47
+      offset: 0,0.34
   - type: Fixtures
     fixtures:
       fix1:
