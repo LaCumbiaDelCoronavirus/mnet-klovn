@@ -482,8 +482,9 @@ public sealed class KsPredictedSpawnTest : InteractionTest
     public async Task KeptProjectileHitByTheStateReset([Values(-0.3f, -0.15f, 0f)] float offset)
     {
         // Far enough ahead of the server that the walking player's predicted and server positions are well apart.
+        const int tickBias = 8;
         var clientConfigurationManager = Client.ResolveDependency<IConfigurationManager>();
-        await Client.WaitPost(() => clientConfigurationManager.SetCVar(CVars.NetPredictTickBias, 8));
+        await Client.WaitPost(() => clientConfigurationManager.SetCVar(CVars.NetPredictTickBias, tickBias));
 
         await Server.WaitPost(() =>
         {
@@ -516,7 +517,10 @@ public sealed class KsPredictedSpawnTest : InteractionTest
         }
 
         await SetMovementKey(DirectionFlag.East, BoundKeyState.Up);
-        await RunTicks(1);
+        // The server acknowledges the key-up a tick bias after the client sent it. ClientGameStateManager.Reset clears the
+        //     client's processed inputs but not its pending ones when the pair is recycled, so a key-up still unacknowledged
+        //     when this test ends is replayed into the next test on the pooled pair, whose player may have no mover.
+        await RunTicks(tickBias + 2);
 
         await Client.WaitAssertion(() =>
         {

@@ -451,7 +451,10 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     /// <summary>
     ///     Lets go of every movement key before the pair goes back to the pool, however the test ended: a key left held
     ///         is handed to whatever the next test on the pair has the player be, which may have no mover to take it.
-    ///         Runs before the base fixture's teardown returns the pair.
+    ///         Then waits out the key-ups and anything else the client sent, with the simulated latency still in force,
+    ///         and puts the latency back. The client's processed inputs are cleared when the pair is recycled but its
+    ///         pending ones aren't (<c>ClientGameStateManager.Reset</c>), so an input the server hasn't acknowledged yet
+    ///         is replayed into the next test on the pair. Runs before the base fixture's teardown returns the pair.
     /// </summary>
     [TearDown]
     public async Task KsReleaseMovementKeys()
@@ -460,6 +463,17 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         {
             await SetMovementKey(DirectionFlag.North | DirectionFlag.South | DirectionFlag.East | DirectionFlag.West,
                 Robust.Shared.Input.BoundKeyState.Up);
+
+            // The server acknowledges an input a tick bias after the client sent it.
+            var tickBias = 0;
+            await Client.WaitPost(() => tickBias = Client.CfgMan.GetCVar(Robust.Shared.CVars.NetPredictTickBias));
+            await RunTicks(tickBias + 2);
+
+            if (_ksTickBiasBeforeLatency is { } tickBiasBefore)
+            {
+                await Client.WaitPost(() => Client.CfgMan.SetCVar(Robust.Shared.CVars.NetPredictTickBias, tickBiasBefore));
+                _ksTickBiasBeforeLatency = null;
+            }
         }
         catch (Exception exception)
         {
@@ -469,11 +483,16 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     }
 
     /// <summary>
+    ///     The client's tick bias before <see cref="SimulateLatencyAsync"/> changed it, for the teardown to put back.
+    /// </summary>
+    private int? _ksTickBiasBeforeLatency;
+
+    /// <summary>
     ///     Stands in for network latency, which pooled pairs don't have: the client predicts
     ///         <paramref name="ticks"/> ticks ahead of the last state it has (<c>net.predict_tick_bias</c>), so the
     ///         server's word on anything reaches it that many ticks after it predicted it, and it replays those ticks from
-    ///         the older state each time, as a client a round trip of <paramref name="ticks"/> away does. The pool puts the
-    ///         cvar back when the pair is returned.
+    ///         the older state each time, as a client a round trip of <paramref name="ticks"/> away does. The teardown
+    ///         lets the client's pending inputs be acknowledged under it, then puts the cvar back.
     /// </summary>
     /// <remarks>
     ///     It doesn't model jitter or loss, input arriving late at the server (the client's keys still arrive at once), or
@@ -481,7 +500,11 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     /// </remarks>
     protected async Task SimulateLatencyAsync(int ticks)
     {
-        await Client.WaitPost(() => Client.CfgMan.SetCVar(Robust.Shared.CVars.NetPredictTickBias, ticks));
+        await Client.WaitPost(() =>
+        {
+            _ksTickBiasBeforeLatency ??= Client.CfgMan.GetCVar(Robust.Shared.CVars.NetPredictTickBias);
+            Client.CfgMan.SetCVar(Robust.Shared.CVars.NetPredictTickBias, ticks);
+        });
         // Long enough for the client to settle that far ahead.
         await RunTicks(TickRate);
     }
