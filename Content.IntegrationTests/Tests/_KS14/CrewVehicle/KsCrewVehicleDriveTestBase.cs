@@ -448,6 +448,24 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         await RunTicks(5);
     }
 
+    /// <summary>
+    ///     Stands in for network latency, which pooled pairs don't have: the client predicts
+    ///         <paramref name="ticks"/> ticks ahead of the last state it has (<c>net.predict_tick_bias</c>), so the
+    ///         server's word on anything reaches it that many ticks after it predicted it, and it replays those ticks from
+    ///         the older state each time, as a client a round trip of <paramref name="ticks"/> away does. The pool puts the
+    ///         cvar back when the pair is returned.
+    /// </summary>
+    /// <remarks>
+    ///     It doesn't model jitter or loss, input arriving late at the server (the client's keys still arrive at once), or
+    ///         the interpolation a real client draws other players' entities with: only the prediction and its corrections.
+    /// </remarks>
+    protected async Task SimulateLatencyAsync(int ticks)
+    {
+        await Client.WaitPost(() => Client.CfgMan.SetCVar(Robust.Shared.CVars.NetPredictTickBias, ticks));
+        // Long enough for the client to settle that far ahead.
+        await RunTicks(TickRate);
+    }
+
     protected T SComp<T>(EntityUid uid) where T : IComponent => SEntMan.GetComponent<T>(uid);
 
     protected Entity<T> SEntity<T>(EntityUid uid) where T : IComponent => (uid, SEntMan.GetComponent<T>(uid));

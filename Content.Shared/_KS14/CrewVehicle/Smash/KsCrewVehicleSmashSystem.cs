@@ -68,7 +68,11 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
         {
             _damageableSystem.TryChangeDamage(otherUid, hull.Comp.SmashDamage, origin: origin);
             _smashedSystem.MarkSmashed(otherUid, hull.Owner, hull.Comp.SmashedPassTime);
-            _physicsSystem.SetLinearVelocity(hull.Owner, velocity * hull.Comp.SmashSpeedRetained, body: args.OurBody);
+            if (!_smashedSystem.IsReplayedSmash(hull.Owner, otherUid))
+            {
+                _physicsSystem.SetLinearVelocity(hull.Owner, velocity * hull.Comp.SmashSpeedRetained, body: args.OurBody);
+                _smashedSystem.RecordPredictedSmash(hull.Owner, otherUid, velocity * hull.Comp.SmashSpeedRetained, hull.Comp.SmashedPassTime);
+            }
             _audioSystem.PlayPredicted(hull.Comp.SmashSound, otherUid, driverUid);
             DamageSelf(hull, hull.Comp.SmashSelfDamage, origin);
             return;

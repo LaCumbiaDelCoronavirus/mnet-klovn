@@ -40,6 +40,23 @@ public sealed partial class KsCrewVehiclePushSystem : EntitySystem
                !_itemQuery.HasComp(uid);
     }
 
+    /// <summary>
+    ///     Marks <paramref name="uid"/> as moved by <paramref name="hullUid"/>, so that the hull's driver's client
+    ///         predicts it, until it is at rest and the hull no longer touches it.
+    /// </summary>
+    public void MarkPushed(EntityUid uid, EntityUid hullUid)
+    {
+        if (_gameTiming.ApplyingState ||
+            _pushedQuery.TryComp(uid, out var existing) && existing.Hulls.Contains(hullUid))
+        {
+            return;
+        }
+
+        var pushedComponent = EnsureComp<KsCrewVehiclePushedComponent>(uid);
+        pushedComponent.Hulls.Add(hullUid);
+        Dirty(uid, pushedComponent);
+    }
+
     [SubscribeLocalEvent]
     private void OnStartCollide(Entity<KsCrewVehiclePushComponent> hull, ref StartCollideEvent args)
     {
@@ -50,9 +67,7 @@ public sealed partial class KsCrewVehiclePushSystem : EntitySystem
             return;
         }
 
-        var pushedComponent = EnsureComp<KsCrewVehiclePushedComponent>(args.OtherEntity);
-        if (pushedComponent.Hulls.Add(hull.Owner))
-            Dirty(args.OtherEntity, pushedComponent);
+        MarkPushed(args.OtherEntity, hull.Owner);
 
         // The contact's normal points from fixture A to B; ours may be either.
         Vector2? normal = null;

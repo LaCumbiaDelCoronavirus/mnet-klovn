@@ -67,13 +67,73 @@ public sealed partial class KsCrewVehicleSmashedSystem : EntitySystem
         }
     }
 
+    /// <summary>
+    ///     A smash this client predicted: when it was, what it cost the hull, and until when the hull passes through.
+    /// </summary>
+    public readonly record struct PredictedSmash(EntityUid Hull, EntityUid Obstacle, GameTick Tick, System.Numerics.Vector2 Velocity, TimeSpan Until);
+
+    // Client only, and transient: the smashes this client predicted and the server hasn't yet confirmed. Each new server
+    //      state resets the hull and the obstacle to before the smash, taking the predicted marker with it, and the ticks
+    //      since are replayed from there: but the contact persists, so the smash isn't raised again, and the hull would
+    //      collide with the obstacle anew or keep its old speed until the server's state, a step back once it comes. These
+    //      outlive the reset, so the replay passes through it and loses the speed on the same tick.
+    private readonly List<PredictedSmash> _predictedSmashes = new();
+
+    public IReadOnlyList<PredictedSmash> PredictedSmashes => _predictedSmashes;
+
+    /// <summary>
+    ///     Whether this is a replay of a tick on which this client already predicted this smash: the replay controller
+    ///         gives the hull the speed it had then.
+    /// </summary>
+    public bool IsReplayedSmash(EntityUid hullUid, EntityUid obstacleUid)
+    {
+        if (!_netManager.IsClient || _gameTiming.IsFirstTimePredicted)
+            return false;
+
+        foreach (var smash in _predictedSmashes)
+        {
+            if (smash.Hull == hullUid && smash.Obstacle == obstacleUid)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Keeps a smash the driver's client predicts for the ticks it will replay. Does nothing on the server.
+    /// </summary>
+    public void RecordPredictedSmash(EntityUid hullUid, EntityUid obstacleUid, System.Numerics.Vector2 velocity, TimeSpan passTime)
+    {
+        if (!_netManager.IsClient || !_gameTiming.IsFirstTimePredicted)
+            return;
+
+        _predictedSmashes.Add(new PredictedSmash(hullUid, obstacleUid, _gameTiming.CurTick, velocity, _gameTiming.CurTime + passTime));
+    }
+
+    [SubscribeLocalEvent]
+    private void OnHullPreventCollide(Entity<KsCrewVehicleSmashComponent> hull, ref PreventCollideEvent args)
+    {
+        foreach (var smash in _predictedSmashes)
+        {
+            if (smash.Hull == hull.Owner && smash.Obstacle == args.OtherEntity && _gameTiming.CurTime < smash.Until)
+            {
+                args.Cancelled = true;
+                return;
+            }
+        }
+    }
+
     public override void Update(float frameTime)
     {
         base.Update(frameTime);
 
         // The server's to say when it is over: the state that ends it reaches a predicting client as it does anyone.
         if (_netManager.IsClient)
+        {
+            // Past its pass-through time, the server's state has long since caught up with it.
+            _predictedSmashes.RemoveAll(smash => _gameTiming.CurTime >= smash.Until);
             return;
+        }
 
         var query = EntityQueryEnumerator<KsCrewVehicleSmashedComponent>();
         while (query.MoveNext(out var uid, out var smashedComponent))

@@ -257,6 +257,78 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
         });
     }
 
+    /// <summary>
+    ///     A round trip away, the driver's client still sees a carried mob held at the hull's leading edge, and a struck
+    ///         one in front of it until the throw arrives: never inside the hull. Once the hull stops, the mob stops as the
+    ///         same mob given the same speed would.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task MobAheadIsNeverInsideTheHullOnALaggingClient(bool struck)
+    {
+        var course = await SetUpAsync(struck ? ThrowerHullPrototype : GentleHullPrototype);
+        var hull = course.Scene.Hull;
+        EntityUid control = default;
+        await Server.WaitPost(() =>
+        {
+            control = SEntMan.SpawnAtPosition(Human, OriginCoordinates.Offset(new Vector2(course.Facing.Y, -course.Facing.X) * 4f));
+            SEntMan.RemoveComponent<BarotraumaComponent>(control);
+        });
+        await SimulateLatencyAsync(6);
+
+        var clientHull = ToClient(hull);
+        var clientMob = ToClient(course.Mob);
+        var clientPhysics = Client.System<Robust.Shared.Physics.Systems.SharedPhysicsSystem>();
+        var worstOverlap = 0f;
+        var thrownAway = false;
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Down);
+        for (var tick = 0; tick < TickRate * 3 / 2 && !thrownAway; tick++)
+        {
+            await RunTicks(1);
+            await Client.WaitPost(() =>
+            {
+                var hullBox = clientPhysics.GetHardAABB(clientHull);
+                var mobBox = clientPhysics.GetHardAABB(clientMob);
+                if (hullBox.Intersects(mobBox))
+                    worstOverlap = MathF.Max(worstOverlap, hullBox.Intersect(mobBox).Size.Length());
+                thrownAway = struck && Vector2.Dot(CEntMan.GetComponent<Robust.Shared.Physics.Components.PhysicsComponent>(clientMob).LinearVelocity, course.Facing) >
+                    Vector2.Dot(CEntMan.GetComponent<Robust.Shared.Physics.Components.PhysicsComponent>(clientHull).LinearVelocity, course.Facing) + 1f;
+            });
+        }
+
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Up);
+        Assert.That(worstOverlap, Is.LessThan(0.02f), "the driver's client should never show the mob inside the hull");
+        if (struck)
+            return;
+
+        // From when the hull has stopped: how far the mob goes on, against the control given its speed then.
+        for (var tick = 0; tick < TickRate * 3; tick++)
+        {
+            await RunTicks(1);
+            var stopped = false;
+            await Server.WaitPost(() => stopped = HullVelocity(hull).Length() < 0.05f);
+            if (stopped)
+                break;
+        }
+
+        var mobStart = Vector2.Zero;
+        var controlStart = Vector2.Zero;
+        await Server.WaitPost(() =>
+        {
+            mobStart = Transform.GetWorldPosition(course.Mob);
+            controlStart = Transform.GetWorldPosition(control);
+            SEntMan.System<Robust.Shared.Physics.Systems.SharedPhysicsSystem>().SetLinearVelocity(control,
+                SComp<Robust.Shared.Physics.Components.PhysicsComponent>(course.Mob).LinearVelocity);
+        });
+        await RunTicks(TickRate * 2);
+        await Server.WaitAssertion(() =>
+        {
+            var slid = (Transform.GetWorldPosition(course.Mob) - mobStart).Length();
+            var controlSlid = (Transform.GetWorldPosition(control) - controlStart).Length();
+            Assert.That(slid, Is.LessThanOrEqualTo(controlSlid + 0.05f), "with the hull stopped, the mob stops as any mob does");
+        });
+    }
+
     [Test]
     public async Task NpcsDontPushAParkedHull()
     {

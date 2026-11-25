@@ -27,6 +27,7 @@ namespace Content.Shared._KS14.CrewVehicle.RunOver;
 /// </remarks>
 public sealed partial class KsCrewVehicleRunOverController : VirtualController
 {
+    [Dependency] private KsCrewVehiclePushSystem _pushSystem = default!;
     [Dependency] private KsCrewVehicleRunOverSystem _runOverSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
     [Dependency] private StandingStateSystem _standingSystem = default!;
@@ -61,11 +62,12 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
 
                 var (_, otherFixture) = contact.OtherFixture(uid);
                 var mobUid = contact.OtherEnt(uid);
+                // A struck mob is carried too, at the leading edge, until the server's throw sends it off faster: the
+                //      driver's client otherwise drives on into it for the round trip the throw takes to arrive.
                 if (!otherFixture.Hard ||
                     !_mobStateQuery.HasComp(mobUid) ||
                     _runOverSystem.IsUnder(mobUid, uid) ||
-                    _runOverSystem.IsStruck(mobUid) ||
-                    _standingSystem.IsDown(mobUid))
+                    _standingSystem.IsDown(mobUid) && !_runOverSystem.IsStruck(mobUid))
                 {
                     continue;
                 }
@@ -73,6 +75,9 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
                 if (KsCrewVehicleHullFrame.TryGetSeparation(PhysicsSystem, _transformSystem, uid, hullPosition, mobUid) is not { } away)
                     continue;
 
+                // Predicted with the hull on its driver's client, so it is seen held at the leading edge, not where the
+                //      server had it a round trip ago, inside the hull.
+                _pushSystem.MarkPushed(mobUid, uid);
                 Carry(mobUid, away, MathF.Max(0f, Vector2.Dot(hullBody.LinearVelocity, away)), prediction);
             }
         }

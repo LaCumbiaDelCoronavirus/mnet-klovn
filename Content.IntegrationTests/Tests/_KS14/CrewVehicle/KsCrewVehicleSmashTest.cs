@@ -143,6 +143,39 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
         });
     }
 
+    /// <summary>
+    ///     The same, a round trip away: the driver's client replays the smash from older states as they come in.
+    /// </summary>
+    [TestCase(3)]
+    [TestCase(6)]
+    public async Task SmashingNeverStepsBackOnALaggingDriversClient(int latencyTicks)
+    {
+        var run = await SetUpAsync(GlassPrototype);
+        await SimulateLatencyAsync(latencyTicks);
+        var clientHull = ToClient(run.Scene.Hull);
+        float ClientAlong() => Vector2.Dot(CEntMan.GetComponent<TransformComponent>(clientHull).LocalPosition, run.Facing);
+
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Down);
+        var previous = 0f;
+        await Client.WaitPost(() => previous = ClientAlong());
+        var worstStepBack = 0f;
+        for (var tick = 0; tick < TickRate * 3; tick++)
+        {
+            await RunTicks(1);
+            await Client.WaitPost(() =>
+            {
+                var along = ClientAlong();
+                worstStepBack = MathF.Max(worstStepBack, previous - along);
+                previous = along;
+            });
+        }
+
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Up);
+        await Server.WaitAssertion(() =>
+            Assert.That(SEntMan.Deleted(run.Obstacle) || EntityManagerQueued(run.Obstacle), Is.True, "precondition: smashed"));
+        Assert.That(worstStepBack, Is.LessThan(0.001f), "a lagging driver's client shouldn't see the hull step backward");
+    }
+
     [Test]
     public async Task GentleHullBreaksNothing()
     {
