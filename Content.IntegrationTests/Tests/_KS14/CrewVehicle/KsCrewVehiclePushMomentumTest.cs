@@ -123,6 +123,77 @@ public sealed class KsCrewVehiclePushMomentumTest : KsCrewVehicleDriveTestBase
     }
 
     /// <summary>
+    ///     A driver who gets up mid-push stops predicting what the hull was pushing, though it slides on a while.
+    /// </summary>
+    [Test]
+    public async Task ExDriverStopsPredictingWhatTheHullPushed()
+    {
+        var (scene, facing) = await DrivenAsync();
+        EntityUid crate = default;
+        await Server.WaitPost(() => crate = SEntMan.SpawnAtPosition(PushCratePrototype, OriginCoordinates.Offset(Start + facing * 3f)));
+        await RunTicks(5);
+        var pushedTicks = 0;
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Down);
+        for (var tick = 0; tick < TickRate * 2 && pushedTicks < 10; tick++)
+        {
+            await RunTicks(1);
+            await Server.WaitPost(() => pushedTicks += SEntMan.HasComponent<KsCrewVehiclePushedComponent>(crate) ? 1 : 0);
+        }
+
+        await Client.WaitAssertion(() =>
+            Assert.That(CEntMan.GetComponent<PhysicsComponent>(ToClient(crate)).Predict, Is.True, "precondition: the driver's client predicts it"));
+
+        // Up mid-push, the key still held.
+        await Server.WaitPost(() => Server.System<Content.Shared.Buckle.SharedBuckleSystem>().Unbuckle((SPlayer, null), SPlayer));
+        await RunTicks(3);
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Up);
+
+        await Server.WaitAssertion(() =>
+            Assert.That(SEntMan.HasComponent<KsCrewVehiclePushedComponent>(crate), Is.True, "precondition: still sliding, still marked"));
+        await Client.WaitAssertion(() =>
+            Assert.That(CEntMan.GetComponent<PhysicsComponent>(ToClient(crate)).Predict, Is.False, "the ex-driver's client shouldn't predict it any longer"));
+    }
+
+    /// <summary>
+    ///     The markers a moving hull leaves on what it touches are runtime state: a map saved meanwhile carries none of
+    ///         them, and one left with nothing to say (as a save from before could load it) is let go.
+    /// </summary>
+    [Test]
+    public async Task RunningMarkersAreNeitherSavedNorKept()
+    {
+        // On a grid of its own, so that the save holds nothing but it: a crate with every marker at once, as each could
+        //      be on something a hull was moving when the map was saved.
+        EntityUid grid = default, crate = default;
+        await Server.WaitPost(() =>
+        {
+            var gridEntity = MapSystem.CreateGridEntity(MapData.MapId);
+            grid = gridEntity.Owner;
+            MapSystem.SetTile(gridEntity, Vector2i.Zero, MapData.Tile.Tile);
+            Transform.SetWorldPosition(grid, new Vector2(FloorRadius * 4f, 0f));
+            crate = SEntMan.SpawnAtPosition(PushCratePrototype, new Robust.Shared.Map.EntityCoordinates(grid, new Vector2(0.5f, 0.5f)));
+            SEntMan.EnsureComponent<Content.Shared._KS14.CrewVehicle.RunOver.KsCrewVehicleUnderHullComponent>(crate);
+            SEntMan.EnsureComponent<Content.Shared._KS14.CrewVehicle.RunOver.KsCrewVehicleStruckComponent>(crate);
+            SEntMan.EnsureComponent<Content.Shared._KS14.CrewVehicle.Smash.KsCrewVehicleSmashedComponent>(crate);
+            SEntMan.EnsureComponent<Content.Shared._KS14.CrewVehicle.CrashLockout.KsCrewVehicleCrashLockedComponent>(crate);
+            SEntMan.EnsureComponent<KsCrewVehiclePushedComponent>(crate);
+        });
+
+        await Server.WaitAssertion(() =>
+        {
+            var writer = new System.IO.StringWriter();
+            Assert.That(SEntMan.System<Robust.Shared.EntitySerialization.Systems.MapLoaderSystem>().TrySaveGrid(grid, writer), Is.True);
+            var saved = writer.ToString();
+            Assert.That(saved, Does.Contain($"proto: {PushCratePrototype.Id}"), "precondition: the crate is saved");
+            foreach (var marker in new[] { "KsCrewVehiclePushed", "KsCrewVehicleUnderHull", "KsCrewVehicleStruck", "KsCrewVehicleSmashed", "KsCrewVehicleCrashLocked" })
+                Assert.That(saved, Does.Not.Contain($"type: {marker}\n").And.Not.Contain($"type: {marker}\r"), $"{marker} shouldn't be saved");
+        });
+
+        // And one naming no hull, as such a save from before would load, is let go.
+        await RunTicks(2);
+        await Server.WaitAssertion(() =>
+            Assert.That(SEntMan.HasComponent<KsCrewVehiclePushedComponent>(crate), Is.False, "a pushed marker naming no hull is let go"));
+    }
+    /// <summary>
     ///     A parked hull the driven one's own weight: struck, both go on at half its speed.
     /// </summary>
     [Test]

@@ -25,7 +25,10 @@ public sealed partial class KsCrewVehiclePushPredictionSystem : EntitySystem
 
         foreach (var hullUid in pushed.Comp.Hulls)
         {
-            if (_relayTargetQuery.TryComp(hullUid, out var relayTarget) && relayTarget.Source == localUid)
+            // Not one going away: this is also asked while the relay is taken down, as the driver gets up.
+            if (_relayTargetQuery.TryComp(hullUid, out var relayTarget) &&
+                relayTarget.LifeStage <= ComponentLifeStage.Running &&
+                relayTarget.Source == localUid)
             {
                 args.IsPredicted = true;
                 return;
@@ -33,6 +36,49 @@ public sealed partial class KsCrewVehiclePushPredictionSystem : EntitySystem
         }
     }
 
+    /// <summary>
+    ///     The hull's own prediction is asked again whenever its relay comes or goes, as a driver sits or gets up: so is
+    ///         that of what it is pushing, or the ex-driver's client would go on predicting it.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnHullUpdatePredicted(Entity<KsCrewVehiclePushComponent> hull, ref UpdateIsPredictedEvent args)
+    {
+        // Asked from inside whatever took the relay down: done afterwards.
+        _hullsToRefresh.Add(hull.Owner);
+    }
+
+    // Transient work list: hulls whose relay came or went, drained each update.
+    private readonly HashSet<EntityUid> _hullsToRefresh = new();
+    private readonly List<EntityUid> _bodiesToRefresh = new();
+
+    public override void Update(float frameTime)
+    {
+        base.Update(frameTime);
+
+        if (_hullsToRefresh.Count == 0)
+            return;
+
+        var query = EntityQueryEnumerator<KsCrewVehiclePushedComponent>();
+        while (query.MoveNext(out var pushedUid, out var pushedComponent))
+        {
+            foreach (var hullUid in pushedComponent.Hulls)
+            {
+                if (!_hullsToRefresh.Contains(hullUid))
+                    continue;
+
+                _bodiesToRefresh.Add(pushedUid);
+                break;
+            }
+        }
+
+        _hullsToRefresh.Clear();
+        foreach (var bodyUid in _bodiesToRefresh)
+        {
+            _physicsSystem.UpdateIsPredicted(bodyUid);
+        }
+
+        _bodiesToRefresh.Clear();
+    }
     [SubscribeLocalEvent]
     private void OnStartup(Entity<KsCrewVehiclePushedComponent> pushed, ref ComponentStartup args)
     {

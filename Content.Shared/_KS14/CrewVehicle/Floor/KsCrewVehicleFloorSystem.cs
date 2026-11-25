@@ -3,6 +3,7 @@ using Content.Shared._KS14.CrewVehicle.Drive;
 using Robust.Shared.Map;
 using Robust.Shared.Map.Components;
 using Robust.Shared.Physics;
+using Robust.Shared.Physics.Components;
 
 namespace Content.Shared._KS14.CrewVehicle.Floor;
 
@@ -28,6 +29,7 @@ public sealed partial class KsCrewVehicleFloorSystem : EntitySystem
     [Dependency] private SharedTransformSystem _transformSystem = default!;
 
     [Dependency] private EntityQuery<FixturesComponent> _fixturesQuery = default!;
+    [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
 
     /// <summary>
     ///     The most room between two of the rim's points, in tiles: less than a tile, so no gap goes between them.
@@ -38,6 +40,34 @@ public sealed partial class KsCrewVehicleFloorSystem : EntitySystem
     ///     How far inside the rim the points sit, so that a rim lying exactly on a tile's edge isn't read off that edge.
     /// </summary>
     private const float SampleInset = 0.02f;
+
+    /// <summary>
+    ///     A hull is marked rolling while its body is awake, the only time it can move.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnWake(Entity<KsCrewVehicleDriveComponent> hull, ref PhysicsWakeEvent args)
+    {
+        // Not before its map starts: nothing moves on a map not yet running, and spawning there must change nothing.
+        if (MetaData(hull.Owner).EntityLifeStage >= EntityLifeStage.MapInitialized)
+            EnsureComp<KsCrewVehicleRollingComponent>(hull.Owner);
+    }
+
+    /// <summary>
+    ///     A hull awake when its map starts, as a body is when it is spawned, is rolling from then.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnMapInit(Entity<KsCrewVehicleDriveComponent> hull, ref MapInitEvent args)
+    {
+        if (_physicsQuery.CompOrNull(hull.Owner)?.Awake == true)
+            EnsureComp<KsCrewVehicleRollingComponent>(hull.Owner);
+    }
+
+    [SubscribeLocalEvent]
+    private void OnSleep(Entity<KsCrewVehicleDriveComponent> hull, ref PhysicsSleepEvent args)
+    {
+        // Deferred: it falls asleep inside the physics step.
+        RemCompDeferred<KsCrewVehicleRollingComponent>(hull.Owner);
+    }
 
     /// <summary>
     ///     Whether <paramref name="hull"/> is held to the floor at all.

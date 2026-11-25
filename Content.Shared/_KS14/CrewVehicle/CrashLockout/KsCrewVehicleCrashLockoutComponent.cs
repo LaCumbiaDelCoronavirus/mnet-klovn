@@ -30,7 +30,7 @@ public sealed partial class KsCrewVehicleCrashLockoutComponent : Component
 /// <summary>
 ///     On a crew vehicle while a crash keeps it from driving.
 /// </summary>
-[RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause, UnsavedComponent]
 [Access(typeof(KsCrewVehicleCrashLockoutSystem))]
 public sealed partial class KsCrewVehicleCrashLockedComponent : Component
 {

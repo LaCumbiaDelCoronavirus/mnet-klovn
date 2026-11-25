@@ -33,7 +33,7 @@ public sealed partial class KsCrewVehiclePushComponent : Component
 ///     On a loose object a driven hull is pushing. The driver's client predicts it while it does, so the hull isn't
 ///         stopped on that client by an object it can't move.
 /// </summary>
-[RegisterComponent, NetworkedComponent, AutoGenerateComponentState(true), Access(typeof(KsCrewVehiclePushSystem))]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState(true), UnsavedComponent, Access(typeof(KsCrewVehiclePushSystem))]
 public sealed partial class KsCrewVehiclePushedComponent : Component
 {
     /// <summary>
@@ -49,3 +49,10 @@ public sealed partial class KsCrewVehiclePushedComponent : Component
     [DataField]
     public float RestSpeed = 0.05f;
 }
+
+/// <summary>
+///     Raised, broadcast, by whatever moves a body along with a driven hull other than by pushing it (the run-over
+///         controller carrying a mob): it is then marked as the hull's, and predicted with it on its driver's client.
+/// </summary>
+[ByRefEvent]
+public readonly record struct KsCrewVehicleMovesBodyEvent(EntityUid Hull, EntityUid Body);

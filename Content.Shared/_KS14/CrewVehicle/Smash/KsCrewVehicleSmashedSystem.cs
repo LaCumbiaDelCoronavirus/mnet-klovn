@@ -8,17 +8,17 @@ using Robust.Shared.Timing;
 namespace Content.Shared._KS14.CrewVehicle.Smash;
 
 /// <summary>
-///     On something a crew vehicle has smashed through: that hull passes through it until it is gone or
-///         <see cref="Until"/>.
+///     On something crew vehicles have smashed through: each of those hulls passes through it until it is gone or that
+///         hull's time is up. Two can smash the same thing within each other's time.
 /// </summary>
-[RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause, Access(typeof(KsCrewVehicleSmashedSystem))]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause, UnsavedComponent, Access(typeof(KsCrewVehicleSmashedSystem))]
 public sealed partial class KsCrewVehicleSmashedComponent : Component
 {
-    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
-    public EntityUid Hull;
-
+    /// <summary>
+    ///     Each hull that smashed it, and until when it passes through.
+    /// </summary>
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField, AutoPausedField]
-    public TimeSpan Until;
+    public Dictionary<EntityUid, TimeSpan> Hulls = new();
 }
 
 /// <summary>
@@ -35,14 +35,16 @@ public sealed partial class KsCrewVehicleSmashedSystem : EntitySystem
 
     [Dependency] private EntityQuery<FixturesComponent> _fixturesQuery = default!;
 
+    // Scratch list for the hulls whose time is up, so the dictionary isn't changed while it is walked.
+    private readonly List<EntityUid> _expiredHulls = new();
+
     /// <summary>
     ///     Lets <paramref name="hullUid"/> pass through <paramref name="obstacleUid"/> for <paramref name="time"/>.
     /// </summary>
     public void MarkSmashed(EntityUid obstacleUid, EntityUid hullUid, TimeSpan time)
     {
         var smashedComponent = EnsureComp<KsCrewVehicleSmashedComponent>(obstacleUid);
-        smashedComponent.Hull = hullUid;
-        smashedComponent.Until = _gameTiming.CurTime + time;
+        smashedComponent.Hulls[hullUid] = _gameTiming.CurTime + time;
         Dirty(obstacleUid, smashedComponent);
         Refilter(obstacleUid);
 
@@ -60,8 +62,8 @@ public sealed partial class KsCrewVehicleSmashedSystem : EntitySystem
     private void OnPreventCollide(Entity<KsCrewVehicleSmashedComponent> obstacle, ref PreventCollideEvent args)
     {
         if (obstacle.Comp.LifeStage <= ComponentLifeStage.Running &&
-            args.OtherEntity == obstacle.Comp.Hull &&
-            _gameTiming.CurTime < obstacle.Comp.Until)
+            obstacle.Comp.Hulls.TryGetValue(args.OtherEntity, out var until) &&
+            _gameTiming.CurTime < until)
         {
             args.Cancelled = true;
         }
@@ -138,11 +140,33 @@ public sealed partial class KsCrewVehicleSmashedSystem : EntitySystem
         var query = EntityQueryEnumerator<KsCrewVehicleSmashedComponent>();
         while (query.MoveNext(out var uid, out var smashedComponent))
         {
-            if (smashedComponent.LifeStage > ComponentLifeStage.Running || _gameTiming.CurTime < smashedComponent.Until)
+            if (smashedComponent.LifeStage > ComponentLifeStage.Running)
+                continue;
+
+            var now = _gameTiming.CurTime;
+            var expired = 0;
+            foreach (var (hullUid, until) in smashedComponent.Hulls)
+            {
+                if (now >= until || !Exists(hullUid))
+                    _expiredHulls.Add(hullUid);
+            }
+
+            foreach (var hullUid in _expiredHulls)
+            {
+                smashedComponent.Hulls.Remove(hullUid);
+                expired++;
+            }
+
+            _expiredHulls.Clear();
+            if (expired == 0 && smashedComponent.Hulls.Count > 0)
                 continue;
 
             // Removed at the end of the tick: this is enumerating them. Shut down now, so the refilter sees it gone.
-            RemCompDeferred(uid, smashedComponent);
+            if (smashedComponent.Hulls.Count == 0)
+                RemCompDeferred(uid, smashedComponent);
+            else
+                Dirty(uid, smashedComponent);
+
             Refilter(uid);
         }
     }

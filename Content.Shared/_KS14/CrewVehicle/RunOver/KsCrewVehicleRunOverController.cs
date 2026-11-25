@@ -27,7 +27,6 @@ namespace Content.Shared._KS14.CrewVehicle.RunOver;
 /// </remarks>
 public sealed partial class KsCrewVehicleRunOverController : VirtualController
 {
-    [Dependency] private KsCrewVehiclePushSystem _pushSystem = default!;
     [Dependency] private KsCrewVehicleRunOverSystem _runOverSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
     [Dependency] private StandingStateSystem _standingSystem = default!;
@@ -77,7 +76,8 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
 
                 // Predicted with the hull on its driver's client, so it is seen held at the leading edge, not where the
                 //      server had it a round trip ago, inside the hull.
-                _pushSystem.MarkPushed(mobUid, uid);
+                var movedEvent = new KsCrewVehicleMovesBodyEvent(uid, mobUid);
+                RaiseLocalEvent(ref movedEvent);
                 Carry(mobUid, away, MathF.Max(0f, Vector2.Dot(hullBody.LinearVelocity, away)), prediction);
             }
         }

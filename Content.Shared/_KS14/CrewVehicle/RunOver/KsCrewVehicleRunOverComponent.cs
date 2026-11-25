@@ -73,7 +73,7 @@ public sealed partial class KsCrewVehicleRunOverComponent : Component
 /// <summary>
 ///     On a mob a crew vehicle has just thrown: left alone by hulls until <see cref="Until"/>, while it flies clear.
 /// </summary>
-[RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause, Access(typeof(KsCrewVehicleRunOverSystem))]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause, UnsavedComponent, Access(typeof(KsCrewVehicleRunOverSystem))]
 public sealed partial class KsCrewVehicleStruckComponent : Component
 {
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField, AutoPausedField]

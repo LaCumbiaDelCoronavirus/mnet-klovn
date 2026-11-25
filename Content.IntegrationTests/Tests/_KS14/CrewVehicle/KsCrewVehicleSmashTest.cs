@@ -176,6 +176,46 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
         Assert.That(worstStepBack, Is.LessThan(0.001f), "a lagging driver's client shouldn't see the hull step backward");
     }
 
+    /// <summary>
+    ///     Two hulls smash the same thing, one after the other: both pass through it, the first as well as the second.
+    ///         Control: a hull that smashed nothing, put into it alike, is pushed back out.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task BothHullsPassThroughWhatTheySmashed(bool smashed)
+    {
+        var first = await SpawnHullAsync(new Vector2(-6f, 0f));
+        var second = await SpawnHullAsync(new Vector2(6f, 0f));
+        EntityUid window = default;
+        var windowPosition = Vector2.Zero;
+        await Server.WaitPost(() =>
+        {
+            window = SEntMan.SpawnAtPosition(BlockPrototype, OriginCoordinates.Offset(new Vector2(0f, 6f)));
+            var smashedSystem = SEntMan.System<KsCrewVehicleSmashedSystem>();
+            var passTime = SComp<KsCrewVehicleSmashComponent>(first.Hull).SmashedPassTime;
+            if (smashed)
+                smashedSystem.MarkSmashed(window, first.Hull, passTime);
+            smashedSystem.MarkSmashed(window, second.Hull, passTime);
+        });
+        await RunTicks(1);
+        await Server.WaitPost(() =>
+        {
+            windowPosition = HullPosition(window);
+            Transform.SetLocalPosition(first.Hull, windowPosition);
+            // A sleeping body moved keeps its old contacts: awake, it finds what it now overlaps.
+            SEntMan.System<Robust.Shared.Physics.Systems.SharedPhysicsSystem>().WakeBody(first.Hull);
+        });
+        await RunTicks(TickRate / 4);
+        await Server.WaitAssertion(() =>
+        {
+            var moved = (HullPosition(first.Hull) - windowPosition).Length();
+            if (smashed)
+                Assert.That(moved, Is.LessThan(0.01f), "the first hull should still pass through what it smashed");
+            else
+                Assert.That(moved, Is.GreaterThan(0.05f), "control: a hull that smashed nothing is pushed out of it");
+        });
+    }
+
     [Test]
     public async Task GentleHullBreaksNothing()
     {

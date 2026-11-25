@@ -449,6 +449,26 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     }
 
     /// <summary>
+    ///     Lets go of every movement key before the pair goes back to the pool, however the test ended: a key left held
+    ///         is handed to whatever the next test on the pair has the player be, which may have no mover to take it.
+    ///         Runs before the base fixture's teardown returns the pair.
+    /// </summary>
+    [TearDown]
+    public async Task KsReleaseMovementKeys()
+    {
+        try
+        {
+            await SetMovementKey(DirectionFlag.North | DirectionFlag.South | DirectionFlag.East | DirectionFlag.West,
+                Robust.Shared.Input.BoundKeyState.Up);
+        }
+        catch (Exception exception)
+        {
+            // A pair already broken by the test: nothing to let go of, and the test's own failure says why.
+            TestContext.Out.WriteLine($"releasing movement keys: {exception.Message}");
+        }
+    }
+
+    /// <summary>
     ///     Stands in for network latency, which pooled pairs don't have: the client predicts
     ///         <paramref name="ticks"/> ticks ahead of the last state it has (<c>net.predict_tick_bias</c>), so the
     ///         server's word on anything reaches it that many ticks after it predicted it, and it replays those ticks from
@@ -509,18 +529,25 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         await SetMovementKey(direction, Robust.Shared.Input.BoundKeyState.Down);
         var ticks = 0;
         var done = false;
-        for (; ticks < maxTicks && !done; ticks++)
+        try
         {
-            await RunTicks(1);
-            await Server.WaitAssertion(() =>
+            for (; ticks < maxTicks && !done; ticks++)
             {
-                Assert.That(SidewaysSpeed(hull), Is.LessThan(TopSpeed(hull) * 0.01f),
-                    $"holding {direction}, the hull should move only along its facing");
-                done = until?.Invoke() ?? false;
-            });
+                await RunTicks(1);
+                await Server.WaitAssertion(() =>
+                {
+                    Assert.That(SidewaysSpeed(hull), Is.LessThan(TopSpeed(hull) * 0.01f),
+                        $"holding {direction}, the hull should move only along its facing");
+                    done = until?.Invoke() ?? false;
+                });
+            }
+        }
+        finally
+        {
+            // Let go however this ends: a key left held reaches whatever the next test on this pair puts the player in.
+            await SetMovementKey(direction, Robust.Shared.Input.BoundKeyState.Up);
         }
 
-        await SetMovementKey(direction, Robust.Shared.Input.BoundKeyState.Up);
         return ticks;
     }
 

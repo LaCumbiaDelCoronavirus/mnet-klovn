@@ -58,6 +58,12 @@ public sealed partial class KsCrewVehiclePushSystem : EntitySystem
     }
 
     [SubscribeLocalEvent]
+    private void OnMovesBody(ref KsCrewVehicleMovesBodyEvent args)
+    {
+        MarkPushed(args.Body, args.Hull);
+    }
+
+    [SubscribeLocalEvent]
     private void OnStartCollide(Entity<KsCrewVehiclePushComponent> hull, ref StartCollideEvent args)
     {
         if (_gameTiming.ApplyingState ||
@@ -100,8 +106,12 @@ public sealed partial class KsCrewVehiclePushSystem : EntitySystem
                 continue;
 
             var resting = physicsComponent.LinearVelocity.LengthSquared() < pushedComponent.RestSpeed * pushedComponent.RestSpeed;
-            if (pushedComponent.Hulls.RemoveWhere(hullUid => !Exists(hullUid) || resting && !StillPushing(hullUid, uid)) == 0)
+            // An empty set is let go too: however it came to be empty, nothing else would ever take it away.
+            if (pushedComponent.Hulls.RemoveWhere(hullUid => !Exists(hullUid) || resting && !StillPushing(hullUid, uid)) == 0 &&
+                pushedComponent.Hulls.Count > 0)
+            {
                 continue;
+            }
 
             // Removed at the end of the tick: this is enumerating them.
             if (pushedComponent.Hulls.Count == 0)
