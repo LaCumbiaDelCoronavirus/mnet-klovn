@@ -36,6 +36,12 @@ public sealed partial class KsCrewVehicleViewerComponent : Component
     public Vector2 PreviousMaxZoom = Vector2.One;
 
     /// <summary>
+    ///     How their view was turned in the interior before they sat down, put back when they stand.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public Angle PreviousRelativeRotation;
+
+    /// <summary>
     ///     Whether the seat gave them their cursor lean, so that standing takes it away again. One they had already is
     ///         left alone.
     /// </summary>

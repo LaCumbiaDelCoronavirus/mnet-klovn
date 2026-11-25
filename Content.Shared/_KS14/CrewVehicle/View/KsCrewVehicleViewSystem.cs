@@ -1,4 +1,5 @@
 using Content.Shared._KS14.CrewVehicle.Interior;
+using Content.Shared._KS14.Movement;
 using Content.Shared.Buckle.Components;
 using Content.Shared.Movement.Components;
 using Content.Shared.Movement.Systems;
@@ -20,6 +21,10 @@ namespace Content.Shared._KS14.CrewVehicle.View;
 ///         clears it again as well. Both set the same target, which <see cref="SharedEyeSystem.SetTarget"/> ignores
 ///         the second time, and this clears it only if it is still the vehicle; when the operator is taken away from
 ///         someone still seated, this puts it back.
+///     <para/>
+///     The eye is turned as a mob's standing at the hull would be: the occupant's mover borrows the hull's grid as its
+///         frame (<see cref="KsMoverRelativeFrameComponent"/>), so it eases onto that grid's angle as it would stepping
+///         onto it, and a driver's keys turn with the screen. Standing snaps it back to the interior.
 /// </remarks>
 public sealed partial class KsCrewVehicleViewSystem : EntitySystem
 {
@@ -32,12 +37,14 @@ public sealed partial class KsCrewVehicleViewSystem : EntitySystem
     [Dependency] private SharedKsCrewVehicleInteriorSystem _interiorSystem = default!;
     [Dependency] private SharedEyeSystem _eyeSystem = default!;
     [Dependency] private SharedContentEyeSystem _contentEyeSystem = default!;
+    [Dependency] private SharedMoverController _moverController = default!;
     [Dependency] private EntityQuery<KsCrewVehicleViewSeatComponent> _viewSeatQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleViewerComponent> _viewerQuery = default!;
     [Dependency] private EntityQuery<EyeComponent> _eyeQuery = default!;
     [Dependency] private EntityQuery<ContentEyeComponent> _contentEyeQuery = default!;
     [Dependency] private EntityQuery<BuckleComponent> _buckleQuery = default!;
     [Dependency] private EntityQuery<StrapComponent> _strapQuery = default!;
+    [Dependency] private EntityQuery<InputMoverComponent> _moverQuery = default!;
 
     private Type _cursorOffsetType = default!;
 
@@ -76,6 +83,9 @@ public sealed partial class KsCrewVehicleViewSystem : EntitySystem
             viewerComponent.PreviousMaxZoom = contentEyeComponent.MaxZoom;
         }
 
+        if (_moverQuery.TryComp(occupantUid, out var moverComponent))
+            viewerComponent.PreviousRelativeRotation = moverComponent.TargetRelativeRotation;
+
         // Filled in first, so that its startup has everything.
         AddComp(occupantUid, viewerComponent);
         Dirty(occupantUid, viewerComponent);
@@ -102,6 +112,10 @@ public sealed partial class KsCrewVehicleViewSystem : EntitySystem
 
         if (_eyeQuery.TryComp(viewer.Owner, out var eyeComponent))
             _eyeSystem.SetTarget(viewer.Owner, viewer.Comp.Vehicle, eyeComponent);
+
+        var frameComponent = EnsureComp<KsMoverRelativeFrameComponent>(viewer.Owner);
+        frameComponent.Frame = viewer.Comp.Vehicle;
+        Dirty(viewer.Owner, frameComponent);
 
         if (_contentEyeQuery.TryComp(viewer.Owner, out var contentEyeComponent))
         {
@@ -137,6 +151,13 @@ public sealed partial class KsCrewVehicleViewSystem : EntitySystem
         // Only our own target: anything else the eye was pointed at since is not ours to clear.
         if (_eyeQuery.TryComp(viewer.Owner, out var eyeComponent) && eyeComponent.Target == viewer.Comp.Vehicle)
             _eyeSystem.SetTarget(viewer.Owner, null, eyeComponent);
+
+        // Back to the interior's frame at once: the eye is already back inside, with nothing to ease from.
+        if (HasComp<KsMoverRelativeFrameComponent>(viewer.Owner))
+        {
+            RemCompDeferred<KsMoverRelativeFrameComponent>(viewer.Owner);
+            _moverController.KsSnapToOwnFrame(viewer.Owner, viewer.Comp.PreviousRelativeRotation);
+        }
 
         if (_contentEyeQuery.TryComp(viewer.Owner, out var contentEyeComponent))
         {

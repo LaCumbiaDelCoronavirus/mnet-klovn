@@ -131,6 +131,7 @@ public abstract partial class SharedMoverController : VirtualController
             if (!MoverQuery.TryComp(relay.RelayEntity, out var relayTargetMover))
                 return;
 
+            KsUpdateRelayedFrame(uid, mover); // KS14: a relaying mover that borrows its frame still follows it
             // Always lerp rotation so relay entities aren't cooked.
             LerpRotation(uid, mover, frameTime);
             var dirtied = false;
@@ -173,7 +174,7 @@ public abstract partial class SharedMoverController : VirtualController
             // Update relative movement
             if (mover.LerpTarget < Timing.CurTime)
             {
-                TryUpdateRelative(uid, mover, xform);
+                TryUpdateRelative(uid, mover, KsFrameTransform(uid, xform) /* KS14: xform -> its borrowed frame's, if any */);
             }
 
             LerpRotation(uid, mover, frameTime);
