@@ -209,16 +209,17 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
     private float Damage(EntityUid uid) =>
         SEntMan.System<DamageableSystem>().GetTotalDamage(SEntity<DamageableComponent>(uid).AsNullable()).Float();
 
-    private async Task<Scene> SpawnHullAsync(double degrees, bool loadInterior, bool wideCabin = false)
+    private async Task<Scene> SpawnHullAsync(double degrees, bool loadInterior, bool wideCabin = false, EntProtoId? hullPrototype = null, bool overrideMinShots = true)
     {
-        await OverrideCVar(Side.Server, KsCCVars.GunPenetrationMinShots, MinShots);
+        if (overrideMinShots)
+            await OverrideCVar(Side.Server, KsCCVars.GunPenetrationMinShots, MinShots);
         var testMap = await Pair.CreateTestMap();
         var rotation = Angle.FromDegrees(degrees);
         EntityUid hull = default;
         EntityUid? grid = null;
         await Server.WaitPost(() =>
         {
-            hull = SEntMan.Spawn(wideCabin ? _wideCabinHull : _hull, new MapCoordinates(HullPosition, testMap.MapId));
+            hull = SEntMan.Spawn(hullPrototype ?? (wideCabin ? _wideCabinHull : _hull), new MapCoordinates(HullPosition, testMap.MapId));
             TransformSystem.SetWorldRotation(hull, rotation);
             if (!loadInterior)
                 return;
@@ -474,5 +475,63 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
             AssertDirection(outside.Velocity, new Vector2(-1f, 0f), "the round outside");
             Assert.That(Damage(target), Is.GreaterThan(0f), "what is behind the hull is hit");
         });
+    }
+
+    /// <summary>
+    ///     What the penetration framework does with a round against a hull needing <paramref name="required"/> a hit
+    ///         (<c>PredictedProjectileSystem.TryPenetrate</c>): a hit deals at most what is left of the round's budget, and
+    ///         lets it go on only if it dealt what the hull needs and the budget is not used up by it.
+    /// </summary>
+    private static (bool Enters, bool Exits) WorkOutPassThrough(float required, float threshold)
+    {
+        var spent = 0f;
+        var entered = false;
+        for (var hit = 0; hit < 2; hit++)
+        {
+            var dealt = MathF.Min(required, threshold - spent);
+            if (dealt < required)
+                return (entered, false);
+
+            spent += required;
+            if (spent >= threshold)
+                return (entered, false);
+
+            entered = true;
+        }
+
+        return (true, true);
+    }
+
+    /// <summary>
+    ///     The shipped tank's armour-piercing shell against the shipped vehicles' hulls: whether it gets into the
+    ///         interior and whether it comes out of the far side follow from its penetration budget and what the hull needs
+    ///         a hit, worked out as the framework does, so a retune of either moves the expectation with it.
+    /// </summary>
+    [TestCase("KsCrewVehicleHumvee")]
+    [TestCase("KsCrewVehicleTank")]
+    public async Task LiveApShellAgainstLiveHull(string hullId)
+    {
+        EntProtoId hullPrototype = hullId;
+        EntProtoId shell = "KsBulletTankShellAP";
+        var scene = await SpawnHullAsync(0d, loadInterior: true, hullPrototype: hullPrototype, overrideMinShots: false);
+
+        var minShots = Server.CfgMan.GetCVar(KsCCVars.GunPenetrationMinShots);
+        var required = SEntMan.System<SharedDestructibleSystem>().DestroyedAt(scene.Hull).Float() / minShots;
+        Assert.That(SProtoMan.Index(shell).TryGetComponent<ProjectileComponent>(out var shellProjectile, SEntMan.ComponentFactory), Is.True);
+        var threshold = shellProjectile!.PenetrationThreshold.Float();
+        var (enters, exits) = WorkOutPassThrough(required, threshold);
+        Assert.That(enters, Is.True, $"precondition: {hullId}'s hull is one the shell penetrates (needs {required} a hit, shell has {threshold})");
+
+        // Before the shot: a hull the exit hole destroys takes its interior with it.
+        var interiorMapId = InteriorMapId(scene);
+        var (round, sightings) = await FireAsync(scene, shell);
+
+        var inside = FirstOn(sightings, interiorMapId, round);
+        var outside = FirstOn(sightings, scene.MapId, round);
+        Assert.That(inside, Is.Not.Null, $"the shell goes into {hullId}");
+        if (exits)
+            Assert.That(outside, Is.Not.Null, $"and, with {threshold} to spend at {required} a hull, comes out of its far side");
+        else
+            Assert.That(outside, Is.Null, $"and, with {threshold} to spend at {required} a hull, is spent by the second hole and does not come out");
     }
 }

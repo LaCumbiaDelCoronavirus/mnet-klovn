@@ -287,7 +287,7 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
                 LogImpact.Medium,
                 $"Projectile {ToPrettyString(uid):projectile} shot by {ToPrettyString(shooter):user} hit {otherName:target} and dealt {damage:damage} damage");
 
-            comp.ProjectileSpent = !TryPenetrate((uid, comp), damage, damageRequired);
+            comp.ProjectileSpent = !TryPenetrate((uid, comp), damage, damageRequired, ev.Damage.GetTotal() /* KS14: added arg */);
             if (!comp.ProjectileSpent && !KsTryContinuePenetrating((uid, comp), target)) comp.ProjectileSpent = true; // KS14: something the round went through can take it elsewhere (a crew vehicle's interior)
         }
         else
@@ -327,7 +327,7 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
         }
     }
 
-    private bool TryPenetrate(Entity<ProjectileComponent> projectile, DamageSpecifier damage, FixedPoint2 damageRequired)
+    private bool TryPenetrate(Entity<ProjectileComponent> projectile, DamageSpecifier damage, FixedPoint2 damageRequired, FixedPoint2 baseDamage /* KS14: added param */)
     {
         // If penetration is to be considered, we need to do some checks to see if the projectile should stop.
         if (projectile.Comp.PenetrationThreshold == 0)
@@ -352,7 +352,7 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
         }
 
         // If the object won't be destroyed, it "tanks" the penetration hit.
-        if (FixedPoint2.Abs(damageRequired - damage.GetTotal()) > FixedPoint2.New(1)) //KS14, ugly code accounting for inaccuracies
+        if (FixedPoint2.Abs(damageRequired - damage.GetTotal()) > FixedPoint2.New(1) + baseDamage * 0.01f /* KS14: added, what rounding the multiplier up to 0.01 can add */) //KS14, ugly code accounting for inaccuracies
         {
             return false;
         }
@@ -396,7 +396,7 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
         if (modifierSet == null)
         {
             var totalDamage = damage.GetTotal().Float();
-            return IsFinite(totalDamage) ? totalDamage / requiredEffectiveDamage : 0f;
+            return IsFinite(totalDamage) && totalDamage > 0f ? requiredEffectiveDamage / totalDamage : 0f; // KS14: totalDamage / requiredEffectiveDamage -> inverted, the multiplier that makes the damage equal the required amount
         }
 
         var typeData = new List<(float BaseDamage, float FlatReduction, float PercentileMultiplier, float ZeroThreshold, float SwitchThreshold)>();
