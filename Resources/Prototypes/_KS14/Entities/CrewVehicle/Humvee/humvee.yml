@@ -23,18 +23,17 @@
       wheels:
         state: wheels_idle
   - type: Appearance
-  # Past half health in brute damage the frame is battered (Hull_Brute_1) and the wheels wrecked (Wheels_Brute_1, drawn
-  #   over the intact ones, still or turning). The art has the two steps only. By damage group rather than all damage
-  #   because the visualiser updates target layers only by group, and Brute is the only group the hull's container has.
+  # Past half health, whatever the damage, the frame is battered (Hull_1) and the wheels wrecked (Wheels_1, drawn over the
+  #   intact ones, still or turning). The art has the two steps only.
   - type: DamageVisuals
     thresholds: [ 1 ]
     damageDivisor: 500
+    trackAllDamage: true
     targetLayers:
     - enum.KsCrewVehicleVisualLayers.Hull
     - enum.KsCrewVehicleVisualLayers.Wheels
-    damageOverlayGroups:
-      Brute:
-        sprite: _KS14/CrewVehicle/Humvee/hull.rsi
+    damageOverlay:
+      sprite: _KS14/CrewVehicle/Humvee/hull.rsi
   - type: Fixtures
     fixtures:
       fix1:
@@ -220,8 +219,8 @@
     drawdepth: Mobs
     layers:
     - state: humvee_base
-    - state: Hull_Brute_1
-    - state: Wheels_Brute_1
+    - state: Hull_1
+    - state: Wheels_1
     # The broken turret and barrel, lifted onto the roof hatch of the south-facing drawing.
     - state: humveeturret_1
       offset: 0,0.34

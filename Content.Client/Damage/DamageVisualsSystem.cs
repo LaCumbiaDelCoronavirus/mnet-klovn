@@ -640,7 +640,7 @@ public sealed partial class DamageVisualsSystem : VisualizerSystem<DamageVisuals
     /// </summary>
     private void UpdateTargetLayer(Entity<SpriteComponent> spriteEnt, DamageVisualsComponent damageVisComp, object layerMapKey, FixedPoint2 threshold)
     {
-        if (damageVisComp.Overlay && damageVisComp.DamageOverlayGroups != null)
+        if (damageVisComp.Overlay && (damageVisComp.DamageOverlayGroups != null || damageVisComp.DamageOverlay != null /* KS14: added, a trackAllDamage overlay on target layers was never redrawn */))
         {
             if (!damageVisComp.DisabledLayers[layerMapKey])
             {
