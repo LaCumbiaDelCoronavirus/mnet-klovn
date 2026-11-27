@@ -409,12 +409,10 @@ public sealed class KsCrewVehicleSeatViewTest : KsCrewVehicleViewTestBase
             Assert.That(flashed, Does.Contain(SEntMan.GetNetEntity(near)), "a hit's flash beside the vehicle should reach the player looking out of it");
             Assert.That(flashed, Does.Not.Contain(SEntMan.GetNetEntity(gone)), "one on something they no longer see should not");
 
-            // The control player: the same session, standing up and then looking from a mob on a map of its own, far
-            //      from the vehicle. Standing first: the engine drops an eye target's view subscription on detach only
-            //      while the eye's owner still has its actor, which the detach has already removed.
+            // The control player: the same session, now looking from a mob on a map of its own, far from the vehicle,
+            //      its body left in the seat.
             await Server.WaitPost(() =>
             {
-                Unbuckle(scene.Mob);
                 SEntMan.System<SharedMapSystem>().CreateMap(out var elsewhereMapId);
                 var elsewhereMob = SEntMan.SpawnEntity(MobPrototype, new MapCoordinates(Vector2.Zero, elsewhereMapId));
                 Server.PlayerMan.SetAttachedEntity(ServerSession!, elsewhereMob);
@@ -436,6 +434,42 @@ public sealed class KsCrewVehicleSeatViewTest : KsCrewVehicleViewTestBase
         {
             await Client.WaitPost(() => CEntMan.EntityNetManager.ReceivedSystemMessage -= capture);
         }
+    }
+
+    /// <summary>
+    ///     A player who leaves their body while it sits in a view seat (ghosting, as the ghost system does it, by
+    ///         attaching them elsewhere) stops being sent the vehicle; coming back to the body sends it again.
+    /// </summary>
+    [Test]
+    public async Task LeavingTheBodyInAViewSeatStopsTheView()
+    {
+        var scene = await SetUpSeatsAsync();
+        await Server.WaitPost(() => Buckle(scene.Mob, scene.ViewSeat));
+        await Pair.RunTicksSync(SettleTicks);
+        await Server.WaitAssertion(() =>
+            Assert.That(ServerSession!.ViewSubscriptions, Does.Contain(scene.Vehicle.Hull), "precondition: seated, the hull is subscribed"));
+
+        await Server.WaitPost(() =>
+        {
+            SEntMan.System<SharedMapSystem>().CreateMap(out var elsewhereMapId);
+            var ghostUid = SEntMan.SpawnEntity(MobPrototype, new MapCoordinates(Vector2.Zero, elsewhereMapId));
+            Server.PlayerMan.SetAttachedEntity(ServerSession!, ghostUid);
+        });
+        await Pair.RunTicksSync(SettleTicks);
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(ServerSession!.ViewSubscriptions, Does.Not.Contain(scene.Vehicle.Hull),
+                "a player who has left the seated body should no longer be sent the hull");
+            Assert.That(SubscribedViewers(), Is.Empty, "nor the outside viewer");
+        });
+
+        await Server.WaitPost(() => Server.PlayerMan.SetAttachedEntity(ServerSession!, scene.Mob));
+        await Pair.RunTicksSync(SettleTicks);
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(ServerSession!.ViewSubscriptions, Does.Contain(scene.Vehicle.Hull), "back in the seated body, the hull is sent again");
+            Assert.That(SubscribedViewers(), Has.Count.EqualTo(1), "and the outside viewer");
+        });
     }
 
     /// <summary>As a weapon raises it: to everyone whose body is in PVS of what was hit. Call on the server thread.</summary>

@@ -54,6 +54,23 @@ public sealed partial class KsCrewVehicleOutsidePvsSystem : EntitySystem
     private void OnOccupantPlayerDetached(EntityUid uid, KsCrewVehicleOccupantComponent component, PlayerDetachedEvent args)
     {
         Close(uid);
+        DropEyeTargetSubscription((uid, component), args.Player);
+    }
+
+    /// <summary>
+    ///     Takes the leaving session off the hull its eye was pointed at from a view seat. The engine means to do this on
+    ///         detach (<see cref="SharedEyeSystem"/>), but only for an owner that still has its actor, which the detach
+    ///         has already removed, so a player who ghosts from the seat would go on being sent the hull. Attaching again
+    ///         subscribes it again, as the actor is added first.
+    /// </summary>
+    private void DropEyeTargetSubscription(Entity<KsCrewVehicleOccupantComponent> occupant, ICommonSession session)
+    {
+        if (!_eyeQuery.TryComp(occupant, out var eyeComponent) ||
+            eyeComponent.Target != occupant.Comp.Vehicle ||
+            TerminatingOrDeleted(occupant.Comp.Vehicle))
+            return;
+
+        _viewSubscriberSystem.RemoveViewSubscriber(occupant.Comp.Vehicle, session);
     }
 
     [SubscribeLocalEvent]
