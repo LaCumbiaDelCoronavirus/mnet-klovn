@@ -200,7 +200,6 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
         {
             Assert.That(HasAction(horn), Is.True, "the driver gets the horn");
             Assert.That(HasAction(headlight), Is.True, "and the headlight");
-            Assert.That(SComp<AmbientSoundComponent>(scene.Hull).Enabled, Is.True, "and the engine runs");
 
             actionsSystem.PerformAction(SPlayer, SEntity<ActionComponent>(headlight));
             Assert.That(SEntMan.System<SharedPointLightSystem>().TryGetLight(scene.Hull, out var light) && light.Enabled, Is.True,
@@ -212,10 +211,7 @@ public sealed class KsCrewVehicleDriveTest : KsCrewVehicleDriveTestBase
 
         await StandAsync();
         await Server.WaitAssertion(() =>
-        {
-            Assert.That(HasAction(horn) || HasAction(headlight), Is.False, "standing up takes the driver actions away");
-            Assert.That(SComp<AmbientSoundComponent>(scene.Hull).Enabled, Is.False, "and the engine stops");
-        });
+            Assert.That(HasAction(horn) || HasAction(headlight), Is.False, "standing up takes the driver actions away"));
     }
 
     /// <summary>

@@ -61,12 +61,15 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
 
                 var (_, otherFixture) = contact.OtherFixture(uid);
                 var mobUid = contact.OtherEnt(uid);
-                // A struck mob is carried too, at the leading edge, until the server's throw sends it off faster: the
-                //      driver's client otherwise drives on into it for the round trip the throw takes to arrive.
+                // A struck mob is carried too, at the leading edge, until the server's throw begins: the driver's client
+                //      otherwise drives on into it for the round trip the throw takes to arrive. Never after: a throw stopped
+                //      at once by a wall leaves the mob struck and down against the hull, and it would ride along on it.
+                var awaitingThrow = _runOverSystem.IsAwaitingThrow(mobUid);
                 if (!otherFixture.Hard ||
                     !_mobStateQuery.HasComp(mobUid) ||
                     _runOverSystem.IsUnder(mobUid, uid) ||
-                    _standingSystem.IsDown(mobUid) && !_runOverSystem.IsStruck(mobUid))
+                    _runOverSystem.IsStruck(mobUid) && !awaitingThrow ||
+                    _standingSystem.IsDown(mobUid) && !awaitingThrow)
                 {
                     continue;
                 }

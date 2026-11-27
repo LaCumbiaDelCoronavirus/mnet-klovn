@@ -1,6 +1,7 @@
 using Content.Shared.Damage;
 using Content.Shared.Whitelist;
 using Robust.Shared.Audio;
+using Robust.Shared.Prototypes;
 using Robust.Shared.GameStates;
 
 namespace Content.Shared._KS14.CrewVehicle.Smash;
@@ -79,6 +80,18 @@ public sealed partial class KsCrewVehicleSmashComponent : Component
 
     [DataField]
     public SoundSpecifier? CrashSound;
+
+    /// <summary>
+    ///     A one-shot effect spawned where the hull smashes through something.
+    /// </summary>
+    [DataField]
+    public EntProtoId? SmashEffect;
+
+    /// <summary>
+    ///     A one-shot effect spawned where the hull crashes into a wall.
+    /// </summary>
+    [DataField]
+    public EntProtoId? CrashEffect;
 
     /// <summary>
     ///     When the hull may damage itself again.

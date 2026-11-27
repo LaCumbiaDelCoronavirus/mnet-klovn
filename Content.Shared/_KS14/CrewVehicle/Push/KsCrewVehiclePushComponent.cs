@@ -27,6 +27,35 @@ public sealed partial class KsCrewVehiclePushComponent : Component
     /// </summary>
     [DataField]
     public float StuckDistance = 0.03f;
+
+    /// <summary>
+    ///     Played when the hull strikes something to push it at <see cref="ShoveSoundMinSpeed"/> or more: once a strike,
+    ///         not while it keeps pushing, and no more often than <see cref="ShoveSoundCooldown"/>.
+    /// </summary>
+    [DataField]
+    public Robust.Shared.Audio.SoundSpecifier? ShoveSound;
+
+    /// <summary>
+    ///     The same, for striking another vehicle.
+    /// </summary>
+    [DataField]
+    public Robust.Shared.Audio.SoundSpecifier? ShoveVehicleSound;
+
+    /// <summary>
+    ///     How fast, in m/s, the hull must close on what it strikes for the sound.
+    /// </summary>
+    [DataField]
+    public float ShoveSoundMinSpeed = 1.5f;
+
+    [DataField]
+    public TimeSpan ShoveSoundCooldown = TimeSpan.FromSeconds(0.5);
+
+    /// <summary>
+    ///     Each side keeps its own, so not networked: the server plays for everyone but the driver, whose client plays its
+    ///         own.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly)]
+    public TimeSpan NextShoveSound;
 }
 
 /// <summary>

@@ -25,6 +25,12 @@ public sealed partial class KsCrewVehicleCrashLockoutComponent : Component
     /// </summary>
     [DataField]
     public LocId Popup = "ks-crew-vehicle-crash-lockout";
+
+    /// <summary>
+    ///     Played when a crash stalls the vehicle.
+    /// </summary>
+    [DataField]
+    public Robust.Shared.Audio.SoundSpecifier? StallSound;
 }
 
 /// <summary>

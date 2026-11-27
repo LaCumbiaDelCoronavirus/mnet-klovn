@@ -34,6 +34,7 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     protected readonly EntProtoId HullPrototype = "KsCrewVehicleDriveTestHull";
     protected readonly EntProtoId WheeledHullPrototype = "KsCrewVehicleDriveTestHullWheeled";
     protected readonly EntProtoId OffGridHullPrototype = "KsCrewVehicleDriveTestHullOffGrid";
+    protected readonly EntProtoId EngineHullPrototype = "KsCrewVehicleDriveTestHullEngine";
     protected readonly EntProtoId GentleHullPrototype = "KsCrewVehicleDriveTestHullGentle";
     protected readonly EntProtoId ThrowerHullPrototype = "KsCrewVehicleDriveTestHullThrower";
     protected readonly EntProtoId ItemColliderHullPrototype = "KsCrewVehicleDriveTestHullItemCollider";
@@ -75,7 +76,6 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         - MobMask
         layer:
         - MidImpassable
-        - LowImpassable
         - BulletImpassable
         - Opaque
       contact:
@@ -107,10 +107,6 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         offset: 1,0
       right:
         offset: -1,0
-  - type: AmbientSound
-    enabled: false
-    sound:
-      path: /Audio/Effects/Vehicle/vehicleengineidle.ogg
   - type: ActionsContainer
   - type: KsCrewVehicleHorn
     sound:
@@ -153,6 +149,19 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     minImpactSpeed: 2
     duration: 1
   - type: KsCrewVehiclePush
+
+# With an engine, which starts at once, and pullable while it is off: the engine and pulling tests'.
+- type: entity
+  parent: KsCrewVehicleDriveTestHull
+  id: KsCrewVehicleDriveTestHullEngine
+  components:
+  - type: KsCrewVehicleEngine
+    startDelay: 0.5
+  - type: Pullable
+  - type: HeldSpeedModifier
+    walkModifier: 0.25
+    sprintModifier: 0.25
+    mirrorClothingModifier: false
 
 # Opted in to leaving the floor: the off-grid tests' control.
 - type: entity
@@ -507,6 +516,23 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         });
         // Long enough for the client to settle that far ahead.
         await RunTicks(TickRate);
+    }
+
+    /// <summary>
+    ///     Starts <paramref name="hull"/>'s engine with the seated driver's action, as a player would, and waits out its
+    ///         start delay. Hulls without an engine always run and need none of this.
+    /// </summary>
+    protected async Task StartEngineAsync(EntityUid hull)
+    {
+        var delay = TimeSpan.Zero;
+        await Server.WaitPost(() =>
+        {
+            var engine = SComp<Content.Shared._KS14.CrewVehicle.Engine.KsCrewVehicleEngineComponent>(hull);
+            delay = engine.StartDelay;
+            SEntMan.System<Content.Shared.Actions.SharedActionsSystem>().PerformAction(SPlayer,
+                SEntity<Content.Shared.Actions.Components.ActionComponent>(engine.ActionEntity!.Value));
+        });
+        await RunTicks((int)(delay.TotalSeconds * TickRate) + 2);
     }
 
     protected T SComp<T>(EntityUid uid) where T : IComponent => SEntMan.GetComponent<T>(uid);

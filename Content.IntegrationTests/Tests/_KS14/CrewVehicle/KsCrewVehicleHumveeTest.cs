@@ -61,6 +61,7 @@ public sealed class KsCrewVehicleHumveeTest : KsCrewVehicleGunnerTestBase
         });
 
         await SitAsync(driverSeat);
+        await StartEngineAsync(hull);
 
         // Up is forward, whichever way it faces.
         var start = Vector2.Zero;

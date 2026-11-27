@@ -68,6 +68,12 @@ public sealed partial class KsCrewVehicleRunOverComponent : Component
 
     [DataField]
     public SoundSpecifier? HitSound;
+
+    /// <summary>
+    ///     Played as well when the struck mob is thrown.
+    /// </summary>
+    [DataField]
+    public SoundSpecifier? ThrowSound;
 }
 
 /// <summary>
@@ -76,6 +82,12 @@ public sealed partial class KsCrewVehicleRunOverComponent : Component
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause, UnsavedComponent, Access(typeof(KsCrewVehicleRunOverSystem))]
 public sealed partial class KsCrewVehicleStruckComponent : Component
 {
+    /// <summary>
+    ///     Whether the server's throw has begun. A struck mob is carried only before that.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public bool Launched;
+
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField, AutoPausedField]
     public TimeSpan Until;
 }

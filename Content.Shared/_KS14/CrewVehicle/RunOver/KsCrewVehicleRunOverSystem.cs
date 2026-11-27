@@ -110,6 +110,13 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
 
         var struckComponent = EnsureComp<KsCrewVehicleStruckComponent>(mobUid);
         struckComponent.Until = _gameTiming.CurTime + hull.Comp.StruckIgnoreTime;
+        // The server's own throw has begun; a predicting client's marker waits for the server's word.
+        struckComponent.Launched = ev.Thrown;
+        _audioSystem.PlayPredicted(hull.Comp.ThrowSound, mobUid, _vehicleQuery.CompOrNull(hull.Owner)?.Operator);
+
+        // Its flight is predicted with the hull on the driver's client, so it is seen going off ahead, not inside.
+        var movedEvent = new Push.KsCrewVehicleMovesBodyEvent(hull.Owner, mobUid);
+        RaiseLocalEvent(ref movedEvent);
         Dirty(mobUid, struckComponent);
         return true;
     }
@@ -117,6 +124,15 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
     /// <summary>
     ///     Whether <paramref name="mobUid"/> was just thrown by a hull and is still to be left alone.
     /// </summary>
+    /// <summary>
+    ///     Whether <paramref name="mobUid"/> was struck and its throw hasn't begun yet: until then it is carried at the
+    ///         hull's leading edge, and never once the throw has begun, however it ended.
+    /// </summary>
+    public bool IsAwaitingThrow(EntityUid mobUid)
+    {
+        return IsStruck(mobUid) && _struckQuery.TryComp(mobUid, out var struckComponent) && !struckComponent.Launched;
+    }
+
     public bool IsStruck(EntityUid mobUid)
     {
         return _struckQuery.TryComp(mobUid, out var struckComponent) &&

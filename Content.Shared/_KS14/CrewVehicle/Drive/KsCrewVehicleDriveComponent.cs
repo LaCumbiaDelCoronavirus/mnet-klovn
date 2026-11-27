@@ -59,6 +59,25 @@ public sealed partial class KsCrewVehicleDriveComponent : Component
     public float ParkedFrictionModifier = 1f;
 
     /// <summary>
+    ///     Played when the floor's edge stops the hull from <see cref="EdgeStopSoundMinSpeed"/> or more, no more often than
+    ///         <see cref="EdgeStopSoundCooldown"/>: the stop, not the creep up to the edge after it.
+    /// </summary>
+    [DataField]
+    public Robust.Shared.Audio.SoundSpecifier? EdgeStopSound;
+
+    [DataField]
+    public float EdgeStopSoundMinSpeed = 1f;
+
+    [DataField]
+    public TimeSpan EdgeStopSoundCooldown = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    ///     Each side keeps its own, so not networked.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), Access(typeof(Floor.KsCrewVehicleFloorController))]
+    public TimeSpan NextEdgeStopSound;
+
+    /// <summary>
     ///     The hull's body fixture, whose rim must stay over floor.
     /// </summary>
     [DataField]
@@ -86,4 +105,15 @@ public enum KsCrewVehicleDriveTrain : byte
     ///     Turns at its full rate whether moving or not, on the spot if need be.
     /// </summary>
     Tracked,
+}
+
+/// <summary>
+///     Raised on a driven hull each movement step, predicted, with whether its driver can drive. While they can't,
+///         nothing is held unless a handler gives <see cref="Keys"/>: the keys to steer with instead, as the stick would be
+///         held (+Y forward, +X right, at the wish's speed). Handlers may keep state of their own on it.
+/// </summary>
+[ByRefEvent]
+public record struct KsCrewVehicleDriverSteerEvent(EntityUid Driver, bool Incapacitated, System.Numerics.Vector2 HeldKeys)
+{
+    public System.Numerics.Vector2? Keys;
 }

@@ -25,6 +25,9 @@ public sealed partial class KsCrewVehicleFloorController : VirtualController
 {
     [Dependency] private KsCrewVehicleFloorSystem _floorSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
+    [Dependency] private Robust.Shared.Timing.IGameTiming _gameTiming = default!;
+    [Dependency] private Robust.Shared.Audio.Systems.SharedAudioSystem _audioSystem = default!;
+    [Dependency] private EntityQuery<Content.Shared.Vehicle.Components.VehicleComponent> _vehicleQuery = default!;
 
     [Dependency] private EntityQuery<MovementRelayTargetComponent> _relayTargetQuery = default!;
 
@@ -94,6 +97,13 @@ public sealed partial class KsCrewVehicleFloorController : VirtualController
 
         if (allowed && scale >= 1f)
             return;
+
+        // The stop itself, once: not the creep up to the edge after it, which is slower than this.
+        if (velocity.Length() >= hull.Comp.EdgeStopSoundMinSpeed && _gameTiming.CurTime >= hull.Comp.NextEdgeStopSound)
+        {
+            hull.Comp.NextEdgeStopSound = _gameTiming.CurTime + hull.Comp.EdgeStopSoundCooldown;
+            _audioSystem.PlayPredicted(hull.Comp.EdgeStopSound, hull, _vehicleQuery.CompOrNull(hull)?.Operator);
+        }
 
         PhysicsSystem.SetLinearVelocity(hull, allowed ? velocity * scale : System.Numerics.Vector2.Zero, body: physicsComponent);
     }}

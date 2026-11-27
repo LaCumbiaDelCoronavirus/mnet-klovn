@@ -3,3 +3,5 @@ ent-KsCrewVehicleActionHorn = Sound horn
     .desc = Sound the vehicle's horn.
 ent-KsCrewVehicleActionSelectWeapon = Select weapon
     .desc = Fire this weapon.
+ent-KsCrewVehicleActionEngine = Engine
+    .desc = Start or stop the vehicle's engine.

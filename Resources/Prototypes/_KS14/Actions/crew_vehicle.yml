@@ -10,6 +10,19 @@
   - type: InstantAction
     event: !type:KsCrewVehicleHornActionEvent
 
+# Starts or stops the engine; on while it runs, and its cooldown is the start delay.
+- type: entity
+  parent: BaseAction
+  id: KsCrewVehicleActionEngine
+  name: Engine
+  description: Start or stop the vehicle's engine.
+  components:
+  - type: Action
+    icon: { sprite: Interface/Actions/actions_mecha.rsi, state: mech_cycle_equip_off }
+    iconOn: { sprite: Interface/Actions/actions_mecha.rsi, state: mech_cycle_equip_on }
+  - type: InstantAction
+    event: !type:KsCrewVehicleEngineActionEvent
+
 # One per weapon of a gunner seat that has several. Its own icon: the rounds of its weapon are drawn on it
 #   (KsCrewVehicleGunnerHudSystem), by the stock counter the alerts use.
 - type: entity

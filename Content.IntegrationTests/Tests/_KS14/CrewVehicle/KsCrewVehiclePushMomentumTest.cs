@@ -123,6 +123,34 @@ public sealed class KsCrewVehiclePushMomentumTest : KsCrewVehicleDriveTestBase
     }
 
     /// <summary>
+    ///     The humvee as shipped, its hull no longer on the LowImpassable layer, still pushes a real crate: they collide
+    ///         through the hull's mask meeting the crate's layer.
+    /// </summary>
+    [Test]
+    public async Task HumveePushesARealCrate()
+    {
+        var scene = await SpawnHullAsync(Start, new Robust.Shared.Prototypes.EntProtoId("KsCrewVehicleHumvee"));
+        await PutInsideAsync(scene);
+        await SitAsync(scene.DriverSeat);
+        var facing = Vector2.Zero;
+        EntityUid crate = default;
+        await Server.WaitPost(() =>
+        {
+            facing = KsCrewVehicleHullFrame.Forward(HullRotation(scene.Hull));
+            crate = SEntMan.SpawnAtPosition("CrateGeneric", OriginCoordinates.Offset(Start + facing * 3.5f));
+            var engine = SComp<Content.Shared._KS14.CrewVehicle.Engine.KsCrewVehicleEngineComponent>(scene.Hull);
+            SEntMan.System<Content.Shared._KS14.CrewVehicle.Engine.KsCrewVehicleEngineSystem>().TryStart((scene.Hull, engine), SPlayer);
+        });
+        await RunTicks(TickRate * 2);
+
+        var crateStart = 0f;
+        await Server.WaitPost(() => crateStart = Along(crate, facing));
+        await HoldAsync(scene.Hull, DirectionFlag.North, TickRate * 2);
+        await Server.WaitAssertion(() =>
+            Assert.That(Along(crate, facing) - crateStart, Is.GreaterThan(1f), "the humvee should push a crate it drives into"));
+    }
+
+    /// <summary>
     ///     A driver who gets up mid-push stops predicting what the hull was pushing, though it slides on a while.
     /// </summary>
     [Test]

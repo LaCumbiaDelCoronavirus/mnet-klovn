@@ -7,6 +7,7 @@ using Content.Shared.Whitelist;
 using Robust.Shared.Audio.Systems;
 using Robust.Shared.Physics.Events;
 using Robust.Shared.Physics.Systems;
+using Robust.Shared.Prototypes;
 using Robust.Shared.Timing;
 
 namespace Content.Shared._KS14.CrewVehicle.Smash;
@@ -74,6 +75,7 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
                 _smashedSystem.RecordPredictedSmash(hull.Owner, otherUid, velocity * hull.Comp.SmashSpeedRetained, hull.Comp.SmashedPassTime);
             }
             _audioSystem.PlayPredicted(hull.Comp.SmashSound, otherUid, driverUid);
+            SpawnEffect(hull.Comp.SmashEffect, otherUid);
             DamageSelf(hull, hull.Comp.SmashSelfDamage, origin);
             return;
         }
@@ -83,6 +85,7 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
 
         _physicsSystem.SetLinearVelocity(hull.Owner, Vector2.Zero, body: args.OurBody);
         _audioSystem.PlayPredicted(hull.Comp.CrashSound, hull.Owner, driverUid);
+        SpawnEffect(hull.Comp.CrashEffect, otherUid);
         DamageSelf(hull, hull.Comp.WallSelfDamage, origin);
 
         var ev = new KsCrewVehicleCrashedEvent(otherUid, impactSpeed);
@@ -100,6 +103,15 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
 
         var away = _transformSystem.GetWorldPosition(otherUid) - _transformSystem.GetWorldPosition(hullUid);
         return away.LengthSquared() < 0.0001f ? 0f : MathF.Max(0f, Vector2.Dot(velocity, Vector2.Normalize(away)));
+    }
+
+    /// <summary>
+    ///     A one-shot effect where <paramref name="atUid"/> is: predicted, the first time through only.
+    /// </summary>
+    private void SpawnEffect(EntProtoId? effect, EntityUid atUid)
+    {
+        if (effect is { } prototype && _gameTiming.IsFirstTimePredicted)
+            PredictedSpawnAtPosition(prototype, Transform(atUid).Coordinates);
     }
 
     private void DamageSelf(Entity<KsCrewVehicleSmashComponent> hull, DamageSpecifier? damage, EntityUid origin)

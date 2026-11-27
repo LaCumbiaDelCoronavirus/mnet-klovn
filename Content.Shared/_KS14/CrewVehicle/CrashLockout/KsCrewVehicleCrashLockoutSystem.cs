@@ -18,6 +18,7 @@ public sealed partial class KsCrewVehicleCrashLockoutSystem : EntitySystem
     [Dependency] private IGameTiming _gameTiming = default!;
     [Dependency] private INetManager _netManager = default!;
     [Dependency] private SharedPopupSystem _popupSystem = default!;
+    [Dependency] private Robust.Shared.Audio.Systems.SharedAudioSystem _audioSystem = default!;
     [Dependency] private VehicleSystem _vehicleSystem = default!;
 
     [Dependency] private EntityQuery<VehicleComponent> _vehicleQuery = default!;
@@ -36,7 +37,9 @@ public sealed partial class KsCrewVehicleCrashLockoutSystem : EntitySystem
 
         _vehicleSystem.RefreshCanRun(vehicle.Owner);
 
-        if (_vehicleQuery.CompOrNull(vehicle.Owner)?.Operator is { } driverUid)
+        var operatorUid = _vehicleQuery.CompOrNull(vehicle.Owner)?.Operator;
+        _audioSystem.PlayPredicted(vehicle.Comp.StallSound, vehicle.Owner, operatorUid);
+        if (operatorUid is { } driverUid)
             _popupSystem.PopupEntity(KsPopupMessage.Create(vehicle.Comp.Popup), vehicle.Owner, driverUid, PopupType.MediumCaution);
     }
 

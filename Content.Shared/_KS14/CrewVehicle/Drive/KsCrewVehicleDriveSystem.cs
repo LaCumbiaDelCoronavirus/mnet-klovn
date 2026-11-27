@@ -2,7 +2,6 @@ using Content.Shared._KS14.CrewVehicle.Interior;
 using Content.Shared._KS14.CrewVehicle.View;
 using Content.Shared._KS14.Movement;
 using Content.Shared._KS14.Throwing;
-using Content.Shared.Audio;
 using Content.Shared.Buckle.Components;
 using Content.Shared.Movement.Components;
 using Content.Shared.Movement.Events;
@@ -27,7 +26,6 @@ namespace Content.Shared._KS14.CrewVehicle.Drive;
 public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
 {
     [Dependency] private IGameTiming _gameTiming = default!;
-    [Dependency] private SharedAmbientSoundSystem _ambientSoundSystem = default!;
     [Dependency] private Floor.KsCrewVehicleFloorSystem _floorSystem = default!;
     [Dependency] private SharedKsCrewVehicleInteriorSystem _interiorSystem = default!;
     [Dependency] private SharedMoverController _moverController = default!;
@@ -75,16 +73,6 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
     }
 
     /// <summary>
-    ///     The engine runs while someone drives.
-    /// </summary>
-    [SubscribeLocalEvent]
-    private void OnOperatorSet(Entity<KsCrewVehicleDriveComponent> hull, ref VehicleOperatorSetEvent args)
-    {
-        if (!TerminatingOrDeleted(hull.Owner))
-            _ambientSoundSystem.SetAmbience(hull.Owner, args.NewOperator != null);
-    }
-
-    /// <summary>
     ///     A parked hull rolls: its ground friction, as a loose body's, is scaled by
     ///         <see cref="KsCrewVehicleDriveComponent.ParkedFrictionModifier"/>. Driven, the mover's own friction applies.
     /// </summary>
@@ -115,11 +103,26 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
         if (!_vehicleQuery.TryComp(hull.Owner, out var vehicleComponent) ||
             vehicleComponent.Operator is not { } operatorUid ||
             !_moverQuery.TryComp(operatorUid, out var operatorMover) ||
-            !operatorMover.CanMove ||
             !_moverQuery.TryComp(hull.Owner, out var hullMover))
         {
             args.WishDir = System.Numerics.Vector2.Zero;
             return;
+        }
+
+        // Each step there is a driver, whether they can drive: what takes over a hull whose driver can't (a stuck
+        //      throttle, wandering steering) gives the keys instead, else nothing is held.
+        var stickFrame = _moverController.GetParentGridAngle(hullMover);
+        var steerEvent = new KsCrewVehicleDriverSteerEvent(operatorUid, !operatorMover.CanMove, (-stickFrame).RotateVec(args.WishDir));
+        RaiseLocalEvent(hull.Owner, ref steerEvent);
+        if (steerEvent.Incapacitated)
+        {
+            if (steerEvent.Keys is not { } keys)
+            {
+                args.WishDir = System.Numerics.Vector2.Zero;
+                return;
+            }
+
+            args.WishDir = stickFrame.RotateVec(keys);
         }
 
         var transformComponent = Transform(hull.Owner);

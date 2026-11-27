@@ -66,6 +66,19 @@
   # Parked, it rolls when shoved: a quarter of the ground friction its brakes give it while driven.
   - type: KsCrewVehicleDrive
     parkedFrictionModifier: 0.25
+    edgeStopSound:
+      collection: MetalScrape
+  # Out of control half the time its driver is knocked out.
+  - type: KsCrewVehicleLossOfControl
+  # Started and stopped by the driver; a start takes as long as its sound, 1.6 s.
+  - type: KsCrewVehicleEngine
+    startDelay: 1.6
+  # Towable while the engine is off and nobody drives, at a quarter of the puller's pace.
+  - type: Pullable
+  - type: HeldSpeedModifier
+    walkModifier: 0.25
+    sprintModifier: 0.25
+    mirrorClothingModifier: false
   - type: PointLight
     enabled: false
     radius: 12
@@ -81,6 +94,10 @@
     damage:
       types:
         Blunt: 25
+    hitSound:
+      collection: MetalThud
+    throwSound:
+      path: /Audio/Effects/hit_kick.ogg
   - type: KsCrewVehicleHorn
     sound:
       path: /Audio/_KS14/CrewVehicle/Humvee/horn.ogg

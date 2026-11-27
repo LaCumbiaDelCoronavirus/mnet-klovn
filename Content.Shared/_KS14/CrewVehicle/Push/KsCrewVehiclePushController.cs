@@ -35,6 +35,8 @@ namespace Content.Shared._KS14.CrewVehicle.Push;
 public sealed partial class KsCrewVehiclePushController : VirtualController
 {
     [Dependency] private IGameTiming _gameTiming = default!;
+    [Dependency] private Robust.Shared.Audio.Systems.SharedAudioSystem _audioSystem = default!;
+    [Dependency] private EntityQuery<Content.Shared.Vehicle.Components.VehicleComponent> _vehicleQuery = default!;
     [Dependency] private INetManager _netManager = default!;
     [Dependency] private KsCrewVehiclePushSystem _pushSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
@@ -112,6 +114,17 @@ public sealed partial class KsCrewVehiclePushController : VirtualController
     {
         if (hull.Comp.BodyType != BodyType.KinematicController || !_relayTargetQuery.HasComp(hull))
             return;
+
+        // The strike, once: a sound if it was hard enough, and not again until the cooldown has passed.
+        var position = _transformSystem.GetWorldPosition(hull);
+        if ((normal ?? KsCrewVehicleHullFrame.TryGetSeparation(PhysicsSystem, _transformSystem, hull.Owner, position, other.Owner)) is { } toward &&
+            Vector2.Dot(hull.Comp.LinearVelocity - other.Comp.LinearVelocity, toward) >= pushComponent.ShoveSoundMinSpeed &&
+            _gameTiming.CurTime >= pushComponent.NextShoveSound)
+        {
+            pushComponent.NextShoveSound = _gameTiming.CurTime + pushComponent.ShoveSoundCooldown;
+            var sound = _driveQuery.HasComp(other) ? pushComponent.ShoveVehicleSound ?? pushComponent.ShoveSound : pushComponent.ShoveSound;
+            _audioSystem.PlayPredicted(sound, other.Owner, _vehicleQuery.CompOrNull(hull)?.Operator);
+        }
 
         Shove(hull, _transformSystem.GetWorldPosition(hull), other, pushComponent, prediction: _netManager.IsClient,
             stuckDistance: null, normal, frameTime: (float)_gameTiming.TickPeriod.TotalSeconds);

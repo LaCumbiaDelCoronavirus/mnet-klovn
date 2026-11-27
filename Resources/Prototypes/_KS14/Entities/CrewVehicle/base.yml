@@ -130,8 +130,9 @@
 
 # The hull of a crew vehicle, driven from the driver seat in its interior. Children give it a sprite, its body and
 #   contact fixtures, speeds, an interior and health. Parked it is a loose Dynamic body, solid to mobs and to driven
-#   vehicles; driven it is a kinematic controller (VehicleSystem.Klovn.BodyType.cs). It can't be pulled or thrown.
-#   Children's fixtures: `fix1`, the hard body, mask MobMask, layers MidImpassable, LowImpassable, BulletImpassable and
+#   vehicles; driven it is a kinematic controller (VehicleSystem.Klovn.BodyType.cs). It can't be thrown, nor pulled unless a
+#   child makes it Pullable (an engine then allows it only while off and nobody drives).
+#   Children's fixtures: `fix1`, the hard body, mask MobMask, layers MidImpassable, BulletImpassable and
 #   Opaque (lasers hit it; a weapon mounted on the hull passes it all the same) but never Impassable or HighImpassable,
 #   the layers items collide with, so casings and dropped things neither stop nor push it; `contact`, non-hard and a
 #   little larger, mask MobMask and MobLayer, which finds the mobs and hulls it touches (KsCrewVehicleDrive.contactFixture,
@@ -154,15 +155,11 @@
     requiresHands: false
     transferDamage: false
   - type: KsCrewVehicleDrive
+    edgeStopSound:
+      collection: MetalScrape
   - type: Tag
     tags:
     - DoorBumpOpener
-  - type: AmbientSound
-    enabled: false
-    volume: -4
-    range: 8
-    sound:
-      path: /Audio/Effects/Vehicle/vehicleengineidle.ogg
   - type: ActionsContainer
   # Written out, so that a hull made on an uninitialised map saves as it was spawned.
   - type: ContainerContainer
@@ -182,6 +179,10 @@
       types:
         Blunt: 25
   - type: KsCrewVehiclePush
+    shoveSound:
+      collection: MetalThud
+    shoveVehicleSound:
+      path: /Audio/Effects/metal_slam1.ogg
   # Breaks through windows, grilles and tables; crashes into walls. Doors are bumped open, never smashed.
   - type: KsCrewVehicleSmash
     smashable:
@@ -205,4 +206,12 @@
     wallSelfDamage:
       types:
         Blunt: 20
+    smashSound:
+      collection: WindowShatter
+    crashSound:
+      collection: MetalSlam
+    smashEffect: EffectSparks
+    crashEffect: EffectSparks
   - type: KsCrewVehicleCrashLockout
+    stallSound:
+      path: /Audio/Effects/metal_crunch.ogg

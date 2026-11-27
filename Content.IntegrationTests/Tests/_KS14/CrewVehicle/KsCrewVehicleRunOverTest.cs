@@ -329,6 +329,60 @@ public sealed class KsCrewVehicleRunOverTest : KsCrewVehicleDriveTestBase
         });
     }
 
+    /// <summary>
+    ///     A thrown mob whose flight is cut short (by a wall, here by stopping it) is down in front of the hull while it is
+    ///         still struck: the hull must drive on over it, not carry it along on its front.
+    /// </summary>
+    [TestCase(0)]
+    [TestCase(6)]
+    public async Task ThrownMobIsNotCarriedOnceItsThrowHasEnded(int latencyTicks)
+    {
+        var course = await SetUpAsync(ThrowerHullPrototype);
+        var hull = course.Scene.Hull;
+        if (latencyTicks > 0)
+            await SimulateLatencyAsync(latencyTicks);
+
+        var struckAt = Vector2.Zero;
+        var stopped = false;
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Down);
+        for (var tick = 0; tick < TickRate * 3 && !stopped; tick++)
+        {
+            await RunTicks(1);
+            await Server.WaitPost(() =>
+            {
+                if (!SEntMan.HasComponent<KsCrewVehicleStruckComponent>(course.Mob))
+                    return;
+
+                if (struckAt == Vector2.Zero)
+                    struckAt = HullPosition(course.Mob);
+
+                // A short flight, ended where it is, as a wall would.
+                if (Vector2.Dot(HullPosition(course.Mob) - struckAt, course.Facing) > 0.4f)
+                {
+                    SEntMan.System<Robust.Shared.Physics.Systems.SharedPhysicsSystem>().SetLinearVelocity(course.Mob, Vector2.Zero);
+                    stopped = true;
+                }
+            });
+        }
+
+        var stoppedAt = Vector2.Zero;
+        await Server.WaitPost(() => stoppedAt = HullPosition(course.Mob));
+        var carriedFurthest = 0f;
+        for (var tick = 0; tick < TickRate / 2; tick++)
+        {
+            await RunTicks(1);
+            await Server.WaitPost(() =>
+            {
+                if (SEntMan.TryGetComponent<KsCrewVehicleStruckComponent>(course.Mob, out var struckComponent) && struckComponent.Launched)
+                    carriedFurthest = MathF.Max(carriedFurthest, Vector2.Dot(HullPosition(course.Mob) - stoppedAt, course.Facing));
+            });
+        }
+
+        await SetMovementKey(DirectionFlag.North, Robust.Shared.Input.BoundKeyState.Up);
+        Assert.That(stopped, Is.True, "precondition: struck, thrown, and its flight ended");
+        Assert.That(carriedFurthest, Is.LessThan(0.3f), "once its throw has ended, the hull shouldn't carry it on its front");
+    }
+
     [Test]
     public async Task NpcsDontPushAParkedHull()
     {
