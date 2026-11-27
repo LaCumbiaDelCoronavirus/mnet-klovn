@@ -93,11 +93,25 @@ public sealed class KsCrewVehicleLossOfControlTest : KsCrewVehicleDriveTestBase
     {
         var (scene, _) = await StunAtSpeedAsync(_wanders, new Vector2(0f, 8f));
         var start = Angle.Zero;
-        await Server.WaitPost(() => start = HullRotation(scene.Hull));
-        await RunTicks(TickRate * 2);
-        await Server.WaitAssertion(() =>
-            Assert.That(Math.Abs(Angle.ShortestDistance(start, HullRotation(scene.Hull)).Degrees), Is.GreaterThan(1),
-                "out of control, the steering wanders"));
+        var cap = 0;
+        await Server.WaitPost(() =>
+        {
+            start = HullRotation(scene.Hull);
+            // Each interval picks left, right or straight on, a third each: plenty of intervals to see a turn, whichever
+            //      tick this starts on, and turns that cancel out don't count against it (the furthest it turned does).
+            var component = SComp<KsCrewVehicleLossOfControlComponent>(scene.Hull);
+            cap = (int)(component.WanderInterval.TotalSeconds * TickRate * 30 / Math.Max(component.WanderStrength, 0.05f));
+        });
+
+        var furthest = 0.0;
+        for (var tick = 0; tick < cap && furthest <= 1; tick++)
+        {
+            await RunTicks(1);
+            await Server.WaitPost(() =>
+                furthest = Math.Max(furthest, Math.Abs(Angle.ShortestDistance(start, HullRotation(scene.Hull)).Degrees)));
+        }
+
+        Assert.That(furthest, Is.GreaterThan(1), "out of control, the steering wanders");
     }
 
     /// <summary>

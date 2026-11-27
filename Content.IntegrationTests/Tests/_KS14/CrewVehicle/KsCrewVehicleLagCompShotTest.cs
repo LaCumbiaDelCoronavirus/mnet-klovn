@@ -211,34 +211,20 @@ public sealed class KsCrewVehicleLagCompShotTest : KsCrewVehicleGunnerTestBase
         var mobStart = Vector2.Zero;
         await Server.WaitPost(() => mobStart = WorldPosition(mob));
 
-        // Which key drives toward it depends on how the driver's screen is turned, which is the drive code's business:
-        //      try the way it faces, and the other way if that carries the hull off.
-        var drivingKey = DirectionFor(facing);
-        foreach (var key in new[] { DirectionFor(facing), DirectionFor(-facing) })
+        // Tank controls: up drives the way the hull faces, whichever way that is on screen.
+        await HoldAsync(scene.Hull, Robust.Shared.Maths.DirectionFlag.North, TickRate * 6, () =>
         {
-            var awayFromMob = false;
-            drivingKey = key;
-            await HoldAsync(scene.Hull, key, TickRate * 6, () =>
-            {
-                // Run over, or shoved along: either way struck by the hull.
-                struck |= SEntMan.System<Content.Shared.Damage.Systems.DamageableSystem>()
-                    .GetAllDamage(SEntity<Content.Shared.Damage.Components.DamageableComponent>(mob).AsNullable()).AnyPositive() ||
-                    (WorldPosition(mob) - mobStart).Length() > 0.5f;
-                var velocity = HullVelocity(scene.Hull);
-                awayFromMob = velocity.Length() > 0.5f && Vector2.Dot(velocity, WorldPosition(mob) - WorldPosition(scene.Hull)) < 0f;
-                return struck || awayFromMob;
-            });
-
-            if (struck)
-                break;
-
-            await SettleAsync(scene.Hull);
-        }
+            // Run over, or shoved along: either way struck by the hull.
+            struck |= SEntMan.System<Content.Shared.Damage.Systems.DamageableSystem>()
+                .GetAllDamage(SEntity<Content.Shared.Damage.Components.DamageableComponent>(mob).AsNullable()).AnyPositive() ||
+                (WorldPosition(mob) - mobStart).Length() > 0.5f;
+            return struck;
+        });
 
         Assert.That(struck, "precondition: the hull ran the mob over");
 
         // Back off, so the mob is ahead of the muzzle again, and let everything come to rest.
-        await HoldAsync(scene.Hull, drivingKey == DirectionFor(facing) ? DirectionFor(-facing) : DirectionFor(facing), TickRate);
+        await HoldAsync(scene.Hull, Robust.Shared.Maths.DirectionFlag.South, TickRate);
         await SettleAsync(scene.Hull);
         await RunTicks(TickRate);
         return mob;
