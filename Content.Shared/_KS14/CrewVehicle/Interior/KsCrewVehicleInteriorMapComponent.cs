@@ -26,4 +26,10 @@ public sealed partial class KsCrewVehicleInteriorMapComponent : Component
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
     public Vector2 Anchor;
+
+    /// <summary>
+    ///     The vehicle's <see cref="KsCrewVehicleInteriorComponent.OutsideLightBleed"/>, for the client's renderer.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public float OutsideLightBleed;
 }

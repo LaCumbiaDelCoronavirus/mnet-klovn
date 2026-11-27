@@ -13,3 +13,5 @@ ent-KsCrewVehicleInteriorWindowHumvee = humvee window
     .desc = Thick, scratched glass.
 ent-KsCrewVehicleInteriorChassisHumvee = humvee floor
     .desc = The inside of a humvee.
+ent-KsCrewVehicleInteriorDomeLightHumvee = dome light
+    .desc = A small lamp in the roof of the cabin.

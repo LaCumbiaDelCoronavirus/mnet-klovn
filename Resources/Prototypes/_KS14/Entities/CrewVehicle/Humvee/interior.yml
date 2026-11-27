@@ -109,6 +109,19 @@
   - type: Transform
     anchored: false
 
+# A weak warm light in the roof, enough to see the seats by when it is dark outside.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseLight
+  id: KsCrewVehicleInteriorDomeLightHumvee
+  categories: [ HideSpawnMenu ]
+  name: dome light
+  description: A small lamp in the roof of the cabin.
+  components:
+  - type: PointLight
+    radius: 2.5
+    energy: 0.6
+    color: '#FFE4C0'
+
 # The floor plan: seats, doors and loader stand on it. The windscreen's glass is drawn over its front.
 - type: entity
   parent: KsCrewVehicleInteriorBaseDecoration

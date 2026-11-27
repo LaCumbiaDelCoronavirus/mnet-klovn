@@ -128,6 +128,19 @@
     drawdepth: FloorTiles
   - type: KsCrewVehicleInteriorPart
 
+# A light fixed inside an interior, with nothing to see or touch: the cabin's ceiling light, always on. Not anchored, so
+#   it can sit off the tile grid over the middle of the cabin.
+- type: entity
+  abstract: true
+  id: KsCrewVehicleInteriorBaseLight
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: PointLight
+  - type: KsCrewVehicleInteriorPart
+
 # The hull of a crew vehicle, driven from the driver seat in its interior. Children give it a sprite, its body and
 #   contact fixtures, speeds, an interior and health. Parked it is a loose Dynamic body, solid to mobs and to driven
 #   vehicles; driven it is a kinematic controller (VehicleSystem.Klovn.BodyType.cs). It can't be thrown, nor pulled unless a

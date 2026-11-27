@@ -97,6 +97,36 @@ namespace Content.Client.Viewport
         private Vector2 _captureOversize = Vector2.One;
 
         /// <summary>
+        ///     What a z-level stack is drawn for: where it is seen from, and how.
+        /// </summary>
+        /// <param name="TopMap">The map the view stands on: the viewer's, or a crew vehicle's for its backdrop.</param>
+        /// <param name="Centre">The eye position, the same on every level, since levels share x and y.</param>
+        /// <param name="Offset">The eye offset; zero where it is already in <paramref name="Centre"/>.</param>
+        /// <param name="Scale">The viewer's zoom. Each level applies its depth scale on top.</param>
+        /// <param name="DrawFov">FOV on the top level; never below it.</param>
+        /// <param name="OwnEye">
+        ///     The real eye, used for the top level while standing on it. Null draws every level through the stand-in.
+        /// </param>
+        /// <param name="TransitHeight">How far above the top level's floor the view is, 0 to 1.</param>
+        /// <param name="Composite">
+        ///     Whether each pass is blitted to the screen with the screen overlays around it. False leaves the stack in
+        ///         the viewport's target for a pass drawn on top of it to blit, and skips the gap passes that fade in
+        ///         over the top level, which only a blit can fade.
+        /// </param>
+        private readonly record struct ZLevelView(
+            EntityUid TopMap,
+            MapId TopMapId,
+            Vector2 Centre,
+            Vector2 Offset,
+            Angle Rotation,
+            Vector2 Scale,
+            bool DrawFov,
+            bool DrawLight,
+            IEye? OwnEye,
+            float TransitHeight,
+            bool Composite);
+
+        /// <summary>
         ///     Draws every z-level at or below the viewer, deepest first.
         /// </summary>
         /// <returns>
@@ -105,13 +135,55 @@ namespace Content.Client.Viewport
         /// </returns>
         private bool TryDrawZLevels(IRenderHandle handle, UIBox2i drawBox, UIBox2i drawBoxGlobal)
         {
-            _mapsToIterate.Clear();
+            // Drawn from here rather than from DrawCrewVehicleBackdropPass, which Draw calls just before this, because
+            //      this is the first call in Draw that has the handle the backdrop's light copies need.
+            TryDrawCrewVehicleBackdrop(handle, drawBox, drawBoxGlobal);
 
-            if (!_mapSystem.TryGetMap(_eye?.Position.MapId, out var topMapUid) ||
-                !_zLevelSystem.TryGetZLevelsBelow(topMapUid.Value, _mapsToIterate))
+            if (_eye is not { } eye ||
+                !_mapSystem.TryGetMap(eye.Position.MapId, out var topMapUid))
                 return false;
 
-            var viewerTransitHeight = GetViewerTransitHeight();
+            var view = new ZLevelView(
+                topMapUid.Value,
+                eye.Position.MapId,
+                eye.Position.Position,
+                eye.Offset,
+                eye.Rotation,
+                eye.Scale,
+                eye.DrawFov,
+                eye.DrawLight,
+                OwnEye: eye,
+                GetViewerTransitHeight(),
+                Composite: true);
+
+            return TryDrawZLevelStack(handle, drawBox, drawBoxGlobal, in view, firstPassClear: null);
+        }
+
+        /// <summary>
+        ///     Draws every z-level at or below a view, deepest first.
+        /// </summary>
+        /// <param name="firstPassClear">
+        ///     What the deepest pass clears to. Black is used anyway on a frame that captured, since the capture passes
+        ///         left their own output in the target.
+        /// </param>
+        /// <returns>
+        ///     Whether the stack was drawn. False means the view's map is not on a z-level stack with anything to
+        ///         layer, and the caller draws its own single pass.
+        /// </returns>
+        private bool TryDrawZLevelStack(
+            IRenderHandle handle,
+            UIBox2i drawBox,
+            UIBox2i drawBoxGlobal,
+            in ZLevelView view,
+            Color? firstPassClear)
+        {
+            _mapsToIterate.Clear();
+
+            var topMapUid = view.TopMap;
+            if (!_zLevelSystem.TryGetZLevelsBelow(topMapUid, _mapsToIterate))
+                return false;
+
+            var viewerTransitHeight = view.TransitHeight;
 
             // Nothing below to draw, and a viewer standing on their own floor, is exactly what the ordinary
             //      single pass already does - and cheaper. Mid-transit there is still their own z-level to
@@ -126,15 +198,15 @@ namespace Content.Client.Viewport
             //      into existence at the moment it lands instead of easing in over the end of its descent.
             if (_mapsToIterate.Count == 0 &&
                 viewerTransitHeight <= 0f &&
-                !WantsLightFromAbove(topMapUid.Value) &&
-                !WantsGapPass(topMapUid.Value, anchorDepth: 0f))
+                !WantsLightFromAbove(topMapUid) &&
+                !WantsGapPass(topMapUid, anchorDepth: 0f, in view))
                 return false;
 
             // TryGetZLevelsBelow doesn't include the map we're on
-            if (!_entityManager.TryGetComponent<KsZLevelComponent>(topMapUid.Value, out var topZLevelComponent))
+            if (!_entityManager.TryGetComponent<KsZLevelComponent>(topMapUid, out var topZLevelComponent))
                 return false;
 
-            _mapsToIterate.Add((topMapUid.Value, topZLevelComponent));
+            _mapsToIterate.Add((topMapUid, topZLevelComponent));
 
             // Depth is fractional and measured downwards from the viewer, not from their z-level: their own
             //      floor plane sits transitHeight of their z-level's Depth below them, and the deepest map
@@ -148,7 +220,7 @@ namespace Content.Client.Viewport
             //      standing on a gap map to however far up that gap they have got.
             var depth = viewerTransitHeight * topZLevelComponent.Depth;
             if (_mapsToIterate.Count > 1 &&
-                _zLevelSystem.TryGetDepthBelow(topMapUid.Value, _mapsToIterate[0].Owner, out var stackDepth))
+                _zLevelSystem.TryGetDepthBelow(topMapUid, _mapsToIterate[0].Owner, out var stackDepth))
                 depth += stackDepth;
 
             // Everything from here to the finally is drawn with the captures in scope: the capture passes
@@ -161,9 +233,11 @@ namespace Content.Client.Viewport
             try
             {
                 if (captured)
-                    CaptureZLevelLight(handle, (topMapUid.Value, topZLevelComponent), viewerTransitHeight);
+                    CaptureZLevelLight(handle, (topMapUid, topZLevelComponent), in view);
 
-                DrawZLevelPasses(handle, drawBox, drawBoxGlobal, topMapUid.Value, depth, clearFirstPass: captured);
+                // A frame that captured left those passes' output sitting in the target, and the deepest pass here
+                //      would otherwise be composited over a picture of some other z-level.
+                DrawZLevelPasses(handle, drawBox, drawBoxGlobal, in view, depth, captured ? Color.Black : firstPassClear);
 
                 // Taken back off the system while this viewport is still the one that drew, so that the next
                 //      frame's captures are sized against this viewport's light target and not some other
@@ -190,12 +264,11 @@ namespace Content.Client.Viewport
             IRenderHandle handle,
             UIBox2i drawBox,
             UIBox2i drawBoxGlobal,
-            EntityUid topMapUid,
+            in ZLevelView view,
             float depth,
-            bool clearFirstPass)
+            Color? firstPassClear)
         {
-            // Only reached with an eye; taken once so the passes below read as the original single one did.
-            var eye = _eye!;
+            var topMapUid = view.TopMap;
 
             foreach (var (mapUid, mapZLevelComponent) in _mapsToIterate)
             {
@@ -211,34 +284,38 @@ namespace Content.Client.Viewport
                 var isViewerMap = mapUid == topMapUid;
 
                 // clearcolor for all maps other than first is none
-                // The one exception is a frame that captured: those passes left their own output sitting in
-                //      the target, and the deepest pass here would otherwise be composited over a picture of
-                //      some other z-level rather than over last frame's near-identical one.
-                Color? clearColor = clearFirstPass ? Color.Black : null;
-                clearFirstPass = false;
+                var clearColor = firstPassClear;
+                firstPassClear = null;
 
                 var standInEye = AimStandInEye(
-                    new MapCoordinates(eye.Position.Position, mapComponent.MapId),
-                    eye.Offset,
-                    eye.Rotation,
-                    _zLevelSystem.GetDepthScale(eye.Scale, depth),
+                    new MapCoordinates(view.Centre, mapComponent.MapId),
+                    view.Offset,
+                    view.Rotation,
+                    _zLevelSystem.GetDepthScale(view.Scale, depth),
                     // for maps below the highest, never draw FOV. on the highest map, only draw fov if we would for a non-zlevel
-                    drawFov: isViewerMap && eye.DrawFov,
-                    drawLight: eye.DrawLight);
+                    drawFov: isViewerMap && view.DrawFov,
+                    drawLight: view.DrawLight);
 
                 // The viewer's own map is drawn through their real eye while they're standing on it, and
                 //      through the scaled copy while they're above it mid-transit.
                 KsZLevelRenderPass.LowerLevel = !isViewerMap;
-                RenderPass(isViewerMap && depth <= 0f ? eye : standInEye, clearColor);
+                RenderPass(isViewerMap && depth <= 0f && view.OwnEye is { } ownEye ? ownEye : standInEye, clearColor);
                 KsZLevelRenderPass.LowerLevel = false;
-                _viewport!.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
+
+                if (view.Composite)
+                    _viewport!.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
 
                 // Never blur the map the viewer is actually on
                 if (!isViewerMap && _zBlurBuffer != null)
-                    _clyde.BlurRenderTarget(_viewport, _viewport.RenderTarget, _zBlurBuffer, standInEye, 2.5f * mapZLevelComponent.Depth);
+                    _clyde.BlurRenderTarget(_viewport!, _viewport!.RenderTarget, _zBlurBuffer, standInEye, 2.5f * mapZLevelComponent.Depth);
 
-                handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox);
-                _viewport.RenderScreenOverlaysAbove(handle, this, drawBoxGlobal);
+                // Each blit is covered by the next pass's opaque one, so only the last pass's screen overlays survive;
+                //      a stack drawn under another pass leaves that pass to blit and run them.
+                if (view.Composite)
+                {
+                    handle.DrawingHandleScreen.DrawTextureRect(_viewport!.RenderTarget.Texture, drawBox);
+                    _viewport.RenderScreenOverlaysAbove(handle, this, drawBoxGlobal);
+                }
 
                 // Anything crossing the gap above this z-level is drawn after it and before the next one up,
                 //      so an elevator between two floors is seen where it actually is rather than vanishing
@@ -246,7 +323,7 @@ namespace Content.Client.Viewport
                 // Run for the viewer's own map too, where it is the gap directly overhead: a lift coming
                 //      down to the floor you are standing on lives there for the whole of its descent, and
                 //      skipping it is what made one appear out of nothing the instant it arrived.
-                DrawGapPasses(handle, drawBox, drawBoxGlobal, mapUid, depth);
+                DrawGapPasses(handle, drawBox, drawBoxGlobal, mapUid, depth, in view);
 
                 depth -= mapZLevelComponent.Depth;
             }
@@ -270,12 +347,11 @@ namespace Content.Client.Viewport
             UIBox2i drawBox,
             UIBox2i drawBoxGlobal,
             EntityUid anchorUid,
-            float anchorDepth)
+            float anchorDepth,
+            in ZLevelView view)
         {
             if (!_drawGapLevels)
                 return;
-
-            var eye = _eye!;
 
             _gapSystem.GetGapsAnchoredTo(anchorUid, _gapsToIterate);
 
@@ -284,7 +360,12 @@ namespace Content.Client.Viewport
                 // The viewer's own gap is drawn by the ordinary pass, through their real eye. Drawing it
                 //      again here would put a second copy of the lift over the one they are standing on.
                 if (!_entityManager.TryGetComponent<MapComponent>(gapUid, out var mapComponent) ||
-                    mapComponent.MapId == eye.Position.MapId)
+                    mapComponent.MapId == view.TopMapId)
+                    continue;
+
+                // The fade below is a blit's alpha, and a stack drawn under another pass has no blit of its own: drawn
+                //      into the target, the platform would be opaque from the start of its fade.
+                if (anchorDepth <= 0f && !view.Composite)
                     continue;
 
                 // A gap sits above the z-level it is anchored to, so it is that much nearer the viewer.
@@ -313,10 +394,10 @@ namespace Content.Client.Viewport
                 }
 
                 var standInEye = AimStandInEye(
-                    new MapCoordinates(eye.Position.Position, mapComponent.MapId),
-                    eye.Offset,
-                    eye.Rotation,
-                    _zLevelSystem.GetDepthScale(eye.Scale, gapDepth),
+                    new MapCoordinates(view.Centre, mapComponent.MapId),
+                    view.Offset,
+                    view.Rotation,
+                    _zLevelSystem.GetDepthScale(view.Scale, gapDepth),
                     // A crossing at or above the viewer is on their eye level, so it is sight-blocked like
                     //      anything else at their eye level - otherwise a lift arriving overhead hands everyone
                     //      underneath it a free look at whoever is riding it, through walls they could not see
@@ -324,19 +405,24 @@ namespace Content.Client.Viewport
                     // One below them is not: they are looking down an open shaft at it, and the walls carving
                     //      up their own floor are no business of a pass two floors down. That matches the rule
                     //      the ordinary stack passes already use, where only the viewer's own z-level draws it.
-                    drawFov: eye.DrawFov && gapDepth <= 0f,
-                    drawLight: eye.DrawLight);
+                    drawFov: view.DrawFov && gapDepth <= 0f,
+                    drawLight: view.DrawLight);
 
                 RenderPass(standInEye, clearColor: null);
-                _viewport!.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
+
+                if (view.Composite)
+                    _viewport!.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
 
                 // Distance blur only, and only for a gap below. One overhead is nearer than the viewer's own
                 //      floor, so there is nothing to blur it by - and a negative radius is not a thing.
                 if (_zBlurBuffer != null && gapDepth > 0f)
-                    _clyde.BlurRenderTarget(_viewport, _viewport.RenderTarget, _zBlurBuffer, standInEye, 2.5f * gapDepth);
+                    _clyde.BlurRenderTarget(_viewport!, _viewport!.RenderTarget, _zBlurBuffer, standInEye, 2.5f * gapDepth);
 
-                handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox, modulate);
-                _viewport.RenderScreenOverlaysAbove(handle, this, drawBoxGlobal);
+                if (view.Composite)
+                {
+                    handle.DrawingHandleScreen.DrawTextureRect(_viewport!.RenderTarget.Texture, drawBox, modulate);
+                    _viewport.RenderScreenOverlaysAbove(handle, this, drawBoxGlobal);
+                }
             }
         }
 
@@ -382,6 +468,9 @@ namespace Content.Client.Viewport
                 capture.Dispose();
 
             _zLightCaptures.Clear();
+
+            // Sized against the same light target, and released on the same occasions.
+            ReleaseCrewVehicleOutsideLight();
         }
 
         /// <summary>
@@ -422,7 +511,7 @@ namespace Content.Client.Viewport
         ///     How far below the viewer this z-level's floor plane sits, which is what decides whether a gap
         ///         over it is overhead - and so subject to the fade - or down a shaft in front of them.
         /// </param>
-        private bool WantsGapPass(EntityUid anchorUid, float anchorDepth)
+        private bool WantsGapPass(EntityUid anchorUid, float anchorDepth, in ZLevelView view)
         {
             if (!_drawGapLevels)
                 return false;
@@ -432,10 +521,10 @@ namespace Content.Client.Viewport
             foreach (var (gapUid, gapComponent) in _gapsToIterate)
             {
                 if (!_entityManager.TryGetComponent<MapComponent>(gapUid, out var mapComponent) ||
-                    mapComponent.MapId == _eye!.Position.MapId)
+                    mapComponent.MapId == view.TopMapId)
                     continue;
 
-                if (anchorDepth > 0f || gapComponent.Progress < GapFadeInProgress)
+                if (anchorDepth > 0f || view.Composite && gapComponent.Progress < GapFadeInProgress)
                     return true;
             }
 
@@ -453,20 +542,20 @@ namespace Content.Client.Viewport
         ///     Walked top-down so that each capture is itself already lit from above, which is what lets the
         ///         light carry further than one z-level.
         /// </remarks>
-        private void CaptureZLevelLight(IRenderHandle handle, Entity<KsZLevelComponent> topZLevel, float viewerTransitHeight)
+        private void CaptureZLevelLight(IRenderHandle handle, Entity<KsZLevelComponent> topZLevel, in ZLevelView view)
         {
             _capturesTakenThisFrame.Clear();
 
             // The viewer's own z-level sits this far below where they are looking from, and every capture is
             //      measured from there.
-            var viewerDepth = viewerTransitHeight * topZLevel.Comp.Depth;
+            var viewerDepth = view.TransitHeight * topZLevel.Comp.Depth;
 
             // Nothing renders the z-level above the viewer - the stack is only ever drawn downwards - so if
             //      light is to fall onto them from it, this is the only pass that will ever exist for it.
             //      The z-level it lights is the viewer's own, hence their own depth rather than its.
             if (WantsLightFromAbove(topZLevel.Owner) &&
                 _zLevelSystem.TryGetZLevelAbove(topZLevel.Owner, out var aboveEntity))
-                CaptureZLevel(handle, aboveEntity.Value, viewerDepth);
+                CaptureZLevel(handle, aboveEntity.Value, viewerDepth, in view);
 
             // Top-down. Every z-level but the deepest lights the one under it; nothing lights from below.
             var depth = viewerDepth;
@@ -489,7 +578,7 @@ namespace Content.Client.Viewport
                     break;
                 }
 
-                CaptureZLevel(handle, _mapsToIterate[index], consumerDepth);
+                CaptureZLevel(handle, _mapsToIterate[index], consumerDepth, in view);
 
                 depth = consumerDepth;
             }
@@ -501,18 +590,17 @@ namespace Content.Client.Viewport
         ///     How far below the viewer the z-level this capture is going to light sits - not how far down
         ///         this one is.
         /// </param>
-        private void CaptureZLevel(IRenderHandle handle, Entity<KsZLevelComponent> zLevel, float consumerDepth)
+        private void CaptureZLevel(IRenderHandle handle, Entity<KsZLevelComponent> zLevel, float consumerDepth, in ZLevelView view)
         {
             if (!_entityManager.TryGetComponent<MapComponent>(zLevel.Owner, out var mapComponent))
                 return;
 
             _capturesTakenThisFrame.Add(mapComponent.MapId);
 
-            var eye = _eye!;
             var standInEye = AimStandInEye(
-                new MapCoordinates(eye.Position.Position, mapComponent.MapId),
-                eye.Offset,
-                eye.Rotation,
+                new MapCoordinates(view.Centre, mapComponent.MapId),
+                view.Offset,
+                view.Rotation,
                 // Rendered through the eye of the z-level it is about to light rather than its own, widened by
                 //      the light target's skirt on top.
                 // Its own scale would buy nothing: light falls straight down, so a capture is projected onto the
@@ -520,11 +608,11 @@ namespace Content.Client.Viewport
                 //      own scale decides is how much of the world it covers. Drawn at its own scale it covers
                 //      less than the pass reading it can see, because that pass is further away and sees wider -
                 //      and the strip of screen past the edge of the capture is then lit by nothing at all.
-                _zLevelSystem.GetDepthScale(eye.Scale, consumerDepth) / _captureOversize,
+                _zLevelSystem.GetDepthScale(view.Scale, consumerDepth) / _captureOversize,
                 // Never the viewer's FOV: this z-level is not the one they are standing on, and carving their
                 //      line of sight out of it would cut shadows into light that was never theirs to block.
                 drawFov: false,
-                drawLight: eye.DrawLight);
+                drawLight: view.DrawLight);
 
             // Cleared, unlike the drawing passes: the colour image is about to be used as a mask, and it can
             //      only say where this z-level is solid if nothing else is left in it.

@@ -31,6 +31,13 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     public Vector2 InteriorAnchor;
 
     /// <summary>
+    ///     How much of the light falling on the ground outside reaches the interior, spread over the whole cabin. 0 lets
+    ///         none in; 1 lets in all of it over the interior's own ambient light.
+    /// </summary>
+    [DataField]
+    public float OutsideLightBleed = 0.5f;
+
+    /// <summary>
     ///     Where people get in and out, by doorway id. Every doorway has exactly one
     ///         <see cref="KsCrewVehicleExitComponent"/> door inside naming it.
     /// </summary>

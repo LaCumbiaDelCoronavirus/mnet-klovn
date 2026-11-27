@@ -5,7 +5,7 @@ meta:
   forkId: ""
   forkVersion: ""
   time: 11/25/2026 00:00:00
-  entityCount: 24
+  entityCount: 25
 maps:
 - 1
 grids:
@@ -31,7 +31,7 @@ entities:
     - type: Parallax
       parallax: Blank
     - type: MapLight
-      ambientLightColor: '#D8D8D8FF'
+      ambientLightColor: '#303036FF'
     - type: MapAtmosphere
       space: False
       mixture:
@@ -115,6 +115,13 @@ entities:
     - type: Transform
       rot: 1.5707963267948966 rad
       pos: 0.95,2.2
+      parent: 2
+- proto: KsCrewVehicleInteriorDomeLightHumvee
+  entities:
+  - uid: 25
+    components:
+    - type: Transform
+      pos: 1.05,1.15
       parent: 2
 - proto: KsCrewVehicleInteriorWallHumvee
   entities:

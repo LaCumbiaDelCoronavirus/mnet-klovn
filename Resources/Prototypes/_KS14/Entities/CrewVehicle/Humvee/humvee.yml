@@ -105,6 +105,8 @@
     interiorPath: /Maps/_KS14/CrewVehicle/humvee.yml
     # The cabin is the rear of the hull: the bonnet ahead of it is engine.
     interiorAnchor: 1,1.5
+    # Half the light on the ground under the hull reaches the cabin, over its dim ambient and dome light.
+    outsideLightBleed: 0.5
     maxOccupants: 4
     ejectDamage:
       types:

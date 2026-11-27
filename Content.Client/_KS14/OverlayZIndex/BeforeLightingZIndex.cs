@@ -47,6 +47,11 @@ public enum BeforeLightingZIndex
     /// </summary>
     ZLevelLightBuffer,
 
+    /// <summary>
+    ///     Light from outside a crew vehicle, bled into its interior; before the blur, so it arrives soft.
+    /// </summary>
+    CrewVehicleOutsideLight,
+
     LightBlur,
 
     /// <summary>

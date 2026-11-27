@@ -20,3 +20,6 @@ ent-KsCrewVehicleInteriorWindowHumvee = окно хамви
 ent-KsCrewVehicleInteriorChassisHumvee = пол хамви
     .desc = Внутренности хамви.
     .gender = male
+ent-KsCrewVehicleInteriorDomeLightHumvee = плафон
+    .desc = Небольшая лампа в потолке кабины.
+    .gender = male
