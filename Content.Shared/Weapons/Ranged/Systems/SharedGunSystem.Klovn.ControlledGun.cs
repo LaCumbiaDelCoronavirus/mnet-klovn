@@ -46,6 +46,25 @@ public abstract partial class SharedGunSystem
         return TryGetGun(shooterUid, out gun);
     }
 
+    /// <summary>
+    ///     The gun <paramref name="playerUid"/>'s fire input fires, as <see cref="KsTryGetShotGun(EntityUid, ref EntityUid, out Entity{GunComponent}, out KsControlledShot)"/>
+    ///         finds it, with <paramref name="aimFrameUid"/> set to what the aim point is to be sent relative to: a
+    ///         controlled gun's <see cref="KsGetControlledGunEvent.AimFrame"/>, else its shooter.
+    /// </summary>
+    protected bool KsTryGetAimedGun(EntityUid playerUid, ref EntityUid aimFrameUid, out Entity<GunComponent> gun)
+    {
+        var ev = new KsGetControlledGunEvent();
+        RaiseLocalEvent(playerUid, ref ev);
+        if (ev.Gun is { } gunUid && _ksGunQuery.TryComp(gunUid, out var gunComponent))
+        {
+            aimFrameUid = ev.AimFrame ?? ev.Shooter ?? playerUid;
+            gun = (gunUid, gunComponent);
+            return true;
+        }
+
+        return TryGetGun(aimFrameUid, out gun);
+    }
+
     /// <inheritdoc cref="KsTryGetShotGun(EntityUid, ref EntityUid, out Entity{GunComponent}, out KsControlledShot)"/>
     protected bool KsTryGetShotGun(EntityUid? playerUid, [NotNullWhen(true)] ref EntityUid? shooterUid, out Entity<GunComponent> gun, out KsControlledShot shot)
     {

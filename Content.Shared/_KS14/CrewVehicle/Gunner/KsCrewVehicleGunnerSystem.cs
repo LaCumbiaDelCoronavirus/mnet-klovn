@@ -209,6 +209,9 @@ public sealed partial class KsCrewVehicleGunnerSystem : EntitySystem
         args.Gun = weaponUid;
         args.Muzzle = _mountSystem.GetMuzzleCoordinates((weaponUid, weaponComponent));
         args.MaxRange = weaponComponent.MaxAimRange;
+        // Aimed on what the hull stands on: a point on the turning turret, or the turning hull, would swing with any
+        //      difference between the gunner's predicted turn and the server's.
+        args.AimFrame = Transform(gunner.Comp.Vehicle).ParentUid;
     }
 
     /// <summary>

@@ -97,6 +97,31 @@ public sealed class KsCrewVehicleGunnerTest : KsCrewVehicleGunnerTestBase
         });
     }
 
+    /// <summary>
+    ///     A gunner's aim point is sent relative to what the hull stands on, not to the turning gun: on both sides the
+    ///         controlled gun's answer names the hull's parent as the aim frame.
+    /// </summary>
+    [Test]
+    public async Task AimIsSentInTheHullsFrame()
+    {
+        var (scene, _) = await SeatGunnerAsync();
+        var parentNetEntity = NetEntity.Invalid;
+        await Server.WaitAssertion(() =>
+        {
+            var ev = new Content.Shared._KS14.Weapons.Ranged.KsGetControlledGunEvent();
+            SEntMan.EventBus.RaiseLocalEvent(SPlayer, ref ev);
+            var parentUid = SComp<TransformComponent>(scene.Hull).ParentUid;
+            Assert.That(ev.AimFrame, Is.EqualTo(parentUid), "the server's answer aims on what the hull stands on");
+            parentNetEntity = SEntMan.GetNetEntity(parentUid);
+        });
+        await Client.WaitAssertion(() =>
+        {
+            var ev = new Content.Shared._KS14.Weapons.Ranged.KsGetControlledGunEvent();
+            CEntMan.EventBus.RaiseLocalEvent(CPlayer, ref ev);
+            Assert.That(ev.AimFrame, Is.EqualTo(CEntMan.GetEntity(parentNetEntity)), "and so does the client's, which sends the aim");
+        });
+    }
+
     public enum Shot
     {
         Round,

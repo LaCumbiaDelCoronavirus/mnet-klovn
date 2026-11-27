@@ -177,7 +177,7 @@ public sealed partial class GunSystem : SharedGunSystem
             vehicleOperator.Vehicle is { } mechUid && HasComp<MechComponent>(mechUid)) // Goobstation
             entity = mechUid;
 
-        if (!KsTryGetShotGun(entityNull.Value, ref entity, out var gun, out _) /* KS14: TryGetGun(entity, out var gun) -> also a gun the player controls, see KsGetControlledGunEvent */)
+        if (!KsTryGetAimedGun(entityNull.Value, ref entity, out var gun) /* KS14: TryGetGun(entity, out var gun) -> also a gun the player controls, aimed in its frame, see KsGetControlledGunEvent */)
         {
             return;
         }

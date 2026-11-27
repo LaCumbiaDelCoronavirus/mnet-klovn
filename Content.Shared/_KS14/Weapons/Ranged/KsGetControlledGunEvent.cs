@@ -30,4 +30,11 @@ public record struct KsGetControlledGunEvent
     ///         bearing. Null: no limit.
     /// </summary>
     public float? MaxRange;
+
+    /// <summary>
+    ///     What the aim point is sent relative to: something that does not turn with the gun (the grid or map under it),
+    ///         so the point stays where it was aimed however the gun is turned when the server takes the shot. Null: the
+    ///         shooter.
+    /// </summary>
+    public EntityUid? AimFrame;
 }
