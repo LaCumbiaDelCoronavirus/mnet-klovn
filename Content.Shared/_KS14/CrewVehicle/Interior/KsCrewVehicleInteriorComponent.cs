@@ -38,6 +38,13 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     public float OutsideLightBleed = 0.5f;
 
     /// <summary>
+    ///     The cabin's own dim ambient light, added to the interior's light map by the client's interior light overlay.
+    ///         The interior map has no <c>MapLight</c> of its own. Black for none.
+    /// </summary>
+    [DataField]
+    public Color CabinAmbient = Color.Black;
+
+    /// <summary>
     ///     Where people get in and out, by doorway id. Every doorway has exactly one
     ///         <see cref="KsCrewVehicleExitComponent"/> door inside naming it.
     /// </summary>

@@ -44,6 +44,7 @@ public sealed class KsCrewVehicleInteriorTest : GameTest
   - type: KsCrewVehicleInterior
     interiorPath: /Maps/Test/_KS14/CrewVehicle/basic.yml
     interiorAnchor: 2.5,3
+    cabinAmbient: '#303036'
     doorways:
       left:
         offset: -1,0
@@ -119,6 +120,9 @@ public sealed class KsCrewVehicleInteriorTest : GameTest
             foreach (var (hull, interior) in new[] { (hullA, interiorA), (hullB, interiorB) })
             {
                 Assert.That(SComp<KsCrewVehicleInteriorMapComponent>(interior).Vehicle, Is.EqualTo(hull), "the interior links back to its own vehicle");
+                Assert.That(SComp<KsCrewVehicleInteriorMapComponent>(interior).CabinAmbient,
+                    Is.EqualTo(SComp<KsCrewVehicleInteriorComponent>(hull).CabinAmbient).And.Not.EqualTo(Color.Black),
+                    "the interior map carries the vehicle's cabin ambient to the client's renderer");
                 Assert.That(SComp<KsCrewVehicleInteriorComponent>(hull).InteriorMap, Is.EqualTo(interior));
                 Assert.That(mapSystem.IsInitialized(interior), Is.True, "a linked interior has been initialised");
                 Assert.That(mapSystem.IsPaused(interior), Is.False, "and runs");

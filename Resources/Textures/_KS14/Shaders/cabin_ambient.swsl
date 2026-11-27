@@ -1,0 +1,14 @@
+light_mode unshaded;
+
+// Added to the light map, as the ambient light a map clears its light map to would be there under it. The engine maps
+//      `add` to BlendFunc(SrcAlpha, DstAlpha) (Clyde.Rendering.cs), so COLOR.a is written as 1 below and the target is
+//      left at the alpha it was cleared to - which together come out as a plain src + dst.
+blend_mode add;
+
+// In the light map's own units, which are an ambient colour as it is, unconverted: what a MapLight would clear it to.
+uniform highp vec3 ambient;
+
+void fragment()
+{
+    COLOR = vec4(ambient, 1.0);
+}

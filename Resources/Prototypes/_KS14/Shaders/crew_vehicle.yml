@@ -1,0 +1,5 @@
+# Adds a crew vehicle cabin's own ambient light to its interior's light map (KsCrewVehicleInteriorLightOverlay).
+- type: shader
+  id: KsCrewVehicleCabinAmbient
+  kind: source
+  path: "/Textures/_KS14/Shaders/cabin_ambient.swsl"

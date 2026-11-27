@@ -5,7 +5,7 @@ meta:
   forkId: ""
   forkVersion: ""
   time: 11/25/2026 00:00:00
-  entityCount: 25
+  entityCount: 35
 maps:
 - 1
 grids:
@@ -121,6 +121,108 @@ entities:
     - type: Transform
       pos: 1.05,1.15
       parent: 2
+- proto: KsCrewVehicleInteriorOccluderHumvee
+  entities:
+  - uid: 26
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - -0.2,-0.35
+      - 2.4,-0.35
+      - 2.4,-0.1
+      - -0.2,-0.1
+  - uid: 27
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - -0.2,-0.37
+      - 0.05,-0.37
+      - 0.05,0.51
+      - -0.2,0.51
+  - uid: 28
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - -0.2,0.89
+      - 0.05,0.89
+      - 0.05,1.41
+      - -0.2,1.41
+  - uid: 29
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - -0.2,1.79
+      - 0.05,1.79
+      - 0.05,2.52
+      - -0.2,2.52
+  - uid: 30
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - 2.15,-0.37
+      - 2.4,-0.37
+      - 2.4,0.51
+      - 2.15,0.51
+  - uid: 31
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - 2.15,0.89
+      - 2.4,0.89
+      - 2.4,1.41
+      - 2.15,1.41
+  - uid: 32
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - 2.15,1.79
+      - 2.4,1.79
+      - 2.4,2.52
+      - 2.15,2.52
+  - uid: 33
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - -0.2,2.27
+      - 0.14,2.27
+      - 0.14,2.52
+      - -0.2,2.52
+  - uid: 34
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - 0.73,2.27
+      - 1.05,2.27
+      - 1.05,2.52
+      - 0.73,2.52
+  - uid: 35
+    components:
+    - type: Transform
+      parent: 2
+    - type: Occluder
+      polygon:
+      - 1.64,2.27
+      - 2.4,2.27
+      - 2.4,2.52
+      - 1.64,2.52
 - proto: KsCrewVehicleInteriorWallHumvee
   entities:
   - uid: 9

@@ -113,4 +113,28 @@ public sealed class KsCrewVehicleInteriorTransformTest
             Assert.That(backdropPixel.Y, Is.EqualTo(interiorPixel.Y).Within(1e-3f), $"Y for {point}");
         }
     }
+
+    /// <summary>
+    ///     The backdrop's FOV is cast from the hull: the eye's position is the hull's, and its offset keeps every point
+    ///         on the pixel the centred eye put it on, at any turn of the eye, as the engine applies an offset unrotated.
+    /// </summary>
+    [Test]
+    public void BackdropFovIsCastFromTheHullWithoutMovingTheView([ValueSource(nameof(HullDegrees))] double degrees)
+    {
+        var eyeCentre = HullPosition + new Vector2(1.75f, -0.5f);
+        var eyeRotation = Angle.FromDegrees(degrees + 30d);
+        KsCrewVehicleInteriorTransform.GetBackdropFovEye(HullPosition, eyeCentre, out var position, out var offset);
+
+        AssertClose(position, HullPosition, "FOV is cast from the hull");
+
+        var centred = new Eye { Position = new MapCoordinates(eyeCentre, new MapId(2)), Rotation = eyeRotation };
+        var fromHull = new Eye { Position = new MapCoordinates(position, new MapId(2)), Offset = offset, Rotation = eyeRotation };
+        foreach (var point in new[] { HullPosition, eyeCentre, HullPosition + new Vector2(-3f, 4.5f) })
+        {
+            var drawn = ToView(fromHull, point);
+            var expected = ToView(centred, point);
+            Assert.That(drawn.X, Is.EqualTo(expected.X).Within(1e-2f), $"X: {point} stays where it was drawn, eye at {eyeRotation}");
+            Assert.That(drawn.Y, Is.EqualTo(expected.Y).Within(1e-2f), $"Y: {point} stays where it was drawn, eye at {eyeRotation}");
+        }
+    }
 }

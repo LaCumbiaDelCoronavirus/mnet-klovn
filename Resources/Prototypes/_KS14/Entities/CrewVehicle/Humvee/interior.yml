@@ -83,8 +83,8 @@
   - type: KsCrewVehicleAmmoPort
     mount: turret
 
-# The walls and glass are drawn by the floor plan (KsCrewVehicleInteriorChassisHumvee): these only stop people and,
-#   for the walls, sight.
+# The walls and glass are drawn by the floor plan (KsCrewVehicleInteriorChassisHumvee): these only stop people. Sight
+#   is stopped by the cabin's outline (KsCrewVehicleInteriorOccluderHumvee).
 - type: entity
   parent: KsCrewVehicleInteriorBaseWall
   id: KsCrewVehicleInteriorWallHumvee
@@ -108,6 +108,15 @@
   components:
   - type: Transform
     anchored: false
+
+# The cabin's outline, for sight: placed at the grid's origin with a polygon each in the map file, a closed ring round
+#   the floor plan open only where the art has glass, the windscreen's two panes and the small window in each door.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseOccluder
+  id: KsCrewVehicleInteriorOccluderHumvee
+  categories: [ HideSpawnMenu ]
+  name: humvee cabin wall
+  description: Armour plate, from the inside.
 
 # A weak warm light in the roof, enough to see the seats by when it is dark outside.
 - type: entity

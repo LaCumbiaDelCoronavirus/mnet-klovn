@@ -89,4 +89,16 @@ public static class KsCrewVehicleInteriorTransform
             out eyeCentre,
             out eyeRotation);
     }
+
+    /// <summary>
+    ///     Splits the backdrop eye's view centre into the position its FOV is cast from, the hull's, and the offset that
+    ///         keeps the view where it was: the engine casts FOV from an eye's position and centres the view on its
+    ///         position plus its offset, which is in world units and not turned with the eye.
+    /// </summary>
+    /// <param name="eyeCentre">The backdrop eye's centre, from <see cref="GetBackdropEye"/>.</param>
+    public static void GetBackdropFovEye(Vector2 hullWorldPosition, Vector2 eyeCentre, out Vector2 position, out Vector2 offset)
+    {
+        position = hullWorldPosition;
+        offset = eyeCentre - hullWorldPosition;
+    }
 }

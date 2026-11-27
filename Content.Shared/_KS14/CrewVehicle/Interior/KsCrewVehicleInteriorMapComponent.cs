@@ -32,4 +32,10 @@ public sealed partial class KsCrewVehicleInteriorMapComponent : Component
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
     public float OutsideLightBleed;
+
+    /// <summary>
+    ///     The vehicle's <see cref="KsCrewVehicleInteriorComponent.CabinAmbient"/>, for the client's renderer.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public Color CabinAmbient = Color.Black;
 }

@@ -26,12 +26,13 @@
         - LowImpassable
   - type: KsCrewVehicleInteriorPart
 
+# A wall piece that stops people. It does not block sight: the cabin's outline does that with occluder pieces
+#   (KsCrewVehicleInteriorBaseOccluder), which can sit off the tile grid and leave gaps exactly where the art has glass.
 - type: entity
   abstract: true
   parent: KsCrewVehicleInteriorBase
   id: KsCrewVehicleInteriorBaseWall
   components:
-  - type: Occluder
   - type: Fixtures
     fixtures:
       fix1:
@@ -61,6 +62,20 @@
         - FullTileMask
         layer:
         - GlassLayer
+
+# One run of a cabin's sight-blocking outline, with nothing to see, touch or bump into. Each placed piece gives its
+#   Occluder a polygon in the map file. Pieces overlap a little at the corners rather than meet edge to edge, as two
+#   unanchored pieces' positions can miss the exact shared-edge test and leave a slit.
+- type: entity
+  abstract: true
+  id: KsCrewVehicleInteriorBaseOccluder
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: Occluder
+  - type: KsCrewVehicleInteriorPart
 
 # A door out of the interior. Someone getting in arrives standing on it, so it does not block movement. Each placed
 #   door names its doorway in the map file.

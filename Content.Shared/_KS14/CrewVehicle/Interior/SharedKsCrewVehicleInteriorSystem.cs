@@ -157,6 +157,7 @@ public abstract partial class SharedKsCrewVehicleInteriorSystem : EntitySystem
         interiorMapComponent.Vehicle = vehicle.Owner;
         interiorMapComponent.Anchor = vehicle.Comp.InteriorAnchor;
         interiorMapComponent.OutsideLightBleed = vehicle.Comp.OutsideLightBleed;
+        interiorMapComponent.CabinAmbient = vehicle.Comp.CabinAmbient;
         Dirty(mapUid, interiorMapComponent);
 
         vehicle.Comp.InteriorMap = mapUid;
