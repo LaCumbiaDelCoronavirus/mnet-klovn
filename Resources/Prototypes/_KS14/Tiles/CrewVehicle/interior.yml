@@ -1,0 +1,6 @@
+# The floor of a crew vehicle's interior grid (Maps/_KS14/CrewVehicle/*.yml): solid and indestructible like reinforced hull
+#   plating, but drawn as nothing, so the interior is seen through to what the hull's view shows.
+- type: tile
+  parent: FloorHullReinforced
+  id: KsCrewVehicleInteriorFloor
+  sprite: /Textures/_KS14/Tiles/CrewVehicle/invisible.png

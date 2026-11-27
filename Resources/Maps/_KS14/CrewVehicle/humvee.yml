@@ -14,7 +14,7 @@ orphans: []
 nullspace: []
 tilemap:
   0: Space
-  1: FloorHullReinforced
+  1: KsCrewVehicleInteriorFloor
 entities:
 - proto: ""
   entities:
@@ -30,8 +30,6 @@ entities:
     - type: OccluderTree
     - type: Parallax
       parallax: Blank
-    - type: MapLight
-      ambientLightColor: '#303036FF'
     - type: MapAtmosphere
       space: False
       mixture:

@@ -8,6 +8,8 @@ using Content.Server._KS14.CrewVehicle.Interior;
 using Content.Shared._KS14.CrewVehicle.Interior;
 using Content.Shared.Damage.Components;
 using Content.Shared.Guidebook;
+using Content.Shared.Light.Components;
+using Content.Shared.Maps;
 using Content.Shared.Mobs.Components;
 using NUnit.Framework;
 using Robust.Shared.GameObjects;
@@ -30,6 +32,7 @@ public sealed class KsCrewVehicleContentTest : GameTest
 
     private static readonly ProtoId<GuideEntryPrototype> SecurityGuide = "Security";
     private static readonly ProtoId<GuideEntryPrototype> HumveeGuide = "KsHumvee";
+    private static readonly ProtoId<ContentTileDefinition> InteriorFloor = "KsCrewVehicleInteriorFloor";
 
     private KsCrewVehicleInteriorSystem Interiors => SEntMan.System<KsCrewVehicleInteriorSystem>();
 
@@ -125,6 +128,47 @@ public sealed class KsCrewVehicleContentTest : GameTest
                 }
 
                 Assert.That(placed, Is.GreaterThan(1), $"precondition: {vehicle}'s interior has things in it");
+                SEntMan.DeleteEntity(hullUid);
+            }
+        });
+    }
+
+    /// <summary>
+    ///     An interior isn't lit by its map, and its floor is the invisible, indestructible tile: the hull's view is what
+    ///         is seen through it.
+    /// </summary>
+    [Test]
+    public async Task ShippedInteriorsHaveNoMapLightAndAnInvisibleFloor()
+    {
+        var testMap = await Pair.CreateTestMap();
+        await Server.WaitAssertion(() =>
+        {
+            var tileDefinition = SProtoMan.Index(InteriorFloor);
+            Assert.That(tileDefinition.Indestructible, Is.True, "the interior floor can't be broken");
+            Assert.That(tileDefinition.MapAtmosphere, Is.False, "and is solid floor, not space");
+
+            var mapSystem = SEntMan.System<SharedMapSystem>();
+            foreach (var vehicle in ShippedVehicles())
+            {
+                var (hullUid, interiorMap) = SpawnWithInterior(testMap, vehicle);
+                Assert.That(SEntMan.HasComponent<MapLightComponent>(interiorMap), Is.False, $"{vehicle}'s interior map has no light of its own");
+
+                var tiles = 0;
+                var gridQuery = SEntMan.AllEntityQueryEnumerator<MapGridComponent, TransformComponent>();
+                while (gridQuery.MoveNext(out var gridUid, out var gridComponent, out var transformComponent))
+                {
+                    if (transformComponent.MapUid != interiorMap)
+                        continue;
+
+                    foreach (var tileRef in mapSystem.GetAllTiles(gridUid, gridComponent))
+                    {
+                        tiles++;
+                        var definition = (ContentTileDefinition) Server.ResolveDependency<ITileDefinitionManager>()[tileRef.Tile.TypeId];
+                        Assert.That(definition.ID, Is.EqualTo(tileDefinition.ID), $"{vehicle}'s interior tile at {tileRef.GridIndices} is the invisible floor");
+                    }
+                }
+
+                Assert.That(tiles, Is.GreaterThan(0), $"precondition: {vehicle}'s interior has floor");
                 SEntMan.DeleteEntity(hullUid);
             }
         });
