@@ -9,6 +9,7 @@ using Content.Server._KS14.NPC.Utility;
 using Content.Shared._KS14.NPC;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.NPC;
+using Content.Shared.NPC.Components;
 using Content.Shared.NPC.Systems;
 using Content.Shared.Stealth;
 using Content.Shared.Stealth.Components;
@@ -54,6 +55,7 @@ public sealed partial class NpcPerceptionSystem : EntitySystem
     [Dependency] private EntityQuery<StealthComponent> _stealthQuery = default!;
     [Dependency] private EntityQuery<NPCSteeringComponent> _steeringQuery = default!;
     [Dependency] private EntityQuery<NPCJukeComponent> _jukeQuery = default!;
+    [Dependency] private EntityQuery<NpcFactionMemberComponent> _factionMemberQuery = default!;
 
     /// <summary>
     ///     Hostiles the NPC could possibly see this update: in range, dead or alive.
@@ -223,6 +225,12 @@ public sealed partial class NpcPerceptionSystem : EntitySystem
             return UpdateRevealed(entity, targetUid, contact, now);
 
         var isCandidate = _candidates.Contains(targetUid);
+
+        // Belongs to nobody now, and nobody's foe: a vehicle whose driver got out or went down. Forgotten wherever it is,
+        //      seen or not, as there is nobody left in it to hunt.
+        if (hasContact && !isCandidate && IsUnaligned(entity.Owner, targetUid))
+            return Forget(entity, targetUid) ? ContactOutcome.Replan : ContactOutcome.None;
+
         var conspicuous = false;
         var targetVelocity = System.Numerics.Vector2.Zero;
         var seenLight = float.NaN;
@@ -266,6 +274,17 @@ public sealed partial class NpcPerceptionSystem : EntitySystem
             outcome |= ContactOutcome.Replan;
 
         return outcome;
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="targetUid"/> is a faction member in no faction at all, and not made a foe of
+    ///         <paramref name="observerUid"/> some other way (retaliation).
+    /// </summary>
+    private bool IsUnaligned(EntityUid observerUid, EntityUid targetUid)
+    {
+        return _factionMemberQuery.TryComp(targetUid, out var memberComponent) &&
+            memberComponent.Factions.Count == 0 &&
+            !_npcFactionSystem.IsEntityHostile(observerUid, targetUid);
     }
 
     /// <summary>

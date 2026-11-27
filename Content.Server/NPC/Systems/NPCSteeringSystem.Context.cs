@@ -857,7 +857,7 @@ public sealed partial class NPCSteeringSystem
             if (!_physicsQuery.TryGetComponent(nearbyEnt, out var otherBody) ||
                 !otherBody.Hard ||
                 !otherBody.CanCollide ||
-                otherBody.BodyType == BodyType.KinematicController ||
+                KsIsIgnoredController(nearbyEnt, otherBody) /* KS14: otherBody.BodyType == BodyType.KinematicController -> not a vehicle */ ||
                 (mask & otherBody.CollisionLayer) == 0x0 &&
                 (layer & otherBody.CollisionMask) == 0x0)
             {

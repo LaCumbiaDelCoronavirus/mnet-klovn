@@ -462,7 +462,8 @@ public sealed partial class PathfindingSystem
                     var xform = Transform(ent);
 
                     if (xform.ParentUid != grid.Owner ||
-                        _maps.LocalToTile(grid.Owner, grid.Comp, xform.Coordinates) != tilePos)
+                        _maps.LocalToTile(grid.Owner, grid.Comp, xform.Coordinates) != tilePos &&
+                        !KsReachesOtherTiles(ent, xform) /* KS14: unless a loose vehicle, counted on every tile it covers */)
                     {
                         continue;
                     }

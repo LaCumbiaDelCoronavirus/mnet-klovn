@@ -1,5 +1,6 @@
 using Content.Server._KS14.KillCredit;
 using Content.Shared._KS14.NPC;
+using Content.Shared._KS14.Vehicle;
 using Content.Shared.Damage.Systems;
 using Content.Shared.Mobs.Components;
 
@@ -45,6 +46,13 @@ public sealed partial class NpcPerceptionSystem
         // A gun in someone's hands is its holder shooting: a beam names the gun.
         if (_containerSystem.TryGetOuterContainer(attackerUid, Transform(attackerUid), out var container))
             attackerUid = container.Owner;
+
+        // A gun mounted on a vehicle is the vehicle shooting: it is the hull that can be seen and shot back, and that
+        //      takes its driver's side. Not a vehicle's operator, who rides on a strap vehicle in plain sight.
+        var shooterVehicleEvent = new KsGetShooterVehicleEvent();
+        RaiseLocalEvent(attackerUid, ref shooterVehicleEvent);
+        if (shooterVehicleEvent.Vehicle is { } vehicleUid && !TerminatingOrDeleted(vehicleUid))
+            attackerUid = vehicleUid;
 
         if (attackerUid == uid ||
             // A mob has to be alive. A machine, a turret, has no life to check: it is there until it is deleted.

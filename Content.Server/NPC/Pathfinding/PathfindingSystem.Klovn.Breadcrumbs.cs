@@ -3,6 +3,7 @@ using System.Numerics;
 using Content.Server._KS14.NPC.Pushing;
 using Content.Shared.Doors.Components;
 using Content.Shared.NPC;
+using Content.Shared.Vehicle.Components;
 using Robust.Shared.Map.Components;
 using Robust.Shared.Physics;
 using Robust.Shared.Physics.Components;
@@ -12,6 +13,7 @@ namespace Content.Server.NPC.Pathfinding;
 public sealed partial class PathfindingSystem
 {
     [Dependency] private NpcPushSystem _npcPushSystem = default!;
+    [Dependency] private EntityQuery<VehicleComponent> _vehicleQuery = default!;
 
     /// <summary>
     /// What crossing a tile blocked only by things that can be pushed out of the way costs, on top of walking it, for a
@@ -131,7 +133,8 @@ public sealed partial class PathfindingSystem
     /// to link to the next tile anyway.) A tile is left as it is if any <see cref="MobWidthInPoints"/> square of its
     /// points is free, as a thin window along one edge leaves it; and if what blocks it is a door, which steering opens
     /// or forces on its own terms. Only within the tile: a gap made by things on two tiles next to each other is not seen,
-    /// nor the part of something that reaches into the next tile, as only the tile its centre is on counts it.
+    /// nor the part of something that reaches into the next tile, as only the tile its centre is on counts it (a loose
+    /// vehicle counts on every tile it covers: see <see cref="KsReachesOtherTiles"/>).
     /// </summary>
     private static void BlockNarrowGaps(PathfindingBreadcrumb[,] points, int tileX, int tileY)
     {
@@ -210,6 +213,18 @@ public sealed partial class PathfindingSystem
         return true;
     }
 
+    /// <summary>
+    /// Whether an entity counts on the tiles it reaches into besides the one its centre is on: a loose vehicle does, so a
+    /// parked crew vehicle, three tiles long, blocks all three, where it used to block only the middle one and paths ran
+    /// through both ends. The point test decides which of a tile's points it covers. Anything else keeps to its own tile:
+    /// a thin window on a tile's edge, or a machine wider than its tile, would otherwise change every map's navmesh, and a
+    /// big NPC (a tank, its turret welded on) would wall itself in, its own body blocking every tile its path starts on.
+    /// </summary>
+    private bool KsReachesOtherTiles(EntityUid uid, TransformComponent transformComponent)
+    {
+        return !transformComponent.Anchored && _vehicleQuery.HasComponent(uid);
+    }
+
     private TileEntity GetTileEntity(EntityUid uid, FixturesComponent fixturesComponent, TransformComponent transformComponent, Vector2i tilePos)
     {
         var flags = PathfindingBreadcrumbFlag.None;
@@ -261,7 +276,10 @@ public sealed partial class PathfindingSystem
         if (_glassTableQuery.TryGetComponent(uid, out var glassTableComponent) && glassTableComponent.MassLimit < ClimberMass)
             flags |= PathfindingBreadcrumbFlag.ClimbBreaks;
 
-        var damage = _destructibleQuery.TryGetComponent(uid, out var destructibleComponent)
+        // Nothing to smash through for a vehicle, whatever it would take to wreck it: smashing NPCs leave vehicles alone and
+        //      go round, as any other NPC does.
+        var damage = !_vehicleQuery.HasComponent(uid) &&
+            _destructibleQuery.TryGetComponent(uid, out var destructibleComponent)
             ? _destructible.DestroyedAt(uid, destructibleComponent).Float()
             : 0f;
 
@@ -269,12 +287,16 @@ public sealed partial class PathfindingSystem
         //      on the main thread: see CollectPushableBodies.
         var pushable = !transformComponent.Anchored && _pushableBodies.Contains(uid);
 
+        // Only on its own tile is something thin tested against the points' cells: on a tile it only reaches into, it
+        //      covers the points it covers, and missing them all is covering none.
+        var ownTile = _maps.LocalToTile(transformComponent.ParentUid, _mapGridQuery.GetComponent(transformComponent.ParentUid), transformComponent.Coordinates) == tilePos;
+
         return new TileEntity(fixturesComponent,
             new Transform(transformComponent.LocalPosition, transformComponent.LocalRotation),
             flags,
             blockedBesidesDoors,
             damage,
             pushable,
-            FitsBetweenPoints(fixturesComponent, tilePos));
+            ownTile && FitsBetweenPoints(fixturesComponent, tilePos));
     }
 }

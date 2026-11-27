@@ -228,3 +228,8 @@
   - type: KsCrewVehicleCrashLockout
     stallSound:
       path: /Audio/Effects/metal_crunch.ogg
+  # On its driver's side while they drive it and are fit to, which is when NPCs fight it, and before most else in sight,
+  #   as they would a turret. Nobody's otherwise.
+  - type: KsVehicleOperatorFactions
+  - type: KsNpcTargetPriority
+    priority: 0.8
