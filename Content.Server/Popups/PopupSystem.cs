@@ -43,7 +43,7 @@ public sealed partial class PopupSystem : SharedPopupSystem
             return;
 
         var mapPos = _transform.ToMapCoordinates(coordinates);
-        var filter = Filter.Empty().AddPlayersByPvs(mapPos, entManager: EntityManager, playerMan: _player, cfgMan: _cfg);
+        var filter = ViewersOf(coordinates); // KS14: Filter.Empty().AddPlayersByPvs(mapPos, ...) -> everyone who sees it, from wherever they look
         RaiseNetworkEvent(new PopupCoordinatesEvent(message, type, Timing.CurTick, GetNetCoordinates(coordinates), predictionKey), filter);
     }
 
@@ -77,7 +77,7 @@ public sealed partial class PopupSystem : SharedPopupSystem
         if (message == null)
             return;
 
-        var filter = Filter.Empty().AddPlayersByPvs(uid, entityManager: EntityManager, playerMan: _player, cfgMan: _cfg);
+        var filter = ViewersOf(uid); // KS14: Filter.Empty().AddPlayersByPvs(uid, ...) -> everyone who sees it, from wherever they look
         RaiseNetworkEvent(new PopupEntityEvent(message, type, Timing.CurTick, GetNetEntity(uid)), filter);
     }
 

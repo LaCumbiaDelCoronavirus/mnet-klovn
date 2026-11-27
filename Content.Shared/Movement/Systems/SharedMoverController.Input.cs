@@ -170,7 +170,7 @@ namespace Content.Shared.Movement.Systems
             }
 
             // If we updated parent then cancel the accumulator and force it now.
-            if (!TryUpdateRelative(uid, mover, XformQuery.GetComponent(uid)) && mover.TargetRelativeRotation.Equals(Angle.Zero))
+            if (!TryUpdateRelative(uid, mover, KsFrameTransform(uid, XformQuery.GetComponent(uid)) /* KS14: own transform -> its borrowed frame's, if any */) && mover.TargetRelativeRotation.Equals(Angle.Zero))
                 return;
 
             mover.LerpTarget = TimeSpan.Zero;

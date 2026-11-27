@@ -32,8 +32,11 @@ namespace Content.IntegrationTests.Tests._KS14.CrewVehicle;
 [TestOf(typeof(KsCrewVehicleViewSystem))]
 public sealed class KsCrewVehicleEyeFrameTest : KsCrewVehicleGunnerTestBase
 {
-    /// <summary>Not a quarter turn, so a frame that is wrong by any cardinal still shows.</summary>
-    private static readonly Angle GridRotation = Angle.FromDegrees(30);
+    /// <summary>
+    ///     Not a quarter turn, so a frame that is wrong by any cardinal still shows; and over 45° from upright, so
+    ///         sitting down snapping to the nearest quarter turn of the upright interior is not the default either.
+    /// </summary>
+    private static readonly Angle GridRotation = Angle.FromDegrees(100);
 
     private const double Tolerance = 0.01;
 
@@ -70,9 +73,9 @@ public sealed class KsCrewVehicleEyeFrameTest : KsCrewVehicleGunnerTestBase
     ///     Turns the outside grid, with the player standing on it, and returns the eye rotation a mob standing there
     ///         settles on: what a view seat on that grid should show.
     /// </summary>
-    private async Task<Angle> TurnGridAsync()
+    private async Task<Angle> TurnGridAsync(Angle? rotation = null)
     {
-        await Server.WaitPost(() => Transform.SetWorldRotation(MapData.Grid.Owner, GridRotation));
+        await Server.WaitPost(() => Transform.SetWorldRotation(MapData.Grid.Owner, rotation ?? GridRotation));
         var mobRotation = (await SettleEyeAsync())[^1];
         Assert.That(SameAngle(mobRotation, Angle.Zero), Is.False, "precondition: a mob on the turned grid sees it turned");
         return mobRotation;
@@ -147,7 +150,8 @@ public sealed class KsCrewVehicleEyeFrameTest : KsCrewVehicleGunnerTestBase
     [Test]
     public async Task ChangingGridEasesTheView()
     {
-        var mobRotation = await TurnGridAsync();
+        // Under 45°, so that a mob crossing from it onto an upright grid ends upright too.
+        var mobRotation = await TurnGridAsync(Angle.FromDegrees(30));
         var scene = await SitInsideAsync(driver: false);
         Assert.That(SameAngle((await SettleEyeAsync())[^1], mobRotation), Is.True, "precondition: seated on the turned grid");
 
@@ -209,7 +213,9 @@ public sealed class KsCrewVehicleEyeFrameTest : KsCrewVehicleGunnerTestBase
         // Turned away first, so that the reset has something to undo and is seen to have run.
         await SetKey(EngineKeyFunctions.CameraRotateLeft, BoundKeyState.Down);
         await SetKey(EngineKeyFunctions.CameraRotateLeft, BoundKeyState.Up);
-        Assert.That(SameAngle((await SettleEyeAsync())[^1], mobRotation), Is.False, "precondition: the camera turned");
+        var turned = (await SettleEyeAsync())[^1];
+        Assert.That(Math.Abs(Math.Abs(Angle.ShortestDistance(turned, mobRotation).Degrees) - 90d), Is.LessThan(0.5d),
+            $"seated, the camera keys should still turn the view a quarter; was {turned.Degrees:F1}° from {mobRotation.Degrees:F1}°");
 
         await SetKey(EngineKeyFunctions.CameraReset, BoundKeyState.Down);
         await SetKey(EngineKeyFunctions.CameraReset, BoundKeyState.Up);

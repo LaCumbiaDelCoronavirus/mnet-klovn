@@ -79,7 +79,7 @@ public sealed partial class PopupOverlay : Overlay
         var ourEntity = _playerMgr.LocalEntity;
         var viewPos = new MapCoordinates(args.WorldAABB.Center, args.MapId);
         var ourPos = args.WorldBounds.Center;
-        if (ourEntity != null)
+        if (ourEntity != null && _entManager.GetComponent<TransformComponent>(ourEntity.Value).MapID == args.MapId /* KS14: on another map (a vehicle's view seat), see from the eye instead */)
         {
             viewPos = _transform.GetMapCoordinates(ourEntity.Value);
             ourPos = viewPos.Position;

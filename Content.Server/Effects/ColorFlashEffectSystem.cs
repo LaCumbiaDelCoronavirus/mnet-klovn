@@ -7,6 +7,6 @@ public sealed partial class ColorFlashEffectSystem : SharedColorFlashEffectSyste
 {
     public override void RaiseEffect(Color color, List<EntityUid> entities, Filter filter)
     {
-        RaiseNetworkEvent(new ColorFlashEffectEvent(color, GetNetEntityList(entities)), filter);
+        RaiseNetworkEvent(new ColorFlashEffectEvent(color, GetNetEntityList(entities)), Content.Shared._KS14.Player.KsViewFilter.AddRemoteViewersOf(filter, entities, EntityManager) /* KS14: filter -> plus whoever sees them from another map */);
     }
 }

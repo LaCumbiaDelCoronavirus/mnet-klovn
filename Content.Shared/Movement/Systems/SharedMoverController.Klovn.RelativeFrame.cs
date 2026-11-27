@@ -40,6 +40,24 @@ public abstract partial class SharedMoverController
     }
 
     /// <summary>
+    ///     Puts a mover that has just borrowed a frame straight into it, at its default: as the align-camera key leaves
+    ///         someone standing on that grid. Changes of the frame after this ease as a mob's do.
+    /// </summary>
+    public void KsSnapToBorrowedFrame(Entity<InputMoverComponent?> mover)
+    {
+        if (!MoverQuery.Resolve(mover, ref mover.Comp, logMissing: false) ||
+            !XformQuery.TryComp(mover, out var ownTransform))
+            return;
+
+        var frameTransform = KsFrameTransform(mover, ownTransform);
+        mover.Comp.RelativeEntity = frameTransform.GridUid ?? frameTransform.MapUid;
+        mover.Comp.RelativeRotation = Angle.Zero;
+        mover.Comp.TargetRelativeRotation = Angle.Zero;
+        mover.Comp.LerpTarget = TimeSpan.Zero;
+        Dirty(mover.Owner, mover.Comp);
+    }
+
+    /// <summary>
     ///     A mover relaying its keys to another never updates its own frame upstream, which is copied onto the one it
     ///         relays to. One that borrows its frame still follows it, so a driver looking out of a vehicle turns with
     ///         the grid under the vehicle.

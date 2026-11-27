@@ -1,9 +1,17 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Content.Shared._KS14.CrewVehicle.View;
+using Content.Shared._KS14.PopupLocalization;
+using Content.Shared.Popups;
+using Content.Shared.Effects;
+using Content.IntegrationTests.Fixtures.Attributes;
+using Robust.Shared.Player;
+using Robust.Shared.Prototypes;
+using Robust.Shared.Maths;
 using Content.Shared.Buckle;
 using Content.Shared.Buckle.Components;
 using Content.Shared.Movement.Components;
@@ -32,14 +40,18 @@ public sealed class KsCrewVehicleSeatViewTest : KsCrewVehicleViewTestBase
     private static readonly Vector2 ZoomBefore = new(1.2f, 1.2f);
     private static readonly Vector2 MaxZoomBefore = new(1.3f, 1.3f);
 
+    /// <summary>Any locale id will do; the test looks at where the popup goes, not what it says.</summary>
+    private const string PopupText = "ks-crew-vehicle-interior-no-build";
+
     private sealed record SeatScene(VehicleScene Vehicle, EntityUid Mob, Entity<KsCrewVehicleViewSeatComponent> ViewSeat, EntityUid PassengerSeat);
 
     /// <summary>
     ///     The player's mob, spawned inside between the two seats, with its zoom set to <see cref="ZoomBefore"/>.
     /// </summary>
-    private async Task<SeatScene> SetUpSeatsAsync()
+    /// <param name="levelBelow">The vehicle is parked on a z-level with another under it.</param>
+    private async Task<SeatScene> SetUpSeatsAsync(bool levelBelow = false)
     {
-        var vehicle = await SetUpVehicleAsync();
+        var vehicle = await SetUpVehicleAsync(levelBelow: levelBelow);
         EntityUid mob = default, passengerSeat = default;
         Entity<KsCrewVehicleViewSeatComponent> viewSeat = default;
         await Server.WaitPost(() =>
@@ -264,5 +276,172 @@ public sealed class KsCrewVehicleSeatViewTest : KsCrewVehicleViewTestBase
 
         Assert.That(errors.Any(error => error.Contains("narrow view seat") && error.Contains("pvsScale")), Is.True,
             $"the error should name the seat and what is wrong with it; got: {string.Join("; ", errors)}");
+    }
+
+    /// <summary>
+    ///     From a view seat the player sees outside, so they are sent popups from outside, however far inside the
+    ///         interior their body is.
+    /// </summary>
+    [Test]
+    public async Task PopupsOutsideReachTheViewSeat()
+    {
+        var scene = await SetUpSeatsAsync();
+        await Server.WaitPost(() => Buckle(scene.Mob, scene.ViewSeat));
+        await Pair.RunTicksSync(SettleTicks);
+
+        var near = await SpawnMarkerAsync(scene.Vehicle, 2f);
+        var far = await SpawnMarkerAsync(scene.Vehicle, FarDistance * scene.Vehicle.PvsRange);
+        await Pair.RunTicksSync(SettleTicks);
+        await Server.WaitPost(() =>
+        {
+            var popupSystem = SEntMan.System<SharedPopupSystem>();
+            popupSystem.PopupEntity(KsPopupMessage.Create(PopupText), SEntMan.GetEntity(near));
+            popupSystem.PopupEntity(KsPopupMessage.Create(PopupText), SEntMan.GetEntity(far));
+        });
+        await Pair.RunTicksSync(5);
+
+        // A label is placed where its entity stood, relative to what it stood on: found by position, not by uid.
+        var nearPosition = Vector2.Zero;
+        await Server.WaitPost(() => nearPosition = SEntMan.System<SharedTransformSystem>().GetWorldPosition(SEntMan.GetEntity(near)));
+        await Client.WaitAssertion(() =>
+        {
+            var transformSystem = CEntMan.System<SharedTransformSystem>();
+            var labelPositions = CEntMan.System<Content.Client.Popups.PopupSystem>().WorldLabels
+                .Select(label => transformSystem.ToMapCoordinates(label.InitialPos).Position)
+                .ToList();
+            Assert.That(labelPositions.Count(position => (position - nearPosition).Length() < 0.5f), Is.EqualTo(1),
+                "a popup on something beside the vehicle should reach the player looking out of it");
+            Assert.That(labelPositions.Count(position => (position - nearPosition).Length() > FarDistance * scene.Vehicle.PvsRange / 2f), Is.Zero,
+                "one far from the vehicle and the interior should not");
+        });
+    }
+
+    /// <param name="seated">In the view seat; otherwise standing inside, seeing the outside behind the interior.</param>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task TheLevelBelowReachesTheCrew(bool seated)
+    {
+        var scene = await SetUpSeatsAsync(levelBelow: true);
+        if (seated)
+        {
+            await Server.WaitPost(() => Buckle(scene.Mob, scene.ViewSeat));
+            await Pair.RunTicksSync(SettleTicks);
+        }
+
+        var under = NetEntity.Invalid;
+        var far = NetEntity.Invalid;
+        await Server.WaitPost(() =>
+        {
+            var hullPosition = SEntMan.System<SharedTransformSystem>().GetWorldPosition(scene.Vehicle.Hull);
+            under = SEntMan.GetNetEntity(SEntMan.SpawnEntity(null, new MapCoordinates(hullPosition, scene.Vehicle.LowerMapId)));
+            far = SEntMan.GetNetEntity(SEntMan.SpawnEntity(null,
+                new MapCoordinates(hullPosition + new Vector2(FarDistance * scene.Vehicle.PvsRange, 0f), scene.Vehicle.LowerMapId)));
+        });
+        await Pair.RunTicksSync(SettleTicks);
+
+        Assert.That(await ClientHasAsync(under), Is.True,
+            "the level under the vehicle should be sent to the crew, as to a mob standing where it is");
+        Assert.That(await ClientHasAsync(far), Is.False, "but only around it");
+    }
+
+    [TestPrototypes]
+    private const string FlashPrototypes = @"
+- type: entity
+  id: KsCrewVehicleViewTestFlashTarget
+  components:
+  - type: Sprite
+";
+
+    private readonly EntProtoId _flashTarget = "KsCrewVehicleViewTestFlashTarget";
+
+    /// <summary>
+    ///     Long enough for a network event to be dispatched: the client holds one back until it has applied the state of
+    ///         the tick it was sent on.
+    /// </summary>
+    private const int FlashTicks = 10;
+
+    /// <summary>
+    ///     A hit's colour flash reaches the player looking out of a view seat, as popups do. Two controls must not get
+    ///         one: something that has left their view, and the same player once they look from somewhere else.
+    /// </summary>
+    [Test]
+    public async Task HitFlashesOutsideReachTheViewSeat()
+    {
+        var scene = await SetUpSeatsAsync();
+        await Server.WaitPost(() => Buckle(scene.Mob, scene.ViewSeat));
+        await Pair.RunTicksSync(SettleTicks);
+
+        // What the client is sent, rather than what it then animates: that is the server's choice under test.
+        var flashed = new HashSet<NetEntity>();
+        EventHandler<object> capture = (_, message) =>
+        {
+            if (message is ColorFlashEffectEvent flashEvent)
+                flashed.UnionWith(flashEvent.Entities);
+        };
+        await Client.WaitPost(() => CEntMan.EntityNetManager.ReceivedSystemMessage += capture);
+        try
+        {
+            // Each flash on a target of its own, so that one arriving late cannot pass for another.
+            EntityUid near = default, gone = default, nearLater = default;
+            await Server.WaitPost(() =>
+            {
+                var hullPosition = SEntMan.System<SharedTransformSystem>().GetWorldPosition(scene.Vehicle.Hull);
+                near = SEntMan.SpawnEntity(_flashTarget, new MapCoordinates(hullPosition + new Vector2(2f, 0f), scene.Vehicle.OutsideMapId));
+                gone = SEntMan.SpawnEntity(_flashTarget, new MapCoordinates(hullPosition + new Vector2(-2f, 0f), scene.Vehicle.OutsideMapId));
+                nearLater = SEntMan.SpawnEntity(_flashTarget, new MapCoordinates(hullPosition + new Vector2(0f, 2f), scene.Vehicle.OutsideMapId));
+            });
+            await Pair.RunTicksSync(SettleTicks);
+            Assert.That(await ClientHasAsync(SEntMan.GetNetEntity(gone)), Is.True, "precondition: the client has been sent the control");
+            Assert.That(await ClientHasAsync(SEntMan.GetNetEntity(nearLater)), Is.True, "precondition: and the later target");
+
+            // The control leaves their view; the client keeps it, detached, sprite and all.
+            await Server.WaitPost(() => SEntMan.System<SharedTransformSystem>().SetWorldPosition(gone,
+                SEntMan.System<SharedTransformSystem>().GetWorldPosition(scene.Vehicle.Hull) + new Vector2(FarDistance * scene.Vehicle.PvsRange, 0f)));
+            await Pair.RunTicksSync(SettleTicks);
+
+            await Server.WaitPost(() =>
+            {
+                RaiseHitFlash(near);
+                RaiseHitFlash(gone);
+            });
+            await Pair.RunTicksSync(FlashTicks);
+
+            Assert.That(flashed, Does.Contain(SEntMan.GetNetEntity(near)), "a hit's flash beside the vehicle should reach the player looking out of it");
+            Assert.That(flashed, Does.Not.Contain(SEntMan.GetNetEntity(gone)), "one on something they no longer see should not");
+
+            // The control player: the same session, standing up and then looking from a mob on a map of its own, far
+            //      from the vehicle. Standing first: the engine drops an eye target's view subscription on detach only
+            //      while the eye's owner still has its actor, which the detach has already removed.
+            await Server.WaitPost(() =>
+            {
+                Unbuckle(scene.Mob);
+                SEntMan.System<SharedMapSystem>().CreateMap(out var elsewhereMapId);
+                var elsewhereMob = SEntMan.SpawnEntity(MobPrototype, new MapCoordinates(Vector2.Zero, elsewhereMapId));
+                Server.PlayerMan.SetAttachedEntity(ServerSession!, elsewhereMob);
+            });
+            await Pair.RunTicksSync(SettleTicks);
+            await Server.WaitAssertion(() =>
+            {
+                Assert.That(ServerSession!.ViewSubscriptions.Where(uid => SComp<TransformComponent>(uid).MapID == scene.Vehicle.OutsideMapId),
+                    Is.Empty, "precondition: the player no longer sees the vehicle's map from anywhere");
+            });
+
+            await Server.WaitPost(() => RaiseHitFlash(nearLater));
+            await Pair.RunTicksSync(FlashTicks);
+
+            Assert.That(flashed, Does.Not.Contain(SEntMan.GetNetEntity(nearLater)),
+                "a player who no longer looks out of the vehicle should not get its flashes");
+        }
+        finally
+        {
+            await Client.WaitPost(() => CEntMan.EntityNetManager.ReceivedSystemMessage -= capture);
+        }
+    }
+
+    /// <summary>As a weapon raises it: to everyone whose body is in PVS of what was hit. Call on the server thread.</summary>
+    private void RaiseHitFlash(EntityUid targetUid)
+    {
+        SEntMan.System<SharedColorFlashEffectSystem>()
+            .RaiseEffect(Color.Red, new List<EntityUid> { targetUid }, Filter.Pvs(targetUid, entityManager: SEntMan));
     }
 }

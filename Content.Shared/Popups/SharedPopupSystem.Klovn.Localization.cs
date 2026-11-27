@@ -1,4 +1,6 @@
+using Content.Shared._KS14.Player;
 using Content.Shared._KS14.PopupLocalization;
+using Robust.Shared.Configuration;
 using Robust.Shared.Map;
 using Robust.Shared.Player;
 
@@ -6,6 +8,26 @@ namespace Content.Shared.Popups;
 
 public abstract partial class SharedPopupSystem
 {
+    [Dependency] private ISharedPlayerManager _ksPlayerManager = default!;
+    [Dependency] private IConfigurationManager _ksConfigurationManager = default!;
+
+    /// <summary>
+    ///     Everyone who can see <paramref name="uid"/>, from wherever they look: someone in a vehicle's view seat sees
+    ///         what happens outside although their body is inside (<see cref="KsViewFilter"/>).
+    /// </summary>
+    protected Filter ViewersOf(EntityUid uid)
+        => KsViewFilter.View(uid, EntityManager, playerManager: _ksPlayerManager, configurationManager: _ksConfigurationManager);
+
+    /// <inheritdoc cref="ViewersOf(EntityUid)"/>
+    protected Filter ViewersOf(EntityCoordinates coordinates)
+        => KsViewFilter.View(coordinates, EntityManager, playerManager: _ksPlayerManager, configurationManager: _ksConfigurationManager);
+
+    /// <summary>
+    ///     Everyone who can see <paramref name="uid"/> but whoever is attached to it.
+    /// </summary>
+    protected Filter ViewersExcept(EntityUid uid)
+        => KsViewFilter.ViewExcept(uid, EntityManager, playerManager: _ksPlayerManager, configurationManager: _ksConfigurationManager);
+
     protected abstract void PopupLocalized(KsPopupMessage message, KsPopupKind kind, EntityUid? entity,
         EntityCoordinates coordinates, Filter filter, bool recordReplay, PopupType type, int predictionKey = 0);
 
@@ -13,7 +35,7 @@ public abstract partial class SharedPopupSystem
         ? Filter.SinglePlayer(actor.PlayerSession) : Filter.Empty();
 
     public void PopupEntity(KsPopupMessage message, EntityUid uid, PopupType type = PopupType.Small)
-        => PopupEntity(message, uid, Filter.Pvs(uid), true, type);
+        => PopupEntity(message, uid, ViewersOf(uid), true, type);
 
     public void PopupEntity(KsPopupMessage message, EntityUid uid, EntityUid? recipient, PopupType type = PopupType.Small)
         => PopupEntity(message, uid, RecipientFilter(recipient), false, type);
@@ -29,7 +51,7 @@ public abstract partial class SharedPopupSystem
     {
         if (recipient is { } recipientUid)
         {
-            PopupEntity(othersMessage, uid, Filter.PvsExcept(recipientUid), true, type);
+            PopupEntity(othersMessage, uid, ViewersExcept(recipientUid), true, type);
             PopupEntity(recipientMessage, uid, recipientUid, type);
         }
         else
@@ -41,7 +63,7 @@ public abstract partial class SharedPopupSystem
     {
         if (recipient is { } recipientUid)
         {
-            PopupEntity(othersMessage, uid, Filter.PvsExcept(recipientUid), true, type);
+            PopupEntity(othersMessage, uid, ViewersExcept(recipientUid), true, type);
             PopupEntity(recipientMessage, uid, recipientUid, type);
         }
         else
@@ -59,7 +81,7 @@ public abstract partial class SharedPopupSystem
 
     public void PopupCoordinates(KsPopupMessage message, EntityCoordinates coordinates,
         PopupType type = PopupType.Small, int predictionKey = 0)
-        => PopupCoordinates(message, coordinates, Filter.Pvs(coordinates), true, type, predictionKey);
+        => PopupCoordinates(message, coordinates, ViewersOf(coordinates), true, type, predictionKey);
 
     public void PopupCoordinates(KsPopupMessage message, EntityCoordinates coordinates, EntityUid? recipient,
         PopupType type = PopupType.Small, int predictionKey = 0)

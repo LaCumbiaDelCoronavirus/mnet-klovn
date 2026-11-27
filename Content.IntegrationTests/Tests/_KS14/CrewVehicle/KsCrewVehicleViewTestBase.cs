@@ -9,6 +9,7 @@ using Content.IntegrationTests.Fixtures.Attributes;
 using Content.Server._KS14.CrewVehicle.Entry;
 using Content.Server._KS14.CrewVehicle.Interior;
 using Content.Shared._KS14.CrewVehicle.Interior;
+using Content.Shared._KS14.ZLevel;
 using NUnit.Framework;
 using Robust.Shared;
 using Robust.Shared.Configuration;
@@ -98,12 +99,15 @@ public abstract class KsCrewVehicleViewTestBase : GameTest
     /// <summary>Ten times the PVS range: out of reach at any scale the tests use.</summary>
     protected const float FarDistance = 10f;
 
-    protected sealed record VehicleScene(MapId OutsideMapId, EntityUid Hull, EntityUid InteriorGrid, Vector2 Left, float PvsRange);
+    /// <param name="LowerMapId">The z-level under the outside map, if one was asked for.</param>
+    protected sealed record VehicleScene(MapId OutsideMapId, EntityUid Hull, EntityUid InteriorGrid, Vector2 Left, float PvsRange,
+        MapId LowerMapId = default);
 
     /// <summary>
     ///     Turns PVS on, parks a test hull on floor that reaches round it, and loads its interior.
     /// </summary>
-    protected async Task<VehicleScene> SetUpVehicleAsync(EntProtoId? hullPrototype = null)
+    /// <param name="levelBelow">Makes the outside map a z-level with another under it.</param>
+    protected async Task<VehicleScene> SetUpVehicleAsync(EntProtoId? hullPrototype = null, bool levelBelow = false)
     {
         await OverrideCVar(Side.Server, CVars.NetPVS, true);
         Assert.That(ServerSession, Is.Not.Null, "these tests need a connected session for anything to replicate to");
@@ -129,8 +133,20 @@ public abstract class KsCrewVehicleViewTestBase : GameTest
                 .Owner;
         });
 
+        var lowerMapId = MapId.Nullspace;
+        if (levelBelow)
+        {
+            await Server.WaitPost(() =>
+            {
+                var lowerMapUid = SEntMan.System<SharedMapSystem>().CreateMap(out lowerMapId);
+                SEntMan.EnsureComponent<KsZLevelComponent>(testMap.MapUid);
+                SEntMan.EnsureComponent<KsZLevelComponent>(lowerMapUid);
+                SEntMan.System<KsZLevelSystem>().AddZLevelDirectlyUnder(testMap.MapUid, lowerMapUid);
+            });
+        }
+
         var pvsRange = Server.ResolveDependency<IConfigurationManager>().GetCVar(CVars.NetMaxUpdateRange);
-        return new VehicleScene(testMap.MapId, hull, interiorGrid, hullPosition + new Vector2(1f, 0f), pvsRange);
+        return new VehicleScene(testMap.MapId, hull, interiorGrid, hullPosition + new Vector2(1f, 0f), pvsRange, lowerMapId);
     }
 
     protected KsCrewVehicleInteriorSystem Interiors => SEntMan.System<KsCrewVehicleInteriorSystem>();

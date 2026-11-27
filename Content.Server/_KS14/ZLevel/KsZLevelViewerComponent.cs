@@ -3,19 +3,19 @@ using Robust.Shared.Player;
 namespace Content.Server._KS14.ZLevel;
 
 /// <summary>
-///     Used to add/remove a z-level loading entity for this player
-///         depending on whether they're on a z-level or not.
+///     On anything a player sees from: their attached entity, or an entity their session is view-subscribed to (an
+///         eye target, a vehicle's outside viewer, a camera). While it is on a z-level, the levels below it, and above
+///         if asked for, are sent to those sessions as they are to a mob standing there.
 /// </summary>
 [RegisterComponent]
 [Access(typeof(KsZLevelPvsSystem))]
 public sealed partial class KsZLevelViewerComponent : Component
 {
     /// <summary>
-    ///     Should always point to a valid session as long as this component
-    ///         is alive.
+    ///     The sessions that see from this entity. The component goes when the last one stops.
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly)]
-    public ICommonSession Session;
+    public HashSet<ICommonSession> Sessions = new();
 
     /// <summary>
     ///     The entities loading the z-levels below for this player, one a level, the nearest level first. As many as

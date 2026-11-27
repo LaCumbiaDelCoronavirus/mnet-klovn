@@ -117,6 +117,10 @@ public sealed partial class KsCrewVehicleViewSystem : EntitySystem
         frameComponent.Frame = viewer.Comp.Vehicle;
         Dirty(viewer.Owner, frameComponent);
 
+        // Straight to the default view of the hull's grid, as the eye jumps outside: not the nearest quarter turn to
+        //      however the interior happened to be turned, which crossing onto a grid would give.
+        _moverController.KsSnapToBorrowedFrame(viewer.Owner);
+
         if (_contentEyeQuery.TryComp(viewer.Owner, out var contentEyeComponent))
         {
             _contentEyeSystem.SetMaxZoom(viewer.Owner, seatComponent.Zoom, contentEyeComponent);
