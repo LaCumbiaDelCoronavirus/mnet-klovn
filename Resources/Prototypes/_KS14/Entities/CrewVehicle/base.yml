@@ -167,9 +167,10 @@
   - type: Vehicle
     requiresHands: false
     transferDamage: false
+  # Weightless exactly where there is no floor under it, over space or lattice (KsCrewVehicleDriveSystem): there it has
+  #   no traction, can't be driven or steered, and drifts with the speed it had, like any loose body.
+  - type: GravityAffected
   - type: KsCrewVehicleDrive
-    edgeStopSound:
-      collection: MetalScrape
   - type: Tag
     tags:
     - DoorBumpOpener
@@ -196,14 +197,10 @@
       collection: MetalThud
     shoveVehicleSound:
       path: /Audio/Effects/metal_slam1.ogg
-  # Breaks through windows, grilles and tables; crashes into walls. Doors are bumped open, never smashed.
+  # Everything hard that isn't loose takes smashDamage: it breaks and the hull drives on slower, or it stands and the
+  #   hull crashes into it (a sturdy thing takes several hits). Walls are crashed into at once. A door that would open
+  #   for the hull opens.
   - type: KsCrewVehicleSmash
-    smashable:
-      tags:
-      - Window
-      components:
-      - CanBuildWindowOnTop
-      - Bonkable
     walls:
       tags:
       - Wall

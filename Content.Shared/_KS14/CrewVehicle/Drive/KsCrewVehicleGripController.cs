@@ -1,4 +1,5 @@
 using System.Numerics;
+using Content.Shared.Gravity;
 using Content.Shared.Movement.Components;
 using Content.Shared.Movement.Systems;
 using Robust.Shared.Physics;
@@ -17,6 +18,7 @@ namespace Content.Shared._KS14.CrewVehicle.Drive;
 /// </remarks>
 public sealed partial class KsCrewVehicleGripController : VirtualController
 {
+    [Dependency] private SharedGravitySystem _gravitySystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
 
     /// <summary>
@@ -44,6 +46,10 @@ public sealed partial class KsCrewVehicleGripController : VirtualController
             {
                 continue;
             }
+
+            // Off every grid there is no grip: it drifts the way it was going, whichever way it points.
+            if (_gravitySystem.IsWeightless(uid))
+                continue;
 
             var velocity = physicsComponent.LinearVelocity;
             if (velocity.LengthSquared() < MinSpeed * MinSpeed)

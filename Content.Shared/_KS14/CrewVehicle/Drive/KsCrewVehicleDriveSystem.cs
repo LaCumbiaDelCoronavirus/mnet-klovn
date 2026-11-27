@@ -3,12 +3,14 @@ using Content.Shared._KS14.CrewVehicle.View;
 using Content.Shared._KS14.Movement;
 using Content.Shared._KS14.Throwing;
 using Content.Shared.Buckle.Components;
+using Content.Shared.Gravity;
 using Content.Shared.Movement.Components;
 using Content.Shared.Movement.Events;
 using Content.Shared.Movement.Systems;
 using Content.Shared.Vehicle;
 using Content.Shared.Vehicle.Components;
 using Content.Shared.Vehicle.Systems;
+using Robust.Shared.Physics.Components;
 using Robust.Shared.Timing;
 
 namespace Content.Shared._KS14.CrewVehicle.Drive;
@@ -26,8 +28,9 @@ namespace Content.Shared._KS14.CrewVehicle.Drive;
 public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
 {
     [Dependency] private IGameTiming _gameTiming = default!;
-    [Dependency] private Floor.KsCrewVehicleFloorSystem _floorSystem = default!;
+    [Dependency] private Floor.KsCrewVehicleFloorTileSystem _floorTileSystem = default!;
     [Dependency] private SharedKsCrewVehicleInteriorSystem _interiorSystem = default!;
+    [Dependency] private SharedGravitySystem _gravitySystem = default!;
     [Dependency] private SharedMoverController _moverController = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
     [Dependency] private VehicleSystem _vehicleSystem = default!;
@@ -84,6 +87,45 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
     }
 
     /// <summary>
+    ///     A hull has traction on floor, of any grid and with or without a gravity generator, and none off it: over
+    ///         space, or lattice, it drifts with the speed it had. The stock answer, that gravity is the grid's or the
+    ///         map's, would strand a hull on a station whose generator is off.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnIsWeightless(Entity<KsCrewVehicleDriveComponent> hull, ref IsWeightlessEvent args)
+    {
+        args.IsWeightless = !HasFloorBeneath(hull.Owner);
+        args.Handled = true;
+    }
+
+    private bool HasFloorBeneath(EntityUid hullUid)
+    {
+        var transformComponent = Transform(hullUid);
+        return transformComponent.MapUid is { } mapUid &&
+               _floorTileSystem.IsFloor(mapUid, transformComponent.GridUid, _transformSystem.GetWorldPosition(transformComponent));
+    }
+
+    /// <summary>
+    ///     Nothing says when the tile under a moving hull changes kind, from floor to lattice on the same grid, so the
+    ///         moving ones are looked at each tick. Leaving a grid is the stock refresh's.
+    /// </summary>
+    public override void Update(float frameTime)
+    {
+        base.Update(frameTime);
+
+        // Rarest first: only crew vehicles have a drive.
+        var query = EntityQueryEnumerator<KsCrewVehicleDriveComponent, GravityAffectedComponent, PhysicsComponent>();
+        while (query.MoveNext(out var uid, out _, out var gravityAffectedComponent, out var physicsComponent))
+        {
+            if (!physicsComponent.Awake)
+                continue;
+
+            if (gravityAffectedComponent.Weightless == HasFloorBeneath(uid))
+                _gravitySystem.RefreshWeightless((uid, gravityAffectedComponent));
+        }
+    }
+
+    /// <summary>
     ///     A hull is far too heavy to throw, by hand or by blast.
     /// </summary>
     [SubscribeLocalEvent]
@@ -104,6 +146,14 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
             vehicleComponent.Operator is not { } operatorUid ||
             !_moverQuery.TryComp(operatorUid, out var operatorMover) ||
             !_moverQuery.TryComp(hull.Owner, out var hullMover))
+        {
+            args.WishDir = System.Numerics.Vector2.Zero;
+            return;
+        }
+
+        // Off the floor there is nothing to grip: no throttle, no steering, no turning, whatever keys are held. The
+        //      mover then runs its weightless branch, which accelerates nothing and brakes only by space's own friction.
+        if (_gravitySystem.IsWeightless(hull.Owner))
         {
             args.WishDir = System.Numerics.Vector2.Zero;
             return;
@@ -140,27 +190,6 @@ public sealed partial class KsCrewVehicleDriveSystem : EntitySystem
         //      hull's new rotation and the wish velocity to drive with, which must lie along that facing (the grip
         //      controller takes away anything else). Chosen by data on the drive component, should it ever need to be.
         var result = KsCrewVehicleSteering.Tank(input, hull.Comp);
-
-        // Held to the floor: none under its centre, it can't drive; and a turn may not swing its rim further off.
-        if (_floorSystem.KeepsToFloor(hull))
-        {
-            if (!_floorSystem.IsCentreOnFloor(hull.Owner))
-            {
-                args.WishDir = System.Numerics.Vector2.Zero;
-                return;
-            }
-
-            if (!result.HullRotation.EqualsApprox(worldRotation))
-            {
-                var position = _transformSystem.GetWorldPosition(transformComponent);
-                if (_floorSystem.OffFloorCount(hull, position, result.HullRotation) >
-                    _floorSystem.OffFloorCount(hull, position, worldRotation))
-                {
-                    var along = System.Numerics.Vector2.Dot(result.Wish, KsCrewVehicleHullFrame.Forward(result.HullRotation));
-                    result = new KsCrewVehicleSteeringResult(worldRotation, KsCrewVehicleHullFrame.Forward(worldRotation) * along);
-                }
-            }
-        }
 
         args.WishDir = result.Wish;
 

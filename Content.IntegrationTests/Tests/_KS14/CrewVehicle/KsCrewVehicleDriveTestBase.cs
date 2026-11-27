@@ -33,14 +33,16 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
 {
     protected readonly EntProtoId HullPrototype = "KsCrewVehicleDriveTestHull";
     protected readonly EntProtoId WheeledHullPrototype = "KsCrewVehicleDriveTestHullWheeled";
-    protected readonly EntProtoId OffGridHullPrototype = "KsCrewVehicleDriveTestHullOffGrid";
     protected readonly EntProtoId EngineHullPrototype = "KsCrewVehicleDriveTestHullEngine";
     protected readonly EntProtoId GentleHullPrototype = "KsCrewVehicleDriveTestHullGentle";
     protected readonly EntProtoId ThrowerHullPrototype = "KsCrewVehicleDriveTestHullThrower";
     protected readonly EntProtoId ItemColliderHullPrototype = "KsCrewVehicleDriveTestHullItemCollider";
     protected readonly EntProtoId PushCratePrototype = "KsCrewVehicleDriveTestPushCrate";
     protected readonly EntProtoId BlockPrototype = "KsCrewVehicleDriveTestBlock";
-    protected readonly EntProtoId GlassPrototype = "KsCrewVehicleDriveTestGlass";
+    protected readonly EntProtoId ChairLikePrototype = "KsCrewVehicleDriveTestChairLike";
+    protected readonly EntProtoId StrongBlockPrototype = "KsCrewVehicleDriveTestStrongBlock";
+    protected readonly EntProtoId IndestructibleBlockPrototype = "KsCrewVehicleDriveTestIndestructibleBlock";
+    protected readonly EntProtoId LooseBlockPrototype = "KsCrewVehicleDriveTestLooseBlock";
     protected readonly EntProtoId TestWallPrototype = "KsCrewVehicleDriveTestWall";
     protected readonly EntProtoId TwoDriversHullPrototype = "KsCrewVehicleDriveTestHullTwoDrivers";
     protected readonly EntProtoId BlindHullPrototype = "KsCrewVehicleDriveTestHullBlind";
@@ -90,6 +92,7 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
   - type: MovementSpeedModifier
     baseWalkSpeed: 3
     baseSprintSpeed: 3
+  - type: GravityAffected
   - type: NoRotateOnMove
   - type: Vehicle
     requiresHands: false
@@ -126,9 +129,6 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     damageContainer: Inorganic
   - type: KsCrewVehicleSmash
     minSpeed: 2
-    smashable:
-      tags:
-      - KsCrewVehicleDriveTestSmashable
     walls:
       tags:
       - KsCrewVehicleDriveTestWall
@@ -162,17 +162,6 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
     walkModifier: 0.25
     sprintModifier: 0.25
     mirrorClothingModifier: false
-
-# Opted in to leaving the floor: the off-grid tests' control.
-- type: entity
-  parent: KsCrewVehicleDriveTestHull
-  id: KsCrewVehicleDriveTestHullOffGrid
-  components:
-  - type: KsCrewVehicleDrive
-    driveTrain: Tracked
-    turnRate: 180
-    reverseSpeedFraction: 0.5
-    driveOffGrid: true
 
 # Wheeled: turns only while rolling.
 - type: entity
@@ -257,9 +246,6 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         Blunt: 10
   - type: KsCrewVehicleSmash
     minSpeed: 100
-    smashable:
-      tags:
-      - KsCrewVehicleDriveTestSmashable
     walls:
       tags:
       - KsCrewVehicleDriveTestWall
@@ -271,12 +257,9 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
         Blunt: 10
 
 - type: Tag
-  id: KsCrewVehicleDriveTestSmashable
-
-- type: Tag
   id: KsCrewVehicleDriveTestWall
 
-# An obstacle in a hull's way, which a hull must not break unless its whitelist says so.
+# A weak obstacle in a hull's way: Static, destroyed at 50, which a hull's smash damage breaks in one hit.
 - type: entity
   id: KsCrewVehicleDriveTestBlock
   components:
@@ -306,13 +289,96 @@ public abstract class KsCrewVehicleDriveTestBase : MovementTest
       - !type:DoActsBehavior
         acts: [ ""Destruction"" ]
 
+# As a steel chair is: anchored, with no layer of its own, colliding only through its mask.
+- type: entity
+  id: KsCrewVehicleDriveTestChairLike
+  components:
+  - type: Transform
+    anchored: true
+  - type: Physics
+    bodyType: Static
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeCircle
+          radius: 0.2
+        mask:
+        - TableMask
+        layer: []
+  - type: Damageable
+  - type: Injurable
+    damageContainer: Inorganic
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 50
+      behaviors:
+      - !type:DoActsBehavior
+        acts: [ ""Destruction"" ]
+
+# Takes more than one hit of a hull's smash damage to break.
 - type: entity
   parent: KsCrewVehicleDriveTestBlock
-  id: KsCrewVehicleDriveTestGlass
+  id: KsCrewVehicleDriveTestStrongBlock
   components:
-  - type: Tag
-    tags:
-    - KsCrewVehicleDriveTestSmashable
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 250
+      behaviors:
+      - !type:DoActsBehavior
+        acts: [ ""Destruction"" ]
+
+# Hard and Static, but nothing damages it.
+- type: entity
+  id: KsCrewVehicleDriveTestIndestructibleBlock
+  components:
+  - type: Transform
+    anchored: true
+  - type: Physics
+    bodyType: Static
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: ""-0.5,-0.5,0.5,0.5""
+        mask:
+        - FullTileMask
+        layer:
+        - WallLayer
+
+# As weak as the weak block, but loose, as a crate is: pushed, never smashed.
+- type: entity
+  id: KsCrewVehicleDriveTestLooseBlock
+  components:
+  - type: Physics
+    bodyType: Dynamic
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: ""-0.4,-0.4,0.4,0.4""
+        density: 50
+        mask:
+        - MachineMask
+        layer:
+        - MachineLayer
+  - type: Damageable
+  - type: Injurable
+    damageContainer: Inorganic
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 50
+      behaviors:
+      - !type:DoActsBehavior
+        acts: [ ""Destruction"" ]
 
 - type: entity
   parent: KsCrewVehicleDriveTestBlock

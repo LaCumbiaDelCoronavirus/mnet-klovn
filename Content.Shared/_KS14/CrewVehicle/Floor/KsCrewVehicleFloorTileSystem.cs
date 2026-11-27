@@ -6,9 +6,8 @@ using Robust.Shared.Map.Components;
 namespace Content.Shared._KS14.CrewVehicle.Floor;
 
 /// <summary>
-///     What counts as floor for a crew vehicle: a tile that isn't open to space, on whichever grid is there. Kept apart
-///         from <see cref="KsCrewVehicleFloorSystem"/>, which holds hulls to it, so that the interior (where people
-///         are put down beside a hull) can ask without depending on the drive.
+///     What counts as floor for a crew vehicle: a tile that isn't open to space, on whichever grid is there. Used by
+///         the interior, where people are put down beside a hull.
 /// </summary>
 public sealed partial class KsCrewVehicleFloorTileSystem : EntitySystem
 {

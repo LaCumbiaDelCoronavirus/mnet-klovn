@@ -6,6 +6,7 @@ using Content.Shared._KS14.CrewVehicle;
 using Content.Shared._KS14.CrewVehicle.CrashLockout;
 using Content.Shared._KS14.CrewVehicle.Smash;
 using Content.Shared.Damage.Systems;
+using Content.Shared.Destructible;
 using Content.Shared.FixedPoint;
 using Content.Shared.Movement.Components;
 using Content.Shared.Whitelist;
@@ -17,8 +18,9 @@ using Robust.Shared.Prototypes;
 namespace Content.IntegrationTests.Tests._KS14.CrewVehicle;
 
 /// <summary>
-///     A hull driven fast into an obstacle: a smashable one breaks, a wall is crashed into and stalls the hull, anything
-///         else is just hit. Every number comes from the test hulls' prototypes.
+///     A hull driven fast into an obstacle: anything solid takes the hull's smash damage and breaks, letting it through,
+///         or stands and is crashed into; a wall is crashed into at once and stalls the hull; a loose body is pushed.
+///         Every number comes from the test hulls' prototypes.
 /// </summary>
 [TestOf(typeof(KsCrewVehicleSmashSystem))]
 [TestOf(typeof(KsCrewVehicleCrashLockoutSystem))]
@@ -30,6 +32,8 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     private static readonly EntProtoId Grille = "Grille";
     private static readonly EntProtoId Table = "Table";
     private static readonly EntProtoId Wall = "WallSolid";
+    private static readonly EntProtoId SteelChair = "Chair";
+    private static readonly EntProtoId Humvee = "KsCrewVehicleHumvee";
 
     // The shipped hull base's data, through a child: the base itself is abstract.
     [TestPrototypes]
@@ -43,7 +47,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     /// <summary>
     ///     A hull at the origin with the player at the wheel, and <paramref name="obstacle"/> four tiles ahead.
     /// </summary>
-    private async Task<Run> SetUpAsync(EntProtoId obstacle, EntProtoId? hullPrototype = null)
+    private async Task<Run> SetUpAsync(EntProtoId obstacle, EntProtoId? hullPrototype = null, float distance = 4f)
     {
         var scene = await SpawnHullAsync(Vector2.Zero, hullPrototype);
         await PutInsideAsync(scene);
@@ -54,7 +58,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
         await Server.WaitPost(() =>
         {
             facing = KsCrewVehicleHullFrame.Forward(HullRotation(scene.Hull));
-            obstacleUid = SEntMan.SpawnAtPosition(obstacle, OriginCoordinates.Offset(facing * 4f));
+            obstacleUid = SEntMan.SpawnAtPosition(obstacle, OriginCoordinates.Offset(facing * distance));
         });
         await RunTicks(2);
         return new Run(scene, obstacleUid, facing);
@@ -67,7 +71,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     [Test]
     public async Task FastHullSmashesThroughAWhitelistedObstacle()
     {
-        var run = await SetUpAsync(GlassPrototype);
+        var run = await SetUpAsync(BlockPrototype);
         var hull = run.Scene.Hull;
         var smashed = false;
         var speedAtImpact = 0f;
@@ -103,7 +107,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     [Test]
     public async Task SmashingNeverStepsBackOnTheDriversClient()
     {
-        var run = await SetUpAsync(GlassPrototype);
+        var run = await SetUpAsync(BlockPrototype);
         var clientHull = ToClient(run.Scene.Hull);
         float ClientAlong() => Vector2.Dot(CEntMan.GetComponent<TransformComponent>(clientHull).LocalPosition, run.Facing);
 
@@ -150,7 +154,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     [TestCase(6)]
     public async Task SmashingNeverStepsBackOnALaggingDriversClient(int latencyTicks)
     {
-        var run = await SetUpAsync(GlassPrototype);
+        var run = await SetUpAsync(BlockPrototype);
         await SimulateLatencyAsync(latencyTicks);
         var clientHull = ToClient(run.Scene.Hull);
         float ClientAlong() => Vector2.Dot(CEntMan.GetComponent<TransformComponent>(clientHull).LocalPosition, run.Facing);
@@ -219,7 +223,7 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     [Test]
     public async Task GentleHullBreaksNothing()
     {
-        var run = await SetUpAsync(GlassPrototype, GentleHullPrototype);
+        var run = await SetUpAsync(BlockPrototype, GentleHullPrototype);
         await HoldAsync(run.Scene.Hull, DirectionFlag.North, TickRate * 3);
         await Server.WaitAssertion(() =>
         {
@@ -232,15 +236,151 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
         });
     }
 
-    [Test]
-    public async Task OtherObstaclesNeverBreak()
+    /// <summary>
+    ///     What isn't a wall or a loose body is no longer left alone: a weak obstacle on no list at all, anchored and
+    ///         (as a steel chair does) colliding only through its mask, is broken and driven through, slower.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task UnlistedWeakObstacleIsSmashed(bool chairLike)
     {
-        var run = await SetUpAsync(BlockPrototype);
-        await HoldAsync(run.Scene.Hull, DirectionFlag.North, TickRate * 3);
+        var run = await SetUpAsync(chairLike ? ChairLikePrototype : BlockPrototype);
+        var hull = run.Scene.Hull;
+        var smashed = false;
+        var speedAtImpact = 0f;
+        var slowest = float.MaxValue;
+        var everStalled = false;
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 3, () =>
+        {
+            var speed = HullVelocity(hull).Length();
+            everStalled |= !CanMove(hull);
+            smashed |= SEntMan.Deleted(run.Obstacle) || EntityManagerQueued(run.Obstacle);
+            if (smashed)
+                slowest = MathF.Min(slowest, speed);
+            else
+                speedAtImpact = MathF.Max(speedAtImpact, speed);
+
+            return false;
+        });
+
         await Server.WaitAssertion(() =>
         {
-            Assert.That(SEntMan.Deleted(run.Obstacle), Is.False, "an obstacle on neither list isn't broken");
+            var smash = SComp<KsCrewVehicleSmashComponent>(hull);
+            Assert.That(speedAtImpact, Is.GreaterThanOrEqualTo(smash.MinSpeed), "precondition: going fast enough");
+            Assert.That(smashed, Is.True, "an obstacle on no list, weaker than the smash damage, breaks");
+            Assert.That(slowest, Is.LessThanOrEqualTo(speedAtImpact * smash.SmashSpeedRetained + 0.05f), "the hull losing speed");
+            Assert.That(Vector2.Dot(HullPosition(hull), run.Facing), Is.GreaterThan(4f), "and driving on through");
+            Assert.That(Damage(hull), Is.GreaterThan(FixedPoint2.Zero), "at a cost to itself");
+            Assert.That(everStalled, Is.False, "smashing through is not a crash: no stall");
+        });
+    }
+
+    /// <summary>
+    ///     An obstacle sturdier than one hit: damaged, still standing, the hull stopped, damaged and, the impact being
+    ///         hard, stalled. Backing off and ramming again breaks it after as many hits as its <c>Destructible</c> and
+    ///         the smash damage say.
+    /// </summary>
+    [Test]
+    public async Task UnlistedStrongObstacleIsCrashedInto()
+    {
+        var run = await SetUpAsync(StrongBlockPrototype);
+        var hull = run.Scene.Hull;
+        var smashDamage = FixedPoint2.Zero;
+        var destroyedAt = FixedPoint2.Zero;
+        await Server.WaitPost(() =>
+        {
+            var smashSpecifier = SComp<KsCrewVehicleSmashComponent>(hull).SmashDamage;
+            smashDamage = smashSpecifier.GetTotal();
+            destroyedAt = SEntMan.System<SharedDestructibleSystem>().DestroyedAt(run.Obstacle);
+        });
+        // The block has no modifier set, so what the hit deals is the smash damage itself.
+        var hits = (int)Math.Ceiling((float)destroyedAt / (float)smashDamage);
+        Assert.That(hits, Is.GreaterThan(1), "precondition: it takes more than one hit");
+
+        for (var hit = 1; hit <= hits; hit++)
+        {
+            await HoldAsync(hull, DirectionFlag.North, TickRate * 3, () => !CanMove(hull) || SEntMan.Deleted(run.Obstacle));
+            await Server.WaitAssertion(() =>
+            {
+                if (hit < hits)
+                {
+                    Assert.That(SEntMan.Deleted(run.Obstacle) || EntityManagerQueued(run.Obstacle), Is.False, $"hit {hit}: it stands");
+                    Assert.That(Damage(run.Obstacle), Is.GreaterThan(FixedPoint2.Zero), $"hit {hit}: damaged");
+                    Assert.That(CanMove(hull), Is.False, $"hit {hit}: the hull is stalled");
+                    Assert.That(Damage(hull), Is.GreaterThan(FixedPoint2.Zero), $"hit {hit}: and damaged");
+                }
+                else
+                {
+                    Assert.That(SEntMan.Deleted(run.Obstacle) || EntityManagerQueued(run.Obstacle), Is.True, $"hit {hit}: it breaks");
+                }
+            });
+
+            if (hit == hits)
+                break;
+
+            // Wait out the stall and back off to ram again from speed.
+            var lockout = TimeSpan.Zero;
+            await Server.WaitPost(() => lockout = SComp<KsCrewVehicleCrashLockoutComponent>(hull).Duration);
+            await RunTicks((int)(lockout.TotalSeconds * TickRate) + TickRate / 2);
+            await HoldAsync(hull, DirectionFlag.South, TickRate * 2);
+        }
+    }
+
+    /// <summary>
+    ///     A hard Static thing nothing can damage is still crashed into: the hull is damaged and stalls, and nothing
+    ///         logs an error.
+    /// </summary>
+    [Test]
+    public async Task IndestructibleObstacleIsCrashedInto()
+    {
+        var run = await SetUpAsync(IndestructibleBlockPrototype);
+        var hull = run.Scene.Hull;
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 3, () => !CanMove(hull));
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(SEntMan.Deleted(run.Obstacle), Is.False, "it stands");
+            Assert.That(CanMove(hull), Is.False, "the hull stalls");
+            Assert.That(Damage(hull), Is.GreaterThan(FixedPoint2.Zero), "and is damaged");
+        });
+    }
+
+    /// <summary>
+    ///     A loose body is the push controller's however weak: pushed along, never damaged.
+    /// </summary>
+    [Test]
+    public async Task LooseObstacleIsPushedNotSmashed()
+    {
+        var run = await SetUpAsync(LooseBlockPrototype);
+        var hull = run.Scene.Hull;
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 3);
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(SEntMan.Deleted(run.Obstacle), Is.False, "a loose block isn't smashed");
             Assert.That(Damage(run.Obstacle), Is.EqualTo(FixedPoint2.Zero), "nor damaged");
+            Assert.That(Vector2.Dot(HullPosition(run.Obstacle), run.Facing), Is.GreaterThan(4.2f), "it is pushed along");
+        });
+    }
+
+    /// <summary>
+    ///     The reported bug: the shipped humvee driven at a live steel chair isn't stopped dead without a word. It
+    ///         breaks the chair and drives on, or crashes into it, but either way the chair is hurt and the hull
+    ///         is not just stopped.
+    /// </summary>
+    [Test]
+    public async Task HumveeIsNotStoppedSilentlyBySteelChair()
+    {
+        var run = await SetUpAsync(SteelChair, Humvee, distance: 9f);
+        var hull = run.Scene.Hull;
+        await StartEngineAsync(hull);
+        await HoldAsync(hull, DirectionFlag.North, TickRate * 6, () =>
+            SEntMan.Deleted(run.Obstacle) || EntityManagerQueued(run.Obstacle) || !CanMove(hull));
+
+        await Server.WaitAssertion(() =>
+        {
+            var gone = SEntMan.Deleted(run.Obstacle) || EntityManagerQueued(run.Obstacle);
+            Assert.That(gone || Damage(run.Obstacle) > FixedPoint2.Zero, Is.True, "the chair feels the hit");
+            Assert.That(gone || !CanMove(hull) || Damage(hull) > FixedPoint2.Zero, Is.True, "and a chair that stands stops the hull with a crash");
+            Assert.That(!gone || HullVelocity(hull).Length() > 0f, Is.True, "a chair that breaks lets it drive on");
         });
     }
 
@@ -352,30 +492,24 @@ public sealed class KsCrewVehicleSmashTest : KsCrewVehicleDriveTestBase
     }
 
     /// <summary>
-    ///     The shipped hulls' lists: windows, grilles and tables are smashed, walls crashed into, and doors neither:
-    ///         they are bumped open.
+    ///     The shipped hulls tell walls apart and nothing else: walls are crashed into at once, windows, grilles, tables,
+    ///         chairs and doors are not, and go by the damage they take.
     /// </summary>
     [Test]
-    public async Task HullBaseSmashesTheRightThings()
+    public async Task HullBaseOnlyListsWalls()
     {
         await Server.WaitAssertion(() =>
         {
             Assert.That(ProtoMan.Index(_hullFromBase).TryComp<KsCrewVehicleSmashComponent>(out var smash, Factory), Is.True);
             var whitelistSystem = SEntMan.System<EntityWhitelistSystem>();
 
-            foreach (var id in new[] { Window, Grille, Table, Wall, AirlockPrototype })
+            foreach (var id in new[] { Window, Grille, Table, Wall, AirlockPrototype, SteelChair })
             {
                 var uid = SEntMan.SpawnAtPosition(id, OriginCoordinates.Offset(new Vector2(6f, 6f)));
-                var smashable = whitelistSystem.IsWhitelistPass(smash!.Smashable, uid);
-                var wall = whitelistSystem.IsWhitelistPass(smash.Walls, uid);
+                var wall = whitelistSystem.IsWhitelistPass(smash!.Walls, uid);
                 SEntMan.DeleteEntity(uid);
 
-                if (id == Wall)
-                    Assert.That(wall && !smashable, Is.True, "walls are crashed into");
-                else if (id == AirlockPrototype)
-                    Assert.That(smashable || wall, Is.False, "doors are bumped open, never smashed");
-                else
-                    Assert.That(smashable, Is.True, $"{id} is smashed through");
+                Assert.That(wall, Is.EqualTo(id == Wall), $"{id}: only walls are crashed into outright");
             }
         });
     }

@@ -44,51 +44,12 @@ public sealed partial class KsCrewVehicleDriveComponent : Component
     public string ContactFixture = "contact";
 
     /// <summary>
-    ///     Whether the hull may be driven, turned or pushed off the floor, over space or lattice. Off, it stops at the
-    ///         edge as at a wall (<see cref="Floor.KsCrewVehicleFloorSystem"/>).
-    /// </summary>
-    [DataField]
-    public bool DriveOffGrid;
-
-    /// <summary>
     ///     Scales the ground friction of the hull while nobody drives it, on top of what its movement's friction gives it:
     ///         a parked vehicle rolls when shoved rather than sliding on locked wheels. Below 1, it is pushed further and
     ///         coasts further when its driver gets off.
     /// </summary>
     [DataField]
     public float ParkedFrictionModifier = 1f;
-
-    /// <summary>
-    ///     Played when the floor's edge stops the hull from <see cref="EdgeStopSoundMinSpeed"/> or more, no more often than
-    ///         <see cref="EdgeStopSoundCooldown"/>: the stop, not the creep up to the edge after it.
-    /// </summary>
-    [DataField]
-    public Robust.Shared.Audio.SoundSpecifier? EdgeStopSound;
-
-    [DataField]
-    public float EdgeStopSoundMinSpeed = 1f;
-
-    [DataField]
-    public TimeSpan EdgeStopSoundCooldown = TimeSpan.FromSeconds(1);
-
-    /// <summary>
-    ///     Each side keeps its own, so not networked.
-    /// </summary>
-    [ViewVariables(VVAccess.ReadOnly), Access(typeof(Floor.KsCrewVehicleFloorController))]
-    public TimeSpan NextEdgeStopSound;
-
-    /// <summary>
-    ///     The hull's body fixture, whose rim must stay over floor.
-    /// </summary>
-    [DataField]
-    public string FloorFixture = "fix1";
-
-    /// <summary>
-    ///     The points round <see cref="FloorFixture"/>'s rim, hull-local, that must stay over floor. Worked out from the
-    ///         fixture on first use, on each side alike: neither saved nor networked.
-    /// </summary>
-    [ViewVariables(VVAccess.ReadOnly), Access(typeof(Floor.KsCrewVehicleFloorSystem))]
-    public System.Numerics.Vector2[]? FloorSamples;
 }
 
 /// <summary>

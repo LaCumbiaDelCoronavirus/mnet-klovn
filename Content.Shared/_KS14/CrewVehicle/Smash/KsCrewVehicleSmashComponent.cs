@@ -7,12 +7,13 @@ using Robust.Shared.GameStates;
 namespace Content.Shared._KS14.CrewVehicle.Smash;
 
 /// <summary>
-///     A crew vehicle that, fast enough, breaks through light obstacles and crashes into walls. Slower, either is an
-///         ordinary bump.
+///     A crew vehicle that, fast enough, breaks through whatever hard thing is in its way, or crashes into it. Slower,
+///         either is an ordinary bump.
 /// </summary>
 /// <remarks>
-///     Which obstacles are which is the vehicle's to say, as whitelists, so a light car and a tank can differ and no
-///         obstacle's prototype needs to know about vehicles. Anything hard on neither list is just collided with.
+///     Anything hard that isn't loose (loose bodies are pushed, mobs run over) takes <see cref="SmashDamage"/>: if that
+///         breaks it, the hull smashes through; if not, it is crashed into, and a sturdy thing takes several hits. Only
+///         <see cref="Walls"/> are told apart, being crashed into at once, for <see cref="WallDamage"/>.
 /// </remarks>
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause]
 [Access(typeof(KsCrewVehicleSmashSystem))]
@@ -31,19 +32,14 @@ public sealed partial class KsCrewVehicleSmashComponent : Component
     public float MinSpeed = 3.5f;
 
     /// <summary>
-    ///     What the hull breaks through.
-    /// </summary>
-    [DataField]
-    public EntityWhitelist? Smashable;
-
-    /// <summary>
     ///     What the hull crashes into: damaged and stopped dead, it stays put.
     /// </summary>
     [DataField]
     public EntityWhitelist? Walls;
 
     /// <summary>
-    ///     Dealt to a smashable obstacle: enough to break it through its own <c>Destructible</c>.
+    ///     Dealt to every hard obstacle that isn't a wall each time the hull hits it fast enough: it breaks, through its
+    ///         own <c>Destructible</c>, once that adds up to enough.
     /// </summary>
     [DataField(required: true)]
     public DamageSpecifier SmashDamage = default!;
@@ -101,9 +97,9 @@ public sealed partial class KsCrewVehicleSmashComponent : Component
 }
 
 /// <summary>
-///     Raised on a crew vehicle that crashed into a wall, after the crash. A notification.
+///     Raised on a crew vehicle that crashed into something, after the crash. A notification.
 /// </summary>
-/// <param name="Wall">What it crashed into.</param>
+/// <param name="Obstacle">What it crashed into.</param>
 /// <param name="ImpactSpeed">How fast, in m/s, it was going into it.</param>
 [ByRefEvent]
-public readonly record struct KsCrewVehicleCrashedEvent(EntityUid Wall, float ImpactSpeed);
+public readonly record struct KsCrewVehicleCrashedEvent(EntityUid Obstacle, float ImpactSpeed);
