@@ -37,8 +37,16 @@ guess baked in. Batch questions (up to 4 per call, with a recommended option fir
 **Haiku runners.** Builds and test runs produce the bulk of tokens and need no judgement. Wherever an agent would
 run `dotnet build`/`dotnet test` and read the output, a Haiku runner does it and returns only:
 `result line; failures grouped by message (test name + first 3 lines of the first failure per group); nothing else`.
-Implementers may spawn their own runner (tell them to, in the prompt) or you spawn one between their turns. A sweep
-is a Haiku agent with a list of filters, run one after another, returning a pass/fail table.
+Implementers may spawn their own runner (tell them to, in the prompt) or you spawn one between their turns.
+
+**Sweeps are a script, not an agent.** Haiku handles one command well but loses track of a long multi-run sweep
+(gives up waiting, forgets steps). For a sweep, write a shell script that runs each filter in turn under
+`timeout`, writes a `.trx` per run and appends one summary line per run to `summary.txt`. Start it yourself in the
+background and read only `summary.txt` when it ends; hand failures to a runner to rerun alone. Any runner prompt
+says: start long commands in the background and **end the turn**; you are woken when they finish. Never poll.
+
+A run cut off by a time limit reports every queued test as `SetUp: Pool manager has not been initialized`: that is
+the limit, not 50 failures. Split the run.
 
 ## Agent lifetime: reuse, then hand over
 
