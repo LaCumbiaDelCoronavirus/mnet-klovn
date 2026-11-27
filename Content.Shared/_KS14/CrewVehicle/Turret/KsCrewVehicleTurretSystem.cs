@@ -12,8 +12,10 @@ namespace Content.Shared._KS14.CrewVehicle.Turret;
 ///         there. The gunner's client sends the aim (<see cref="KsCrewVehicleAimEvent"/>) and predicts the turning.
 /// </summary>
 /// <remarks>
-///     The target is kept relative to the hull, so a hull that turns carries its turrets round with it until the
-///         gunner's client sends a new aim. Only a turret that is turning is updated.
+///     The target is kept relative to what the turret is mounted on (the hull, or another turret it rides), so a hull
+///         that turns carries its turrets round with it until the gunner's client sends a new aim. Only a turret that is
+///         turning is updated. A coaxial weapon (<see cref="KsCrewVehicleCoaxialComponent"/>) has no traverse of its own:
+///         aiming it aims the turret it is fixed to (<see cref="GetAimedTurret"/>).
 /// </remarks>
 public sealed partial class KsCrewVehicleTurretSystem : EntitySystem
 {
@@ -22,13 +24,33 @@ public sealed partial class KsCrewVehicleTurretSystem : EntitySystem
     [Dependency] private SharedKsCrewVehicleMountSystem _mountSystem = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
 
+    [Dependency] private EntityQuery<KsCrewVehicleCoaxialComponent> _coaxialQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleGunnerComponent> _gunnerQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleTurretComponent> _turretQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleWeaponComponent> _weaponQuery = default!;
 
     /// <summary>
-    ///     A gunner's aim, taken only for the turret they have selected, at a real point on its map. Anything else is
-    ///         dropped without a word: it is the client's to send.
+    ///     The turret that aiming <paramref name="weaponUid"/> turns: the weapon itself if it is a turret, the turret it is
+    ///         fixed to if it is coaxial, else null.
+    /// </summary>
+    public EntityUid? GetAimedTurret(EntityUid? weaponUid)
+    {
+        if (weaponUid is not { } uid)
+            return null;
+
+        if (_turretQuery.HasComp(uid))
+            return uid;
+
+        if (!_coaxialQuery.HasComp(uid))
+            return null;
+
+        var parentUid = Transform(uid).ParentUid;
+        return _turretQuery.HasComp(parentUid) && _weaponQuery.HasComp(parentUid) ? parentUid : null;
+    }
+
+    /// <summary>
+    ///     A gunner's aim, taken only for the turret their selected weapon aims, at a real point on its map. Anything else
+    ///         is dropped without a word: it is the client's to send.
     /// </summary>
     [EventSubscription]
     private void OnAim(KsCrewVehicleAimEvent msg, EntitySessionEventArgs args)
@@ -36,8 +58,7 @@ public sealed partial class KsCrewVehicleTurretSystem : EntitySystem
         if (args.SenderSession.AttachedEntity is not { } playerUid ||
             !_gunnerQuery.TryComp(playerUid, out var gunnerComponent) ||
             !TryGetEntity(msg.Weapon, out var weaponUid) ||
-            gunnerComponent.Selected != weaponUid ||
-            !_turretQuery.HasComp(weaponUid) ||
+            GetAimedTurret(gunnerComponent.Selected) != weaponUid ||
             !_weaponQuery.TryComp(weaponUid, out var weaponComponent))
             return;
 
@@ -62,7 +83,7 @@ public sealed partial class KsCrewVehicleTurretSystem : EntitySystem
         if (direction.LengthSquared() < 0.0001f || !float.IsFinite(direction.X) || !float.IsFinite(direction.Y))
             return false;
 
-        var targetAngle = direction.ToWorldAngle() - _transformSystem.GetWorldRotation(vehicleUid);
+        var targetAngle = direction.ToWorldAngle() - _mountSystem.GetMountedOnWorldRotation(weapon.Owner, vehicleUid);
         if (weapon.Comp.FireArc is { } fireArc)
         {
             var rest = _mountSystem.GetRestRotation(weapon);
@@ -90,11 +111,11 @@ public sealed partial class KsCrewVehicleTurretSystem : EntitySystem
     {
         base.Update(frameTime);
 
-        // A client turns only the turret its own player has selected, which it predicts; the rest are the server's,
-        //      shown as the server sends them.
+        // A client turns only the turret its own player's selected weapon aims, which it predicts; the rest are the
+        //      server's, shown as the server sends them.
         var localUid = _playerManager.LocalEntity;
-        EntityUid? localSelectedUid = localUid != null && _gunnerQuery.TryComp(localUid, out var localGunner)
-            ? localGunner.Selected
+        var localSelectedUid = localUid != null && _gunnerQuery.TryComp(localUid, out var localGunner)
+            ? GetAimedTurret(localGunner.Selected)
             : null;
 
         var query = EntityQueryEnumerator<KsCrewVehicleTurretTraversingComponent, KsCrewVehicleTurretAimComponent, KsCrewVehicleTurretComponent, TransformComponent>();
@@ -127,18 +148,35 @@ public sealed partial class KsCrewVehicleTurretSystem : EntitySystem
     [SubscribeLocalEvent]
     private void OnShotAttempted(Entity<KsCrewVehicleTurretComponent> turret, ref ShotAttemptedEvent args)
     {
+        HoldFireUntilAligned(turret.Owner, turret.Comp.FireTolerance, ref args);
+    }
+
+    /// <summary>
+    ///     A coaxial weapon fires only once the turret it is fixed to points at the target, within the weapon's own
+    ///         tolerance. Measured from the turret, not the weapon beside it: from a weapon off the turret's axis, a target
+    ///         close by is never straight ahead, and it would never fire at it. Its round flies from its own muzzle to the
+    ///         point aimed at all the same.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnCoaxialShotAttempted(Entity<KsCrewVehicleCoaxialComponent> coaxial, ref ShotAttemptedEvent args)
+    {
+        HoldFireUntilAligned(GetAimedTurret(coaxial.Owner) ?? coaxial.Owner, coaxial.Comp.FireTolerance, ref args);
+    }
+
+    private void HoldFireUntilAligned(EntityUid weaponUid, Angle tolerance, ref ShotAttemptedEvent args)
+    {
         if (args.Cancelled || args.Used.Comp.ShootCoordinates is not { } aimCoordinates)
             return;
 
         var aimMap = _transformSystem.ToMapCoordinates(aimCoordinates);
-        var (position, rotation) = _transformSystem.GetWorldPositionRotation(turret.Owner);
+        var (position, rotation) = _transformSystem.GetWorldPositionRotation(weaponUid);
         var direction = aimMap.Position - position;
 
         // Another map is the gunner system's to refuse.
-        if (aimMap.MapId != Transform(turret.Owner).MapID || direction.LengthSquared() < 0.0001f)
+        if (aimMap.MapId != Transform(weaponUid).MapID || direction.LengthSquared() < 0.0001f)
             return;
 
-        if (Math.Abs(Angle.ShortestDistance(rotation, direction.ToWorldAngle()).Theta) > turret.Comp.FireTolerance.Theta)
+        if (Math.Abs(Angle.ShortestDistance(rotation, direction.ToWorldAngle()).Theta) > tolerance.Theta)
             args.Cancel();
     }
 }

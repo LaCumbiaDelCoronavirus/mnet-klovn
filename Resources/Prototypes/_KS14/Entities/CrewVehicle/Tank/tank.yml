@@ -1,0 +1,392 @@
+# The crewed tank: one crew member drives it and fires both its guns from the driver's seat, the cannon loaded one shell at
+#   a time at the breech inside. Its interior is Maps/_KS14/CrewVehicle/tank.yml (tank_empty.yml for the empty-racked
+#   variant); the pieces of it are in interior.yml beside this file. Shells and racks are in
+#   Entities/Objects/Weapons/Ammunition/TankShells/.
+
+- type: entity
+  parent: KsCrewVehicleHullBase
+  id: KsCrewVehicleTank
+  name: tank
+  description: A tracked, armoured fighting vehicle with a turret cannon and a machine gun beside it. Four fit inside; the driver aims and fires both guns.
+  suffix: Full racks
+  components:
+  - type: Sprite
+    sprite: _KS14/Vehicles/tank.rsi
+    drawdepth: Mobs
+    layers:
+    - state: tank_base
+      map: [ "enum.KsCrewVehicleVisualLayers.Hull" ]
+    - state: ballistic_armor_0
+      map: [ "enum.KsCrewVehicleVisualLayers.Armor" ]
+    - state: treads_0
+      map: [ "enum.KsCrewVehicleVisualLayers.Wheels", "treads" ]
+  - type: SpriteMovement
+    movementLayers:
+      treads:
+        state: treads_0_moving
+    noMovementLayers:
+      treads:
+        state: treads_0
+  - type: Appearance
+  # Past half health, whatever the damage, the frame is battered, the armour plates holed and the treads torn. The art has
+  #   the two steps only.
+  - type: DamageVisuals
+    thresholds: [ 1 ]
+    damageDivisor: 1000
+    trackAllDamage: true
+    targetLayers:
+    - enum.KsCrewVehicleVisualLayers.Hull
+    - enum.KsCrewVehicleVisualLayers.Armor
+    - enum.KsCrewVehicleVisualLayers.Wheels
+    damageOverlay:
+      sprite: _KS14/CrewVehicle/Tank/tank.rsi
+  # The south-facing drawing's hull and treads: 2.8 tiles across, 3.9 long.
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-1.35,-1.9,1.35,1.9"
+        density: 600
+        mask:
+        - MobMask
+        # Not Impassable or HighImpassable, what items collide with: a hull drives over casings and dropped things.
+        layer:
+        - MidImpassable
+        - BulletImpassable
+        - Opaque
+      contact:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-1.6,-2.15,1.6,2.15"
+        hard: false
+        mask:
+        - MobMask
+        - MobLayer
+  # Four tiles a second flat out, slow to get going.
+  - type: MovementSpeedModifier
+    baseWalkSpeed: 4
+    baseSprintSpeed: 4
+    baseAcceleration: 1.2
+    baseFriction: 2
+    baseWeightlessModifier: 0
+  # On tracks: it turns on the spot. Parked, it rolls a little when shoved.
+  - type: KsCrewVehicleDrive
+    driveTrain: Tracked
+    turnRate: 60
+    parkedFrictionModifier: 0.25
+  # Six more can ride on the hull.
+  - type: KsCrewVehicleRideable
+    maxRiders: 6
+  - type: Climbable
+    range: 2.5
+    delay: 2
+  - type: KsCrewVehicleLossOfControl
+  # A deeper engine; a start takes as long as its sound at that pitch.
+  - type: KsCrewVehicleEngine
+    startDelay: 2
+    pitch: 0.55
+  # Towable while the engine is off and nobody drives, slowly.
+  - type: Pullable
+  - type: HeldSpeedModifier
+    walkModifier: 0.15
+    sprintModifier: 0.15
+    mirrorClothingModifier: false
+  # The headlight starts just past the front of the hull, outside its occluder.
+  - type: PointLight
+    enabled: false
+    radius: 12
+    energy: 2.5
+    softness: 2
+    lightMask: ConeSingle
+    autoRot: true
+    offset: 0,-2
+  # Blocks sight and light for everyone outside, like a wall: a chamfered box just inside the south-facing drawing's
+  #   hull and treads.
+  - type: KsCrewVehicleHullOccluder
+    polygon:
+    - -1.1,-1.85
+    - 1.1,-1.85
+    - 1.3,-1.65
+    - 1.3,1.65
+    - 1.1,1.85
+    - -1.1,1.85
+    - -1.3,1.65
+    - -1.3,-1.65
+  # Run over from 2 tiles a second, thrown from 3.5.
+  - type: KsCrewVehicleRunOver
+    minSpeed: 2
+    throwSpeed: 3.5
+    throwForcePerSpeed: 8
+    damage:
+      types:
+        Blunt: 40
+    hitSound:
+      collection: MetalThud
+    throwSound:
+      path: /Audio/Effects/hit_kick.ogg
+  # Armoured: crashing hurts it less than the humvee.
+  - type: KsCrewVehicleSmash
+    smashSelfDamage:
+      types:
+        Blunt: 2
+    wallSelfDamage:
+      types:
+        Blunt: 8
+  - type: KsCrewVehicleHorn
+    sound:
+      path: /Audio/_KS14/CrewVehicle/Humvee/horn.ogg
+      params:
+        pitch: 0.6
+  - type: KsCrewVehicleInterior
+    interiorPath: /Maps/_KS14/CrewVehicle/tank.yml
+    interiorAnchor: 1.5,2
+    # Sealed: standing inside, the cabin is all anyone sees, and no light gets in. Only the driver's seat looks out.
+    outsideBackdrop: false
+    outsideLightBleed: 0
+    cabinAmbient: '#202024'
+    maxOccupants: 4
+    ejectDamage:
+      types:
+        Blunt: 15
+    ejectStun: 3
+    # The hatch at the back. The hull faces -Y.
+    doorways:
+      rear:
+        offset: 0,2.35
+        radius: 0.6
+  # The turret ring sits a little ahead of the hull's centre; the machine gun is fixed beside the cannon, on its left.
+  - type: KsCrewVehicleMounts
+    mounts:
+      cannon:
+        prototype: KsCrewVehicleWeaponTankCannon
+        offset: 0,-0.2
+      coax:
+        prototype: KsCrewVehicleWeaponTankCoax
+        parent: cannon
+        offset: -0.27,0.08
+  - type: Damageable
+    damageModifierSet: Metallic
+  - type: Injurable
+    damageContainer: StructuralInorganic
+  - type: KsExaminableDamage
+    messages: ShieldMessages
+  - type: Repairable
+    doAfterDelay: 3
+    fuelCost: 10
+    damageValue: -150
+  - type: KsParticles
+    prototype: KsSmokeBurning
+    emitting: false
+    # From the engine deck at the back.
+    rotatingOffset: 0,1.3
+  - type: KsDamagedParticles
+    threshold: 1000
+  - type: Explosive
+    explosionType: Default
+    totalIntensity: 40
+    intensitySlope: 5
+    maxIntensity: 6
+    canCreateVacuum: false
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 2000
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+      - !type:SpawnEntitiesBehavior
+        offset: 0
+        spawn:
+          KsCrewVehicleTankWreck:
+            min: 1
+            max: 1
+      - !type:ExplodeBehavior
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]
+
+# The same tank with its shell racks empty: supplied some other way.
+- type: entity
+  parent: KsCrewVehicleTank
+  id: KsCrewVehicleTankEmpty
+  suffix: Empty racks
+  components:
+  - type: KsCrewVehicleInterior
+    interiorPath: /Maps/_KS14/CrewVehicle/tank_empty.yml
+
+# The main gun and its turret, one entity: they turn together. Its sprite, the turret, barrel and the machine gun beside it
+#   seen from above, turns freely with it and is moved onto the turret ring of whichever of the hull's four drawings is
+#   shown. It holds one shell, loaded by hand at the breech inside, and turns slowly.
+- type: entity
+  id: KsCrewVehicleWeaponTankCannon
+  categories: [ HideSpawnMenu ]
+  name: tank cannon
+  description: A long-barrelled cannon in a turret, loaded one shell at a time from inside.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/tank.rsi
+    drawdepth: OverMobs
+    layers:
+    - state: turret
+    - state: cannon
+    - state: coax
+  # The middle of the turret ring in each drawing of _KS14/Vehicles/tank.rsi's tank_base: its pixel from the frame's
+  #   centre, over 32.
+  - type: KsCrewVehicleTurretSprite
+    pivotOffsets:
+      South: 0,0
+      North: 0,0.3125
+      East: 0.25,0.25
+      West: -0.25,0.25
+  - type: Gun
+    fireRate: 0.25
+    minAngle: 0
+    maxAngle: 1
+    projectileSpeed: 35
+    cameraRecoilScalar: 3
+    selectedMode: SemiAuto
+    availableModes:
+    - SemiAuto
+    soundGunshot:
+      path: /Audio/_KS14/Effects/tank_fire.ogg
+      params:
+        volume: 4
+        pitch: 0.9
+    soundEmpty:
+      path: /Audio/Weapons/Guns/Empty/empty.ogg
+  - type: ContainerContainer
+    containers:
+      ballistic-ammo: !type:Container
+  # One shell, put in by hand: it starts empty.
+  - type: BallisticAmmoProvider
+    capacity: 1
+    whitelist:
+      tags:
+      - KsTankShell
+    soundInsert:
+      path: /Audio/_KS14/CrewVehicle/Tank/breech_load.ogg
+  # The barrel's tip, from the turret ring.
+  - type: KsCrewVehicleWeapon
+    muzzleOffset: 0,-1.45
+    maxAimRange: 24
+  - type: KsCrewVehicleTurret
+    traverseRate: 40
+    fireTolerance: 3
+
+# Shared by the machine gun beside the cannon, fixed or turning on its own.
+- type: entity
+  abstract: true
+  id: KsCrewVehicleWeaponTankCoaxBase
+  components:
+  - type: Gun
+    fireRate: 6
+    minAngle: 1
+    maxAngle: 8
+    angleIncrease: 0.5
+    angleDecay: 8
+    selectedMode: FullAuto
+    availableModes:
+    - FullAuto
+    soundGunshot:
+      path: /Audio/_KS14/CrewVehicle/Humvee/cannon.ogg
+    soundEmpty:
+      path: /Audio/Weapons/Guns/Empty/lmg_empty.ogg
+  - type: ContainerContainer
+    containers:
+      ballistic-ammo: !type:Container
+  - type: BallisticAmmoProvider
+    proto: CartridgeLightRifle
+    capacity: 250
+    whitelist:
+      tags:
+      - CartridgeLightRifle
+  # Its barrel's tip, from where it sits on the turret.
+  - type: KsCrewVehicleWeapon
+    muzzleOffset: 0,-0.33
+    maxAimRange: 16
+
+# The coaxial machine gun: fixed beside the cannon, it points wherever the turret does. Aiming it turns the turret, and it
+#   fires once the turret has brought it on target. Drawn as part of the cannon's sprite.
+- type: entity
+  parent: KsCrewVehicleWeaponTankCoaxBase
+  id: KsCrewVehicleWeaponTankCoax
+  categories: [ HideSpawnMenu ]
+  name: coaxial machine gun
+  description: A belt-fed machine gun fixed beside the tank's cannon, aimed with the turret.
+  components:
+  - type: KsCrewVehicleCoaxial
+    fireTolerance: 5
+
+# The same machine gun turning on its own, for a gunner of its own: a cupola on the hull, or riding the turret. Not on the
+#   tank as it ships. Drawn by itself, riding the turret's sprite when mounted on it.
+- type: entity
+  parent: KsCrewVehicleWeaponTankCoaxBase
+  id: KsCrewVehicleWeaponTankCoaxIndependent
+  categories: [ HideSpawnMenu ]
+  name: turret machine gun
+  description: A belt-fed machine gun on its own small mount, aimed by a gunner of its own.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/tank.rsi
+    drawdepth: OverMobs
+    state: coax
+  - type: KsCrewVehicleTurretSprite
+    pivotOffsets: {}
+  - type: KsCrewVehicleTurret
+    traverseRate: 120
+    fireTolerance: 15
+
+# What a destroyed tank leaves behind: burnt out, its turret and guns wrecked.
+- type: entity
+  parent: BaseStructure
+  id: KsCrewVehicleTankWreck
+  name: tank wreck
+  description: What's left of a tank. It won't be going anywhere.
+  components:
+  - type: Sprite
+    sprite: _KS14/Vehicles/tank.rsi
+    drawdepth: Mobs
+    layers:
+    - state: tank_base
+    - state: damaged_frame
+    - state: treads_1
+    - state: tank_turret_1
+    - state: ltb_cannon_1
+    - state: m56cupola_1
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-1.35,-1.9,1.35,1.9"
+        density: 600
+        mask:
+        - MachineMask
+        layer:
+        - Impassable
+        - MidImpassable
+        - HighImpassable
+        - BulletImpassable
+        - Opaque
+  - type: Damageable
+    damageModifierSet: Metallic
+  - type: Injurable
+    damageContainer: StructuralInorganic
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 1000
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+      - !type:SpawnEntitiesBehavior
+        spawn:
+          SheetSteel1:
+            min: 8
+            max: 14
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]

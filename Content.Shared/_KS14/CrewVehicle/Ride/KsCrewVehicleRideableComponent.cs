@@ -1,3 +1,5 @@
+using Content.Shared.Guidebook;
+
 namespace Content.Shared._KS14.CrewVehicle.Ride;
 
 /// <summary>
@@ -14,7 +16,7 @@ public sealed partial class KsCrewVehicleRideableComponent : Component
     /// <summary>
     ///     How many may ride at once.
     /// </summary>
-    [DataField]
+    [DataField, GuidebookData]
     public int MaxRiders = 4;
 
     /// <summary>

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/c450f3aa425c53a3d5b5e78db3354fa6f218e66e/icons/obj/vehicles/tank.dmi. turret (tank_turret_0), cannon (ltb_cannon_0) and coax (m56cupola_0) are cut from their hull-facing-north frame, moved 10 pixels down to centre the turret ring on the frame and turned half a circle to point south, for Klovnstation 14. Hull_1 (damaged_frame), Armor_1 (ballistic_armor_1) and Wheels_1 (treads_1) are copied unchanged, renamed as the damage visualiser looks them up",
+  "size": {
+    "x": 128,
+    "y": 128
+  },
+  "metaAtlas": false,
+  "states": [
+    {
+      "name": "turret"
+    },
+    {
+      "name": "cannon"
+    },
+    {
+      "name": "coax"
+    },
+    {
+      "name": "Hull_1",
+      "directions": 4
+    },
+    {
+      "name": "Armor_1",
+      "directions": 4
+    },
+    {
+      "name": "Wheels_1",
+      "directions": 4
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# Resources\Prototypes\_KS14\Entities\CrewVehicle\Tank\tank.yml
+ent-KsCrewVehicleTank = танк
+    .desc = Гусеничная бронированная боевая машина с пушкой в башне и пулемётом рядом с ней. Внутри помещаются четверо; механик-водитель наводит и стреляет из обоих орудий.
+    .suffix = Полные стеллажи
+    .gender = male
+ent-KsCrewVehicleTankEmpty = танк
+    .desc = Гусеничная бронированная боевая машина с пушкой в башне и пулемётом рядом с ней. Внутри помещаются четверо; механик-водитель наводит и стреляет из обоих орудий.
+    .suffix = Пустые стеллажи
+    .gender = male
+ent-KsCrewVehicleWeaponTankCannon = орудие танка
+    .desc = Длинноствольная пушка в башне, заряжаемая изнутри по одному снаряду.
+    .gender = neuter
+ent-KsCrewVehicleWeaponTankCoax = спаренный пулемёт
+    .desc = Ленточный пулемёт, закреплённый рядом с пушкой танка и наводимый вместе с башней.
+    .gender = male
+ent-KsCrewVehicleWeaponTankCoaxIndependent = башенный пулемёт
+    .desc = Ленточный пулемёт на собственной небольшой установке, которым управляет отдельный стрелок.
+    .gender = male
+ent-KsCrewVehicleTankWreck = остов танка
+    .desc = Всё, что осталось от танка. Никуда он больше не поедет.
+    .gender = male

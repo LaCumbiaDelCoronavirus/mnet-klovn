@@ -31,14 +31,24 @@ public sealed partial class KsCrewVehicleGunnerSeatComponent : Component
     public EntProtoId<InstantActionComponent> SelectAction = "KsCrewVehicleActionSelectWeapon";
 
     /// <summary>
+    ///     With more than one mount: one <see cref="CycleAction"/> that switches to the next of them in turn and shows the
+    ///         selected weapon's rounds, in place of one <see cref="SelectAction"/> per mount.
+    /// </summary>
+    [DataField]
+    public bool CycleWeapons;
+
+    [DataField]
+    public EntProtoId<InstantActionComponent> CycleAction = "KsCrewVehicleActionCycleWeapon";
+
+    /// <summary>
     ///     Shown to the gunner while they sit here: the selected weapon's rounds.
     /// </summary>
     [DataField]
     public ProtoId<AlertPrototype> AmmoAlert = "KsCrewVehicleAmmo";
 
     /// <summary>
-    ///     The select actions, in the order of <see cref="Mounts"/>, made at map init in the seat's action container. A data
-    ///         field, because the actions are saved in that container with the seat.
+    ///     The select actions, in the order of <see cref="Mounts"/>, or the one cycle action, made at map init in the seat's
+    ///         action container. A data field, because the actions are saved in that container with the seat.
     /// </summary>
     [DataField, AutoNetworkedField, ViewVariables(VVAccess.ReadOnly)]
     public List<EntityUid> SelectActions = new();

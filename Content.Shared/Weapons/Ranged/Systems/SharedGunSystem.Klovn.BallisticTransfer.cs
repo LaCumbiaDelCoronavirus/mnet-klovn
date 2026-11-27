@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Content.Shared.Weapons.Ranged.Components;
 using Content.Shared.Weapons.Ranged.Events;
 
@@ -50,6 +51,38 @@ public abstract partial class SharedGunSystem
         }
 
         return false;
+    }
+
+    /// <summary>
+    ///     Takes the round that would be fired next out of <paramref name="provider"/>, whole and unfired, next to it.
+    ///         Predicted for a round that exists; one that doesn't yet (a count of the provider's fill round) only the
+    ///         server makes.
+    /// </summary>
+    /// <returns>False when it is empty, or on a client when only the server can make the round.</returns>
+    public bool KsTryTakeBallisticRound(Entity<BallisticAmmoProviderComponent> provider, [NotNullWhen(true)] out EntityUid? round)
+    {
+        round = null;
+        if (provider.Comp.Entities.Count > 0)
+        {
+            var existing = provider.Comp.Entities[^1];
+            provider.Comp.Entities.RemoveAt(provider.Comp.Entities.Count - 1);
+            DirtyField(provider.AsNullable(), nameof(BallisticAmmoProviderComponent.Entities));
+            Containers.Remove(existing, provider.Comp.Container);
+            round = existing;
+        }
+        else if (provider.Comp.UnspawnedCount > 0 && provider.Comp.Proto is { } proto && _netManager.IsServer)
+        {
+            SetBallisticUnspawned(provider, provider.Comp.UnspawnedCount - 1);
+            round = Spawn(proto, Transform(provider).Coordinates);
+        }
+        else
+        {
+            return false;
+        }
+
+        UpdateBallisticAppearance(provider);
+        UpdateAmmoCount(provider);
+        return true;
     }
 
     /// <summary>

@@ -25,4 +25,11 @@ public sealed partial class KsCrewVehicleAmmoPortComponent : Component
     /// </summary>
     [DataField, AutoNetworkedField]
     public TimeSpan LoadDelay = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    ///     Whether the round waiting in the weapon can be taken back out through the port, by a verb, into the hands: a
+    ///         breech, whose one round would otherwise have to be fired to load another kind.
+    /// </summary>
+    [DataField, AutoNetworkedField]
+    public bool CanUnload;
 }

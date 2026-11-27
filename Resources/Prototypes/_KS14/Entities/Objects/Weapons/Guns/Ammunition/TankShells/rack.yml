@@ -1,0 +1,71 @@
+# Racks of tank shells, fixed inside the tank (Maps/_KS14/CrewVehicle/tank.yml): four shells each. Like everything else
+#   in an interior they can't be damaged, unbolted or moved.
+
+- type: entity
+  parent: KsCrewVehicleInteriorBase
+  id: KsTankShellRack
+  categories: [ HideSpawnMenu ]
+  name: shell rack
+  description: A rack for four tank shells.
+  suffix: Empty
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/shell_rack.rsi
+    drawdepth: Objects
+    layers:
+    - state: ltbcannon_0
+    - state: ltbcannon_4
+      map: [ "enum.StorageContainerVisualLayers.Fill" ]
+      visible: false
+  - type: Appearance
+  - type: StorageContainerVisuals
+    maxFillLevels: 4
+    fillBaseName: ltbcannon_
+  - type: InteractionOutline
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.35,-0.4,0.35,0.4"
+        hard: false
+        layer:
+        - MidImpassable
+  - type: Storage
+    grid:
+    - 0,0,3,3
+    maxItemSize: Huge
+    whitelist:
+      tags:
+      - KsTankShell
+  - type: UserInterface
+    interfaces:
+      enum.StorageUiKey.Key:
+        type: StorageBoundUserInterface
+  - type: ContainerContainer
+    containers:
+      storagebase: !type:Container
+
+- type: entity
+  parent: KsTankShellRack
+  id: KsTankShellRackHE
+  suffix: HE
+  components:
+  - type: StorageFill
+    contents:
+    - id: KsTankShellHE
+      amount: 4
+
+- type: entity
+  parent: KsTankShellRack
+  id: KsTankShellRackAP
+  suffix: AP
+  components:
+  - type: StorageFill
+    contents:
+    - id: KsTankShellAP
+      amount: 4

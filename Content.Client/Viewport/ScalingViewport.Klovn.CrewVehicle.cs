@@ -26,6 +26,8 @@ namespace Content.Client.Viewport
     ///     Only pass one is drawn here. Pass two is whatever <see cref="Draw"/> does next, which on an interior map is the
     ///         ordinary single pass through the viewer's real eye, then the one blit and the screen overlays.
     ///     Crew in a view seat have their eye on the vehicle's own map, so they never reach this and pay nothing for it.
+    ///         An interior with no outside backdrop (<see cref="KsCrewVehicleInteriorComponent.OutsideBackdrop"/>) skips it
+    ///         too: the interior is drawn alone, on the viewport's black clear.
     ///     If the vehicle's map is a z-level, pass one is that level's whole stack, the levels below included, drawn as
     ///         for a viewer standing at the stand-in eye, and left in the target for pass two to blit.
     ///     The outside's light map is copied out after pass one, and <see cref="KsCrewVehicleInteriorLightOverlay"/> bleeds
@@ -35,6 +37,7 @@ namespace Content.Client.Viewport
     public sealed partial class ScalingViewport
     {
         private SharedTransformSystem? _crewVehicleTransformSystem;
+        private SharedKsCrewVehicleInteriorSystem? _crewVehicleInteriorSystem;
         private KsCrewVehicleInteriorLightSystem? _crewVehicleLightSystem;
 
         /// <summary>
@@ -229,6 +232,10 @@ namespace Content.Client.Viewport
 
             if (!_mapSystem.TryGetMap(eye.Position.MapId, out var interiorMapUid) ||
                 !_entityManager.TryGetComponent<KsCrewVehicleInteriorMapComponent>(interiorMapUid, out var interiorMapComponent))
+                return false;
+
+            _crewVehicleInteriorSystem ??= _entityManager.System<SharedKsCrewVehicleInteriorSystem>();
+            if (!_crewVehicleInteriorSystem.DrawsOutsideBackdrop((interiorMapUid.Value, interiorMapComponent)))
                 return false;
 
             // The vehicle is only drawn from while it is really here: in PVS (a vehicle out of it is detached, in

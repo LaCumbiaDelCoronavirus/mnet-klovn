@@ -4,12 +4,16 @@ using Content.Shared._KS14.CrewVehicle.Mounts;
 using Content.Shared._KS14.PopupLocalization;
 using Content.Shared.DoAfter;
 using Content.Shared.Examine;
+using Content.Shared.Hands.EntitySystems;
+using Content.Shared.Localizations;
 using Content.Shared.Interaction;
 using Content.Shared.Popups;
 using Content.Shared.Stacks;
+using Content.Shared.Verbs;
 using Content.Shared.Weapons.Ranged.Components;
 using Content.Shared.Weapons.Ranged.Events;
 using Content.Shared.Weapons.Ranged.Systems;
+using Robust.Shared.Prototypes;
 
 namespace Content.Shared._KS14.CrewVehicle.AmmoPort;
 
@@ -29,6 +33,8 @@ public abstract partial class SharedKsCrewVehicleAmmoPortSystem : EntitySystem
     [Dependency] private SharedGunSystem _gunSystem = default!;
     [Dependency] private SharedKsCrewVehicleInteriorSystem _interiorSystem = default!;
     [Dependency] private SharedPopupSystem _popupSystem = default!;
+    [Dependency] private SharedHandsSystem _handsSystem = default!;
+    [Dependency] private ContentLocalizationManager _contentLocalizationManager = default!;
     [Dependency] protected SharedKsCrewVehicleMountSystem MountSystem = default!;
     [Dependency] private EntityQuery<BallisticAmmoProviderComponent> _ballisticQuery = default!;
     [Dependency] private EntityQuery<CartridgeAmmoComponent> _cartridgeQuery = default!;
@@ -159,6 +165,73 @@ public abstract partial class SharedKsCrewVehicleAmmoPortSystem : EntitySystem
         var ev = new GetAmmoCountEvent();
         RaiseLocalEvent(weaponUid.Value, ref ev);
         args.PushMarkup(Loc.GetString("ks-crew-vehicle-ammo-port-examine", ("count", ev.Count), ("capacity", ev.Capacity)));
+
+        // A one-round weapon, a breech, says which round waits in it, so its crew can tell one kind from another.
+        if (ev.Capacity == 1 && ev.Count > 0 && GetNextRoundPrototype(weaponUid.Value) is { } roundPrototype)
+        {
+            args.PushMarkup(Loc.GetString("ks-crew-vehicle-ammo-port-chambered",
+                ("round", _contentLocalizationManager.GetLocalizedPrototypeName(roundPrototype))));
+        }
+    }
+
+    /// <summary>
+    ///     The prototype of the round <paramref name="weaponUid"/> would fire next: the last one put in, or its fill
+    ///         round.
+    /// </summary>
+    private EntityPrototype? GetNextRoundPrototype(EntityUid weaponUid)
+    {
+        if (!_ballisticQuery.TryComp(weaponUid, out var ballisticComponent))
+            return null;
+
+        if (ballisticComponent.Entities.Count > 0)
+            return EntityManager.MetaQuery.TryGetComponent(ballisticComponent.Entities[^1], out var metaDataComponent) ? metaDataComponent.EntityPrototype : null;
+
+        return ballisticComponent.UnspawnedCount > 0 && ballisticComponent.Proto is { } proto && ProtoMan.TryIndex(proto, out var prototype)
+            ? prototype
+            : null;
+    }
+
+    // GetVerbsEvent is a by-value class event, which only the (uid, component, args) handler form accepts (RA0054).
+    [SubscribeLocalEvent]
+    private void OnGetVerbs(EntityUid uid, KsCrewVehicleAmmoPortComponent component, GetVerbsEvent<AlternativeVerb> args)
+    {
+        if (!component.CanUnload || !args.CanAccess || !args.CanInteract || args.Hands == null)
+            return;
+
+        var port = new Entity<KsCrewVehicleAmmoPortComponent>(uid, component);
+        var user = args.User;
+        var loaded = TryGetWeapon(port, out var weaponUid) &&
+                     _ballisticQuery.TryComp(weaponUid, out var weaponComponent) &&
+                     weaponComponent.Entities.Count + weaponComponent.UnspawnedCount > 0;
+        args.Verbs.Add(new AlternativeVerb
+        {
+            Text = Loc.GetString("ks-crew-vehicle-ammo-port-verb-unload"),
+            Disabled = !loaded,
+            Act = () => TryUnload(port, user),
+        });
+    }
+
+    /// <summary>
+    ///     Takes the round waiting in the port's weapon out into <paramref name="userUid"/>'s hands, or at their feet.
+    /// </summary>
+    public bool TryUnload(Entity<KsCrewVehicleAmmoPortComponent> port, EntityUid userUid)
+    {
+        if (!port.Comp.CanUnload ||
+            !TryGetWeapon(port, out var weaponUid) ||
+            !_ballisticQuery.TryComp(weaponUid, out var weaponComponent))
+            return false;
+
+        if (!_gunSystem.KsTryTakeBallisticRound((weaponUid.Value, weaponComponent), out var roundUid))
+        {
+            // Nothing in it; a round only the server can make says nothing here, the server's popup is the one shown.
+            if (weaponComponent.Entities.Count + weaponComponent.UnspawnedCount == 0)
+                _popupSystem.PopupEntity(KsPopupMessage.Create("ks-crew-vehicle-ammo-port-empty"), port.Owner, userUid);
+            return false;
+        }
+
+        _handsSystem.PickupOrDrop(userUid, roundUid.Value);
+        _popupSystem.PopupEntity(KsPopupMessage.Create("ks-crew-vehicle-ammo-port-unloaded", ("round", roundUid.Value)), port.Owner, userUid);
+        return true;
     }
 
     [SubscribeLocalEvent]

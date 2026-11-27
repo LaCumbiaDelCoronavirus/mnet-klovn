@@ -9,7 +9,8 @@ namespace Content.Client._KS14.CrewVehicle.Turret;
 
 /// <summary>
 ///     Keeps a freely turning turret's sprite on the pivot its hull's sprite draws for it
-///         (<see cref="KsCrewVehicleTurretSpriteComponent"/>).
+///         (<see cref="KsCrewVehicleTurretSpriteComponent"/>). A turret mounted on another turret's weapon rides that
+///         turret's sprite instead: its own sprite is moved by exactly what its parent's was.
 /// </summary>
 /// <remarks>
 ///     Which of the hull's four drawings is shown depends on the hull's rotation on screen, the eye's included, and the
@@ -41,9 +42,14 @@ public sealed partial class KsCrewVehicleTurretSpriteSystem : EntitySystem
         while (query.MoveNext(out var uid, out var turretSpriteComponent, out var weaponComponent, out var spriteComponent, out var transformComponent))
         {
             if (weaponComponent.Vehicle is not { } hullUid ||
-                transformComponent.ParentUid != hullUid ||
                 transformComponent.MapID != eye.Position.MapId)
                 continue;
+
+            if (transformComponent.ParentUid != hullUid)
+            {
+                FollowParentSprite((uid, spriteComponent, transformComponent));
+                continue;
+            }
 
             var (hullPosition, hullRotation) = _transformSystem.GetWorldPositionRotation(hullUid);
             if (!view.Contains(hullPosition))
@@ -80,6 +86,22 @@ public sealed partial class KsCrewVehicleTurretSpriteSystem : EntitySystem
             var weaponRotation = hullRotation + transformComponent.LocalRotation;
             _spriteSystem.SetOffset((uid, spriteComponent), (-weaponRotation).RotateVec(toPivot));
         }
+    }
+
+    /// <summary>
+    ///     A weapon mounted on another weapon whose sprite is moved onto its pivot is drawn moved by the same amount in the
+    ///         world, so it stays where it sits on that weapon's sprite. A frame behind its parent at most.
+    /// </summary>
+    private void FollowParentSprite(Entity<SpriteComponent, TransformComponent> weapon)
+    {
+        var parentUid = weapon.Comp2.ParentUid;
+        if (!HasComp<KsCrewVehicleTurretSpriteComponent>(parentUid) || !TryComp<SpriteComponent>(parentUid, out var parentSpriteComponent))
+            return;
+
+        var parentRotation = _transformSystem.GetWorldRotation(parentUid);
+        var weaponRotation = parentRotation + weapon.Comp2.LocalRotation;
+        var worldShift = parentRotation.RotateVec(parentSpriteComponent.Offset);
+        _spriteSystem.SetOffset((weapon.Owner, weapon.Comp1), (-weaponRotation).RotateVec(worldShift));
     }
 }
 

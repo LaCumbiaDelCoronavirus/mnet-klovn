@@ -51,3 +51,11 @@
     - map: [ "100" ]
       sprite: /Textures/Interface/Alerts/essence_counter.rsi
       state: "0"
+
+# A gunner seat's one action for all its weapons (KsCrewVehicleGunnerSeat.cycleWeapons): each use switches to the next.
+#   It shows the selected weapon's rounds, as a select action shows its own weapon's.
+- type: entity
+  parent: KsCrewVehicleActionSelectWeapon
+  id: KsCrewVehicleActionCycleWeapon
+  name: Switch weapon
+  description: Switch to the next weapon you fire from this seat.

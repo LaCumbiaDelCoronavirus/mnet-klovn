@@ -38,6 +38,13 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     public float OutsideLightBleed = 0.5f;
 
     /// <summary>
+    ///     Whether the world outside is drawn behind the interior, through its windows, for occupants who are not in a
+    ///         view seat. False: the inside is all they see; a view seat still looks out.
+    /// </summary>
+    [DataField]
+    public bool OutsideBackdrop = true;
+
+    /// <summary>
     ///     The cabin's own dim ambient light, added to the interior's light map by the client's interior light overlay.
     ///         The interior map has no <c>MapLight</c> of its own. Black for none.
     /// </summary>

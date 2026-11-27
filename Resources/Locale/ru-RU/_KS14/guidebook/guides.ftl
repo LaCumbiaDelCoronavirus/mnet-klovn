@@ -17,3 +17,4 @@ guide-entry-ks-grabs-and-shoves = Толчки и захваты
 guide-entry-ks-field-commander = Полевой командир
 guide-entry-ks-field-commander-perks = Перки
 guide-entry-ks-humvee = Хамви
+guide-entry-ks-tank = Танк

@@ -10,4 +10,5 @@ public enum KsCrewVehicleVisualLayers : byte
 {
     Hull,
     Wheels,
+    Armor,
 }

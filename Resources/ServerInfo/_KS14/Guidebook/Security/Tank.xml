@@ -1,0 +1,66 @@
+<Document>
+  # Tank
+  A tracked, armoured fighting vehicle with a cannon in its turret and a machine gun beside it. You ride inside it: the one in the driver's seat drives, aims the turret and fires both guns, and the rest of the crew loads the cannon and rides along.
+
+  <Box>
+    <GuideEntityEmbed Entity="KsCrewVehicleTank"/>
+  </Box>
+
+  ## Getting in and out
+  The only way in is the hatch at the back. Stand behind the tank and use it with [color=yellow][bold][keybind="ActivateItemInWorld"][/bold][/color], or pick [bold]Get in[/bold] from its menu. Hold still for a moment and you're inside, standing by the hatch. Whoever you're pulling comes in with you.
+
+  It holds [color=orange][protodata="KsCrewVehicleTank" comp="KsCrewVehicleInterior" member="MaxOccupants" format="N0"/][/color]. When it's full, nobody else gets in.
+
+  To get out, stand up and use the hatch inside. You climb out behind the tank. You can't get out while it's moving, or if something is in the way behind it.
+
+  Up to [color=orange][protodata="KsCrewVehicleTank" comp="KsCrewVehicleRideable" member="MaxRiders" format="N0"/][/color] more can climb onto the hull and ride on top. They get off by walking off the edge, and a hard crash throws them off.
+
+  ## Seats
+  Click a seat with an empty hand to sit down. Only the [bold]driver's seat[/bold] looks out: sitting there, your view moves outside, above the tank, and zooms out. The tank has no windows. Anywhere else inside, sitting or standing, you see only the cabin.
+
+  ## Driving
+  Drive with your movement keys. [color=yellow][bold][keybind="MoveUp"][/bold][/color] drives forward and [color=yellow][bold][keybind="MoveDown"][/bold][/color] backs up, the way the tank faces. [color=yellow][bold][keybind="MoveLeft"][/bold][/color] and [color=yellow][bold][keybind="MoveRight"][/bold][/color] turn it.
+
+  It runs on tracks, so it turns on the spot, even standing still, but it's slow to get going and slow to turn. Your action bar has its [bold]horn[/bold], its [bold]headlights[/bold] and its [bold]engine[/bold] while you drive.
+
+  It's heavier than anything else on wheels: it runs people over, pushes crates, smashes through furniture and stops dead against walls, the same as the [textlink="humvee" link="KsHumvee"], and its armour takes crashes better.
+
+  ## The guns
+  Turn on combat mode in the driver's seat and click, or hold, where you want to shoot. The turret turns slowly toward your cursor and fires once it points there, so lead with it early.
+
+  You fire one gun at a time. The [bold]Switch weapon[/bold] action changes between the [bold]cannon[/bold] and the [bold]coaxial machine gun[/bold]; it shows the rounds left in the one you have. The machine gun is fixed beside the cannon, so aiming it turns the whole turret too, and it fires once the turret has brought it round.
+
+  The alert at the side of your screen counts the rounds left in the gun you have.
+
+  ## Loading the cannon
+  The cannon holds one shell. After every shot someone has to load the next one by hand: use a shell on the [bold]breech[/bold] in the middle of the cabin and hold still for a few seconds. A shell in the breech means it's full; anything that isn't a tank shell doesn't fit.
+
+  Examine the breech to see which shell is in it. To swap it for the other kind, pick [bold]Unload[/bold] from the breech's menu and the shell comes out into your hands.
+
+  - [bold]HE shell.[/bold] Bursts on the first thing it hits, hurting and wrecking everything within a couple of tiles.
+  - [bold]AP shell.[/bold] A heavy dart that hits structures and vehicles very hard. It punches through anything it destroys and keeps going, through walls and armour, until it's spent.
+
+  <Box>
+    <GuideEntityEmbed Entity="KsTankShellHE"/>
+    <GuideEntityEmbed Entity="KsTankShellAP"/>
+  </Box>
+
+  Spare shells sit in the two [bold]shell racks[/bold] at the back of the cabin, four in each. Open a rack to take one out or put one back. Shells are too big for bags and slow you down while you carry one.
+
+  ## Loading the machine gun
+  The machine gun takes .30 rifle rounds. Use them on the [bold]machine gun loader[/bold] beside the breech: loose rounds, a box or a magazine all work, and it takes as many as fit, after a few seconds.
+
+  <Box>
+    <GuideEntityEmbed Entity="CartridgeLightRifle"/>
+    <GuideEntityEmbed Entity="MagazineBoxLightRifle"/>
+  </Box>
+
+  ## Damage
+  The hull soaks up a great deal. Blasts outside don't reach the crew inside. Once it's badly hurt it looks battered and smoke pours from the engine deck. Weld it to patch it up, a little with each pass.
+
+  <Box>
+    <GuideEntityEmbed Entity="Welder"/>
+  </Box>
+
+  If it's destroyed, it blows up. Everyone inside is thrown out around it, hurt and knocked down, and all that's left is a burnt-out wreck.
+</Document>

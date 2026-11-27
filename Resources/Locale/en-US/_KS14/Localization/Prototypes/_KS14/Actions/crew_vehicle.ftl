@@ -5,3 +5,5 @@ ent-KsCrewVehicleActionSelectWeapon = Select weapon
     .desc = Fire this weapon.
 ent-KsCrewVehicleActionEngine = Engine
     .desc = Start or stop the vehicle's engine.
+ent-KsCrewVehicleActionCycleWeapon = Switch weapon
+    .desc = Switch to the next weapon you fire from this seat.

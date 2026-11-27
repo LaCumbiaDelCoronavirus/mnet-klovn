@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "license": "CC-BY-NC-4.0",
+  "copyright": "Taken from TerraGov-Marine-Corps at https://github.com/tgstation/TerraGov-Marine-Corps/blob/0767d016f8074a900722716f84d23153fa29d1ea/icons/obj/items/ammo/tank.dmi",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "ltb"
+    }
+  ]
+}

@@ -25,6 +25,10 @@ ks-crew-vehicle-ammo-port-loaded = Loaded { $count } { $count ->
 ks-crew-vehicle-ammo-port-full = The weapon is full.
 ks-crew-vehicle-ammo-port-wrong-ammo = That doesn't fit this weapon.
 ks-crew-vehicle-ammo-port-no-weapon = There is no weapon to load.
+ks-crew-vehicle-ammo-port-chambered = Chambered: [color=yellow]{ $round }[/color].
+ks-crew-vehicle-ammo-port-verb-unload = Unload
+ks-crew-vehicle-ammo-port-unloaded = You take { THE($round) } out.
+ks-crew-vehicle-ammo-port-empty = There is nothing loaded.
 
 ks-crew-vehicle-ride-verb-climb-down = Climb down
 ks-crew-vehicle-ride-full = There's no room left on { THE($vehicle) }.

@@ -1,0 +1,21 @@
+# Resources\Prototypes\_KS14\Entities\CrewVehicle\Tank\interior.yml
+ent-KsCrewVehicleSeatTankDriver = driver's seat
+    .desc = The controls, the gun sight and both triggers are within reach from here.
+ent-KsCrewVehicleSeatTankCrew = crew seat
+    .desc = A folding seat beside the breech.
+ent-KsCrewVehicleSeatTankPassenger = passenger seat
+    .desc = A hard seat between the shell racks.
+ent-KsCrewVehicleAmmoPortTankCannon = breech
+    .desc = The back end of the cannon. Load one shell at a time; check it to see what is in it.
+ent-KsCrewVehicleAmmoPortTankMachineGun = machine gun loader
+    .desc = Feeds the machine gun beside the cannon. Hand it .30 rifle rounds, loose or boxed.
+ent-KsCrewVehicleExitDoorTank = hatch
+    .desc = The way out, at the back.
+ent-KsCrewVehicleInteriorWallTank = tank wall
+    .desc = Armour plate, from the inside.
+ent-KsCrewVehicleInteriorOccluderTank = tank wall
+    .desc = Armour plate, from the inside.
+ent-KsCrewVehicleInteriorDomeLightTank = dome light
+    .desc = A small red lamp in the roof of the cabin.
+ent-KsCrewVehicleInteriorChassisTank = tank floor
+    .desc = The inside of a tank.

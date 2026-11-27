@@ -16,3 +16,4 @@ guide-entry-ks-grabs-and-shoves = Shoving and Grabbing
 guide-entry-ks-field-commander = Field Commander
 guide-entry-ks-field-commander-perks = Perks
 guide-entry-ks-humvee = Humvee
+guide-entry-ks-tank = Tank

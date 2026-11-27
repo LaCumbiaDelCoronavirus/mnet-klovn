@@ -13,7 +13,7 @@ namespace Content.Client._KS14.CrewVehicle.Gunner;
 
 /// <summary>
 ///     What a gunner reads off their screen: the selected weapon's rounds on the ammo alert, and each weapon's rounds on
-///         its select action. Both are counted here, on the client, from the weapons' own networked ammo, every frame
+///         its select action (the selected weapon's on a cycle action). Both are counted here, on the client, from the weapons' own networked ammo, every frame
 ///         they are drawn; the server sends nothing for them.
 /// </summary>
 public sealed partial class KsCrewVehicleGunnerHudSystem : EntitySystem
@@ -92,6 +92,15 @@ public sealed partial class KsCrewVehicleGunnerHudSystem : EntitySystem
 
     private EntityUid? GetWeapon(Entity<KsCrewVehicleSelectWeaponActionComponent> action)
     {
+        // A cycle action stands for whatever its holder has selected.
+        if (action.Comp.Cycle)
+        {
+            return _actionQuery.TryComp(action, out var cycleActionComponent) &&
+                   _gunnerQuery.TryComp(cycleActionComponent.AttachedEntity, out var gunnerComponent)
+                ? gunnerComponent.Selected
+                : null;
+        }
+
         if (!_actionQuery.TryComp(action, out var actionComponent) ||
             actionComponent.Container is not { } seatUid ||
             !_interiorSystem.TryGetVehicle(seatUid, out var vehicle) ||

@@ -46,8 +46,8 @@ public abstract partial class SharedKsCrewVehicleMountSystem : EntitySystem
     }
 
     /// <summary>
-    ///     Which way <paramref name="weapon"/>'s mount points at rest, relative to the hull it is on: the hull-local
-    ///         rotation of a fixed weapon, and the centre of the weapon's fire arc.
+    ///     Which way <paramref name="weapon"/>'s mount points at rest, relative to what it is mounted on (the hull, or its
+    ///         parent mount's weapon): the local rotation of a fixed weapon, and the centre of the weapon's fire arc.
     /// </summary>
     public Angle GetRestRotation(Entity<KsCrewVehicleWeaponComponent> weapon)
     {
@@ -67,8 +67,18 @@ public abstract partial class SharedKsCrewVehicleMountSystem : EntitySystem
         if (weapon.Comp.FireArc is not { } fireArc || weapon.Comp.Vehicle is not { } vehicleUid)
             return true;
 
-        var restWorld = _transformSystem.GetWorldRotation(vehicleUid) + GetRestRotation(weapon);
+        var restWorld = GetMountedOnWorldRotation(weapon.Owner, vehicleUid) + GetRestRotation(weapon);
         return Math.Abs(Angle.ShortestDistance(restWorld, worldDirection).Theta) <= fireArc.Theta / 2 + 0.0001;
+    }
+
+    /// <summary>
+    ///     The world rotation of what <paramref name="weaponUid"/> is mounted on: its transform parent, the hull or another
+    ///         mount's weapon, which its local rotation is measured from. The hull's, if it has no parent yet.
+    /// </summary>
+    public Angle GetMountedOnWorldRotation(EntityUid weaponUid, EntityUid vehicleUid)
+    {
+        var parentUid = Transform(weaponUid).ParentUid;
+        return _transformSystem.GetWorldRotation(parentUid.IsValid() ? parentUid : vehicleUid);
     }
 
     /// <summary>

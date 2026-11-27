@@ -34,6 +34,12 @@ public sealed partial class KsCrewVehicleInteriorMapComponent : Component
     public float OutsideLightBleed;
 
     /// <summary>
+    ///     The vehicle's <see cref="KsCrewVehicleInteriorComponent.OutsideBackdrop"/>, for the client's renderer.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public bool OutsideBackdrop = true;
+
+    /// <summary>
     ///     The vehicle's <see cref="KsCrewVehicleInteriorComponent.CabinAmbient"/>, for the client's renderer.
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]

@@ -1,0 +1,102 @@
+# Shells for the crewed tank's cannon (Entities/CrewVehicle/Tank/tank.yml): carried one at a time, loaded by hand at the
+#   breech inside, one in the gun at a time. Fired, the shell is gone: there is no casing.
+
+- type: entity
+  abstract: true
+  parent: BaseItem
+  id: KsTankShellBase
+  components:
+  # Too big for any bag: one in the hands. Long and thin, so a rack holds four side by side.
+  - type: Item
+    size: Huge
+    shape:
+    - 0,0,0,3
+  - type: Tag
+    tags:
+    - KsTankShell
+  - type: HeldSpeedModifier
+    walkModifier: 0.8
+    sprintModifier: 0.8
+  - type: StaticPrice
+    price: 150
+
+- type: entity
+  parent: KsTankShellBase
+  id: KsTankShellHE
+  name: HE tank shell
+  description: A high-explosive cannon shell. It bursts on whatever it hits, wrecking everything close by.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/shell_he.rsi
+    state: ltb
+  - type: CartridgeAmmo
+    proto: KsBulletTankShellHE
+    deleteOnSpawn: true
+
+- type: entity
+  parent: KsTankShellBase
+  id: KsTankShellAP
+  name: AP tank shell
+  description: An armour-piercing cannon shell. A heavy dart that punches through plate, and keeps going through anything it destroys.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/shell_ap.rsi
+    state: ltb_apfds
+  - type: CartridgeAmmo
+    proto: KsBulletTankShellAP
+    deleteOnSpawn: true
+
+# Bursts on the first thing it touches: a blast of about two tiles' radius that breaks no more than a tile of floor.
+- type: entity
+  parent: BaseBulletTrigger
+  id: KsBulletTankShellHE
+  categories: [ HideSpawnMenu ]
+  name: HE shell
+  description: A high-explosive cannon shell in flight.
+  components:
+  - type: Sprite
+    sprite: Objects/Weapons/Guns/Projectiles/projectiles2.rsi
+    layers:
+    - state: frag
+      shader: unshaded
+  - type: Projectile
+    damage:
+      types:
+        Blunt: 40
+        Structural: 60
+  - type: ExplodeOnTrigger
+  - type: Explosive
+    explosionType: Default
+    totalIntensity: 150
+    intensitySlope: 5
+    maxIntensity: 10
+    canCreateVacuum: false
+    maxTileBreak: 1
+  - type: PointLight
+    radius: 2
+    energy: 2
+    color: '#FFA040'
+
+# Punches through what it destroys, on the penetration framework (PredictedProjectileSystem): against a structure each
+#   hit is scaled to destroy it (or to a share of that, KsCCVars.GunPenetrationMinShots) and spent from its threshold.
+#   Only a hit that deals Structural damage lets it go on.
+- type: entity
+  parent: BaseBullet
+  id: KsBulletTankShellAP
+  categories: [ HideSpawnMenu ]
+  name: AP shell
+  description: An armour-piercing cannon shell in flight.
+  components:
+  - type: Sprite
+    sprite: Objects/Weapons/Guns/Projectiles/projectiles2.rsi
+    layers:
+    - state: slug
+      shader: unshaded
+  - type: Projectile
+    damage:
+      types:
+        Piercing: 120
+        Structural: 900
+    penetrationThreshold: 1800
+    penetrationDamageTypeRequirement:
+    - Structural

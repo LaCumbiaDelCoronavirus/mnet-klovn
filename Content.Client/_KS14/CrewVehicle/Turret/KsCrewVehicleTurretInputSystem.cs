@@ -10,8 +10,9 @@ using Robust.Shared.Timing;
 namespace Content.Client._KS14.CrewVehicle.Turret;
 
 /// <summary>
-///     Sends where the local gunner aims to their selected turret, when the aim has moved by at least the turret's
-///         threshold and no more often than its interval.
+///     Sends where the local gunner aims to the turret their selected weapon aims (the weapon itself, or the turret a
+///         coaxial weapon is fixed to), when the aim has moved by at least the turret's threshold and no more often than
+///         its interval.
 /// </summary>
 /// <remarks>
 ///     Hooks nothing outside itself (it reads the eye and the mouse each tick), so there is nothing to unsubscribe.
@@ -23,6 +24,8 @@ public sealed partial class KsCrewVehicleTurretInputSystem : EntitySystem
     [Dependency] private IInputManager _inputManager = default!;
     [Dependency] private IPlayerManager _playerManager = default!;
     [Dependency] private SharedTransformSystem _transformSystem = default!;
+    [Dependency] private SharedKsCrewVehicleMountSystem _mountSystem = default!;
+    [Dependency] private KsCrewVehicleTurretSystem _turretSystem = default!;
 
     [Dependency] private EntityQuery<KsCrewVehicleGunnerComponent> _gunnerQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleTurretComponent> _turretQuery = default!;
@@ -42,7 +45,7 @@ public sealed partial class KsCrewVehicleTurretInputSystem : EntitySystem
 
         if (_playerManager.LocalEntity is not { } playerUid ||
             !_gunnerQuery.TryComp(playerUid, out var gunnerComponent) ||
-            gunnerComponent.Selected is not { } weaponUid ||
+            _turretSystem.GetAimedTurret(gunnerComponent.Selected) is not { } weaponUid ||
             !_turretQuery.TryComp(weaponUid, out var turretComponent) ||
             !_weaponQuery.TryComp(weaponUid, out var weaponComponent) ||
             weaponComponent.Vehicle is not { } vehicleUid)
@@ -64,7 +67,7 @@ public sealed partial class KsCrewVehicleTurretInputSystem : EntitySystem
         if (direction.LengthSquared() < 0.0001f)
             return;
 
-        var angle = direction.ToWorldAngle() - _transformSystem.GetWorldRotation(vehicleUid);
+        var angle = direction.ToWorldAngle() - _mountSystem.GetMountedOnWorldRotation(weaponUid, vehicleUid);
         var curTime = _gameTiming.CurTime;
         if (_lastWeaponUid == weaponUid &&
             (curTime < _nextSend || Math.Abs(Angle.ShortestDistance(_lastAngle, angle).Theta) < turretComponent.AimSendThreshold.Theta))

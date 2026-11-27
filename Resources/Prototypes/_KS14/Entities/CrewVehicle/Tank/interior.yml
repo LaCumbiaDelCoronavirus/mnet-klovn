@@ -1,0 +1,256 @@
+# The inside of the tank (Maps/_KS14/CrewVehicle/tank.yml and tank_empty.yml). Its front is north. Its grid has floor three
+#   tiles by four; the walls round it are drawn by the floor plan (KsCrewVehicleInteriorChassisTank), stop people with
+#   KsCrewVehicleInteriorWallTank and block sight with a closed ring of KsCrewVehicleInteriorOccluderTank: there are no
+#   windows, and only the driver's seat looks out.
+
+# Up front: drives, aims the turret and fires both guns, switching between them with one action.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseSeat
+  id: KsCrewVehicleSeatTankDriver
+  categories: [ HideSpawnMenu ]
+  name: driver's seat
+  description: The controls, the gun sight and both triggers are within reach from here.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    state: car_seat
+    drawdepth: Objects
+  - type: KsCrewVehicleDriverSeat
+  - type: KsCrewVehicleGunnerSeat
+    mounts:
+    - cannon
+    - coax
+    cycleWeapons: true
+  # Looks out from the hull through the gun sight, zoomed out and leaning well toward the cursor.
+  - type: KsCrewVehicleViewSeat
+    pvsScale: 2.5
+    zoom: 1.75,1.75
+    cursorOffset: 4
+
+# Beside the breech, where a loader sits; a gunner's seat of its own if the machine gun is ever given one.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseSeat
+  id: KsCrewVehicleSeatTankCrew
+  categories: [ HideSpawnMenu ]
+  name: crew seat
+  description: A folding seat beside the breech.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    state: car_seat
+    drawdepth: Objects
+
+- type: entity
+  parent: KsCrewVehicleInteriorBaseSeat
+  id: KsCrewVehicleSeatTankPassenger
+  categories: [ HideSpawnMenu ]
+  name: passenger seat
+  description: A hard seat between the shell racks.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    state: car_seat
+    drawdepth: Objects
+
+# The cannon's breech, in the middle of the cabin: one shell at a time goes in here, and the one in it can be taken back
+#   out.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseAmmoPort
+  id: KsCrewVehicleAmmoPortTankCannon
+  categories: [ HideSpawnMenu ]
+  name: breech
+  description: The back end of the cannon. Load one shell at a time; check it to see what is in it.
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/interior.rsi
+    state: prop4
+    drawdepth: Objects
+  - type: InteractionOutline
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.4,-0.3,0.4,0.3"
+        hard: false
+        layer:
+        - MidImpassable
+  - type: KsCrewVehicleAmmoPort
+    mount: cannon
+    loadDelay: 2.5
+    canUnload: true
+
+# Feeds the machine gun beside the cannon.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseAmmoPort
+  id: KsCrewVehicleAmmoPortTankMachineGun
+  categories: [ HideSpawnMenu ]
+  name: machine gun loader
+  description: Feeds the machine gun beside the cannon. Hand it .30 rifle rounds, loose or boxed.
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    state: weapons_loader
+    drawdepth: Objects
+  - type: InteractionOutline
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.2,-0.4,0.2,0.4"
+        hard: false
+        layer:
+        - MidImpassable
+  - type: KsCrewVehicleAmmoPort
+    mount: coax
+    loadDelay: 3
+
+# The hatch in the back wall, drawn on the floor in front of it.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseExit
+  id: KsCrewVehicleExitDoorTank
+  categories: [ HideSpawnMenu ]
+  name: hatch
+  description: The way out, at the back.
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    drawdepth: HighFloorObjects
+    state: exit_door
+
+# The walls are drawn by the floor plan: these only stop people.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseWall
+  id: KsCrewVehicleInteriorWallTank
+  categories: [ HideSpawnMenu ]
+  name: tank wall
+  description: Armour plate, from the inside.
+  placement:
+    mode: PlaceFree
+  components:
+  - type: Transform
+    anchored: false
+
+# The cabin's outline, for sight: placed at the grid's origin with a polygon each in the map file, a closed ring over the
+#   walls with no gap anywhere.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseOccluder
+  id: KsCrewVehicleInteriorOccluderTank
+  categories: [ HideSpawnMenu ]
+  name: tank wall
+  description: Armour plate, from the inside.
+
+# A dim red lamp in the roof.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseLight
+  id: KsCrewVehicleInteriorDomeLightTank
+  categories: [ HideSpawnMenu ]
+  name: dome light
+  description: A small red lamp in the roof of the cabin.
+  components:
+  - type: PointLight
+    radius: 3
+    energy: 0.5
+    color: '#FF8060'
+
+# The floor plan, placed at the grid's origin: the floor under the seats and the walls round it, the front wall's vision
+#   blocks over the driver's seat. Each layer is one tile, offset to its place.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseDecoration
+  id: KsCrewVehicleInteriorChassisTank
+  categories: [ HideSpawnMenu ]
+  name: tank floor
+  description: The inside of a tank.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/interior.rsi
+    layers:
+    # Floor, x 0 to 2, y 0 to 3.
+    - state: prop3
+      offset: 0.5,0.5
+    - state: prop3
+      offset: 1.5,0.5
+    - state: prop3
+      offset: 2.5,0.5
+    - state: prop3
+      offset: 0.5,1.5
+    - state: prop3
+      offset: 1.5,1.5
+    - state: prop3
+      offset: 2.5,1.5
+    - state: prop3
+      offset: 0.5,2.5
+    - state: prop3
+      offset: 1.5,2.5
+    - state: prop3
+      offset: 2.5,2.5
+    - state: prop3
+      offset: 0.5,3.5
+    - state: prop3
+      offset: 1.5,3.5
+    - state: prop3
+      offset: 2.5,3.5
+    # The front wall, with the vision blocks in the middle.
+    - state: trank_front_1
+      offset: 0.5,4.5
+    - state: tank_front_3
+      offset: 1.5,4.5
+    - state: tank_front_2
+      offset: 2.5,4.5
+    # The back wall.
+    - state: tank_back_1
+      offset: 0.5,-0.5
+    - state: tank_back_2
+      offset: 1.5,-0.5
+    - state: tank_back_3
+      offset: 2.5,-0.5
+    # The side walls and the corners: plain plate, turned to face the floor.
+    - state: wall
+      rotation: -90
+      offset: -0.5,-0.5
+    - state: wall
+      rotation: -90
+      offset: -0.5,0.5
+    - state: wall
+      rotation: -90
+      offset: -0.5,1.5
+    - state: wall
+      rotation: -90
+      offset: -0.5,2.5
+    - state: wall
+      rotation: -90
+      offset: -0.5,3.5
+    - state: wall
+      rotation: -90
+      offset: -0.5,4.5
+    - state: wall
+      rotation: 90
+      offset: 3.5,-0.5
+    - state: wall
+      rotation: 90
+      offset: 3.5,0.5
+    - state: wall
+      rotation: 90
+      offset: 3.5,1.5
+    - state: wall
+      rotation: 90
+      offset: 3.5,2.5
+    - state: wall
+      rotation: 90
+      offset: 3.5,3.5
+    - state: wall
+      rotation: 90
+      offset: 3.5,4.5

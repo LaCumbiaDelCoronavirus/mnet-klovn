@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/f2693b6908216176a7e8a655bb80e3555bb6f848/icons/obj/items/weapons/guns/ammo_by_faction/USCM/vehicles.dmi",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "ltbcannon_0"
+    },
+    {
+      "name": "ltbcannon_1"
+    },
+    {
+      "name": "ltbcannon_2"
+    },
+    {
+      "name": "ltbcannon_3"
+    },
+    {
+      "name": "ltbcannon_4"
+    }
+  ]
+}

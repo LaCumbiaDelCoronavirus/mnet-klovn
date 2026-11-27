@@ -137,6 +137,15 @@ public abstract partial class SharedKsCrewVehicleInteriorSystem : EntitySystem
     }
 
     /// <summary>
+    ///     Whether someone standing on <paramref name="interiorMap"/>, not in a view seat, sees the world outside drawn
+    ///         behind it (<see cref="KsCrewVehicleInteriorComponent.OutsideBackdrop"/>).
+    /// </summary>
+    public bool DrawsOutsideBackdrop(Entity<KsCrewVehicleInteriorMapComponent> interiorMap)
+    {
+        return interiorMap.Comp.OutsideBackdrop;
+    }
+
+    /// <summary>
     ///     Sets the networked count of living occupants, which only the server keeps.
     /// </summary>
     protected void SetLivingOccupants(Entity<KsCrewVehicleInteriorComponent> vehicle, int count)
@@ -157,6 +166,7 @@ public abstract partial class SharedKsCrewVehicleInteriorSystem : EntitySystem
         interiorMapComponent.Vehicle = vehicle.Owner;
         interiorMapComponent.Anchor = vehicle.Comp.InteriorAnchor;
         interiorMapComponent.OutsideLightBleed = vehicle.Comp.OutsideLightBleed;
+        interiorMapComponent.OutsideBackdrop = vehicle.Comp.OutsideBackdrop;
         interiorMapComponent.CabinAmbient = vehicle.Comp.CabinAmbient;
         Dirty(mapUid, interiorMapComponent);
 

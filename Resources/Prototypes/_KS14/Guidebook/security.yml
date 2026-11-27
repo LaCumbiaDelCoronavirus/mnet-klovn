@@ -2,3 +2,8 @@
   id: KsHumvee
   name: guide-entry-ks-humvee
   text: "/ServerInfo/_KS14/Guidebook/Security/Humvee.xml"
+
+- type: guideEntry # KS14
+  id: KsTank
+  name: guide-entry-ks-tank
+  text: "/ServerInfo/_KS14/Guidebook/Security/Tank.xml"

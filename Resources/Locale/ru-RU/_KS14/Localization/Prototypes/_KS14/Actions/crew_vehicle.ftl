@@ -5,3 +5,5 @@ ent-KsCrewVehicleActionSelectWeapon = Выбрать оружие
     .desc = Стрелять из этого оружия.
 ent-KsCrewVehicleActionEngine = Двигатель
     .desc = Завести или заглушить двигатель машины.
+ent-KsCrewVehicleActionCycleWeapon = Сменить оружие
+    .desc = Перейти к следующему оружию этого места.
