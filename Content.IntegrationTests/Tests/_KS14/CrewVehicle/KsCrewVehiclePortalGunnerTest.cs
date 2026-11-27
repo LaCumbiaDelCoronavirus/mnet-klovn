@@ -12,6 +12,7 @@ using Content.Shared.Damage;
 using Content.Shared.Damage.Components;
 using Content.Shared.Damage.Prototypes;
 using Content.Shared.Damage.Systems;
+using Content.Shared.FixedPoint;
 using Content.Shared.Maps;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Systems;
@@ -121,17 +122,15 @@ public sealed class KsCrewVehiclePortalGunnerTest : KsCrewVehicleGunnerTestBase
             ? await RunOverAMobAsync(scene, gridUid, mapId)
             : await DownAMobAheadAsync(scene, gridUid, mapId);
 
+        // Never dead: the hits of the first stage, on top of crit and the vacuum of the test floor, killed it before the
+        //      second, and a dead body sleeps out of every collision (CollisionWakeComponent), so every round passed through
+        //      it for that reason alone.
+        await Server.WaitPost(() =>
+            SEntMan.System<MobThresholdSystem>().SetMobStateThreshold(mob, FixedPoint2.MaxValue, MobState.Dead));
+
         // Hurt into crit, not set to it: a mob state set by hand is put back by the next change to its damage.
         if (lying == Lying.RunOverCritical)
-        {
-            await Server.WaitPost(() =>
-            {
-                Assert.That(SEntMan.System<MobThresholdSystem>().TryGetThresholdForState(mob, MobState.Critical, out var critical),
-                    "precondition: the mob can go into crit");
-                SEntMan.System<DamageableSystem>().TryChangeDamage(mob,
-                    new DamageSpecifier(ProtoMan.Index(_blunt), critical!.Value + 1), ignoreResistances: true);
-            });
-        }
+            await PutInCritAsync(mob);
 
         await RunTicks(10);
         await Server.WaitAssertion(() =>
@@ -153,6 +152,11 @@ public sealed class KsCrewVehiclePortalGunnerTest : KsCrewVehicleGunnerTestBase
             SEntMan.System<Robust.Shared.Physics.Systems.SharedPhysicsSystem>().SetLinearVelocity(mob, Vector2.Zero);
         });
         await RunTicks(5);
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(SEntMan.System<StandingStateSystem>().IsDown(mob), "precondition: the mob still lies down");
+            Assert.That(SEntMan.System<MobStateSystem>().IsDead(mob), Is.False, "precondition: the mob is not dead");
+        });
         await FireAndCompareAsync(weapon, mob, clickedTheMob, "after sitting back down");
     }
 
@@ -210,6 +214,22 @@ public sealed class KsCrewVehiclePortalGunnerTest : KsCrewVehicleGunnerTestBase
                 "precondition: the client has the hull through the portal too"));
 
         return (secondMap.Grid.Owner, secondMap.MapId);
+    }
+
+    /// <summary>
+    ///     Hurts the mob into crit.
+    /// </summary>
+    private async Task PutInCritAsync(EntityUid mob)
+    {
+        await Server.WaitPost(() =>
+        {
+            Assert.That(SEntMan.System<MobThresholdSystem>().TryGetThresholdForState(mob, MobState.Critical, out var critical),
+                "precondition: the mob can go into crit");
+            var damageableSystem = SEntMan.System<DamageableSystem>();
+            damageableSystem.TryChangeDamage(mob,
+                new DamageSpecifier(ProtoMan.Index(_blunt), critical!.Value + 1), ignoreResistances: true);
+            Assert.That(SEntMan.System<MobStateSystem>().IsCritical(mob), "precondition: the mob is in crit");
+        });
     }
 
     private async Task<EntityUid> DownAMobAheadAsync(HullScene scene, EntityUid gridUid, MapId mapId)
