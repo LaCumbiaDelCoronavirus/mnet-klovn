@@ -34,6 +34,7 @@ public sealed partial class KsCrewVehicleSmashedSystem : EntitySystem
     [Dependency] private SharedPhysicsSystem _physicsSystem = default!;
 
     [Dependency] private EntityQuery<FixturesComponent> _fixturesQuery = default!;
+    [Dependency] private EntityQuery<Ride.KsCrewVehicleRiderComponent> _riderQuery = default!;
 
     // Scratch list for the hulls whose time is up, so the dictionary isn't changed while it is walked.
     private readonly List<EntityUid> _expiredHulls = new();
@@ -61,8 +62,10 @@ public sealed partial class KsCrewVehicleSmashedSystem : EntitySystem
     [SubscribeLocalEvent]
     private void OnPreventCollide(Entity<KsCrewVehicleSmashedComponent> obstacle, ref PreventCollideEvent args)
     {
+        // The hull's riders pass with it: one at the very front would otherwise be pushed back along the deck.
+        var passerUid = _riderQuery.CompOrNull(args.OtherEntity)?.Hull ?? args.OtherEntity;
         if (obstacle.Comp.LifeStage <= ComponentLifeStage.Running &&
-            obstacle.Comp.Hulls.TryGetValue(args.OtherEntity, out var until) &&
+            obstacle.Comp.Hulls.TryGetValue(passerUid, out var until) &&
             _gameTiming.CurTime < until)
         {
             args.Cancelled = true;

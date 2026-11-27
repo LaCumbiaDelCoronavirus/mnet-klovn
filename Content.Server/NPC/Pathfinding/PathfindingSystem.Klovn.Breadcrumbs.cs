@@ -267,7 +267,8 @@ public sealed partial class PathfindingSystem
                 flags |= doorComponent.CanPry ? PathfindingBreadcrumbFlag.PryOnly : PathfindingBreadcrumbFlag.Sealed;
         }
 
-        if (_climbableQuery.HasComponent(uid))
+        // Not a crew vehicle's hull, climbable to ride on: climber NPCs go round it, as everyone else does.
+        if (_climbableQuery.HasComponent(uid) && !_vehicleQuery.HasComponent(uid))
             flags |= PathfindingBreadcrumbFlag.Climb;
 
         // Shatters under one of a person's weight that climbs onto it: a plain glass table, not a reinforced or plasma one,

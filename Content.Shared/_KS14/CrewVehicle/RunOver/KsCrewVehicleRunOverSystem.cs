@@ -39,6 +39,7 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
     [Dependency] private StandingStateSystem _standingSystem = default!;
 
     [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
+    [Dependency] private EntityQuery<Ride.KsCrewVehicleRiderComponent> _riderQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleStruckComponent> _struckQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleUnderHullComponent> _underHullQuery = default!;
     [Dependency] private EntityQuery<VehicleComponent> _vehicleQuery = default!;
@@ -52,6 +53,8 @@ public sealed partial class KsCrewVehicleRunOverSystem : EntitySystem
             args.OurFixtureId != hull.Comp.Fixture ||
             !args.OtherFixture.Hard ||
             !_mobStateQuery.HasComp(args.OtherEntity) ||
+            // Up on a deck, this hull's or another's, not on the ground: a grid change starts its contact anew.
+            _riderQuery.HasComp(args.OtherEntity) ||
             IsUnder(args.OtherEntity, hull.Owner) ||
             IsStruck(args.OtherEntity))
         {

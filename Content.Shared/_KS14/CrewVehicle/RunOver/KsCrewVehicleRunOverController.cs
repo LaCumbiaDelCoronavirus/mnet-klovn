@@ -33,6 +33,7 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
 
     [Dependency] private EntityQuery<MobStateComponent> _mobStateQuery = default!;
     [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default!;
+    [Dependency] private EntityQuery<Ride.KsCrewVehicleRiderComponent> _riderQuery = default!;
 
     public override void Initialize()
     {
@@ -67,6 +68,8 @@ public sealed partial class KsCrewVehicleRunOverController : VirtualController
                 var awaitingThrow = _runOverSystem.IsAwaitingThrow(mobUid);
                 if (!otherFixture.Hard ||
                     !_mobStateQuery.HasComp(mobUid) ||
+                    // Riding: its speed is the deck's, and carrying it would fling it off the front.
+                    _riderQuery.HasComp(mobUid) ||
                     _runOverSystem.IsUnder(mobUid, uid) ||
                     _runOverSystem.IsStruck(mobUid) && !awaitingThrow ||
                     _standingSystem.IsDown(mobUid) && !awaitingThrow)

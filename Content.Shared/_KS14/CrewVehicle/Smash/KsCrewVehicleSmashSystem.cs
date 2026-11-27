@@ -110,7 +110,7 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
             }
         }
 
-        Crash(hull, otherUid, impactSpeed, args.OurBody, driverUid, origin);
+        Crash(hull, otherUid, impactSpeed, velocity, args.OurBody, driverUid, origin);
     }
 
     /// <summary>
@@ -168,6 +168,7 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
     private void Crash(Entity<KsCrewVehicleSmashComponent> hull,
         EntityUid otherUid,
         float impactSpeed,
+        Vector2 velocity,
         PhysicsComponent hullBody,
         EntityUid? driverUid,
         EntityUid origin)
@@ -177,7 +178,7 @@ public sealed partial class KsCrewVehicleSmashSystem : EntitySystem
         SpawnEffect(hull.Comp.CrashEffect, otherUid);
         DamageSelf(hull, hull.Comp.WallSelfDamage, origin);
 
-        var ev = new KsCrewVehicleCrashedEvent(otherUid, impactSpeed);
+        var ev = new KsCrewVehicleCrashedEvent(otherUid, impactSpeed, velocity);
         RaiseLocalEvent(hull.Owner, ref ev);
     }
 

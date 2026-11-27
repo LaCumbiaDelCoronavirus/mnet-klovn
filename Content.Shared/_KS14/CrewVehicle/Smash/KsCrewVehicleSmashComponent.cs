@@ -101,5 +101,6 @@ public sealed partial class KsCrewVehicleSmashComponent : Component
 /// </summary>
 /// <param name="Obstacle">What it crashed into.</param>
 /// <param name="ImpactSpeed">How fast, in m/s, it was going into it.</param>
+/// <param name="Velocity">The hull's velocity before the crash stopped it.</param>
 [ByRefEvent]
-public readonly record struct KsCrewVehicleCrashedEvent(EntityUid Obstacle, float ImpactSpeed);
+public readonly record struct KsCrewVehicleCrashedEvent(EntityUid Obstacle, float ImpactSpeed, System.Numerics.Vector2 Velocity);

@@ -22,3 +22,8 @@ ks-crew-vehicle-ammo-port-loaded = Заряжено патронов: { $count }
 ks-crew-vehicle-ammo-port-full = Оружие полностью заряжено.
 ks-crew-vehicle-ammo-port-wrong-ammo = Это не подходит к этому оружию.
 ks-crew-vehicle-ammo-port-no-weapon = Здесь нечего заряжать.
+
+ks-crew-vehicle-ride-verb-climb-down = Слезть
+ks-crew-vehicle-ride-full = Наверху больше нет места.
+ks-crew-vehicle-ride-nowhere-to-climb-down = Слезть некуда: всё вокруг занято.
+ks-crew-vehicle-ride-climb-down-first = Сначала слезьте.

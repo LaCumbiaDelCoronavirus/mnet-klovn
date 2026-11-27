@@ -66,6 +66,9 @@
   # Parked, it rolls when shoved: a quarter of the ground friction its brakes give it while driven.
   - type: KsCrewVehicleDrive
     parkedFrictionModifier: 0.25
+  # Four more can ride on the roof.
+  - type: KsCrewVehicleRideable
+    maxRiders: 4
   # Out of control half the time its driver is knocked out.
   - type: KsCrewVehicleLossOfControl
   # Started and stopped by the driver; a start takes as long as its sound, 1.6 s.

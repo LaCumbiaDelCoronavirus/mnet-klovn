@@ -66,6 +66,8 @@ public sealed partial class HitscanBasicRaycastSystem : EntitySystem
         // KS14 start: shots pass through the vehicle they are fired from, by its operator or a gun mounted on it
         if (_ksRiderProjectileSystem.GetShooterVehicle(shooter) is { } ksShooterVehicleUid)
             rayCastResults.RemoveAll(hit => hit.HitEntity == ksShooterVehicleUid);
+        var ksTargetUid = args.Target; // KS14: a shot aimed at a rider passes the hull it rides
+        rayCastResults.RemoveAll(hit => _ksRiderProjectileSystem.IsRiddenBy(hit.HitEntity, ksTargetUid)); // KS14
         // KS14 end
 
         var target = args.Target;

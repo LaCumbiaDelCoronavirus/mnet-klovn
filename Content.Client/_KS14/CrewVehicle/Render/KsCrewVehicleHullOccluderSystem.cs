@@ -26,6 +26,7 @@ public sealed partial class KsCrewVehicleHullOccluderSystem : EntitySystem
     [Dependency] private EntityQuery<KsCrewVehicleViewerComponent> _viewerQuery = default!;
     [Dependency] private EntityQuery<KsCrewVehicleInteriorMapComponent> _interiorMapQuery = default!;
     [Dependency] private EntityQuery<OccluderComponent> _occluderQuery = default!;
+    [Dependency] private EntityQuery<Content.Shared._KS14.CrewVehicle.Ride.KsCrewVehicleRiderComponent> _riderQuery = default!;
 
     /// <summary>
     ///     The hull whose occluder this client has switched off, if any.
@@ -85,8 +86,8 @@ public sealed partial class KsCrewVehicleHullOccluderSystem : EntitySystem
     }
 
     /// <summary>
-    ///     The hull this client's eye looks from the inside of: the vehicle of the view seat the player sits in, or the
-    ///         vehicle whose interior map their eye is on (whose outside view is cast from the hull).
+    ///     The hull this client's eye looks from the inside of: the vehicle of the view seat the player sits in, the hull
+    ///         they ride on, or the vehicle whose interior map their eye is on (whose outside view is cast from the hull).
     /// </summary>
     public EntityUid? GetOwnHull()
     {
@@ -96,6 +97,15 @@ public sealed partial class KsCrewVehicleHullOccluderSystem : EntitySystem
             var viewedVehicle = viewerComponent.Vehicle;
             if (viewedVehicle.IsValid())
                 return viewedVehicle;
+        }
+
+        // Riding on top of it, the eye is inside its outline all the same.
+        if (_playerManager.LocalEntity is { } riderUid &&
+            _riderQuery.TryComp(riderUid, out var riderComponent))
+        {
+            var riddenUid = riderComponent.Hull;
+            if (riddenUid.IsValid())
+                return riddenUid;
         }
 
         if (_mapSystem.TryGetMap(_eyeManager.CurrentEye.Position.MapId, out var mapUid) &&

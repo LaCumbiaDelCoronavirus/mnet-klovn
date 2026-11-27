@@ -165,6 +165,9 @@
 #   the layers items collide with, so casings and dropped things neither stop nor push it; `contact`, non-hard and a
 #   little larger, mask MobMask and MobLayer, which finds the mobs and hulls it touches (KsCrewVehicleDrive.contactFixture,
 #   KsCrewVehicleRunOver.fixture).
+#   `fix1` is also the deck people climb onto and ride (KsCrewVehicleRideable): its layer has MidImpassable, which the climb
+#   sensor finds, and neither Impassable nor HighImpassable, which a climbing mob still collides with; its mask has no bit
+#   of MobLayer. So a rider never collides with the hull it stands on.
 - type: entity
   abstract: true
   id: KsCrewVehicleHullBase
@@ -240,6 +243,12 @@
   - type: KsCrewVehicleCrashLockout
     stallSound:
       path: /Audio/Effects/metal_crunch.ogg
+  # Climbed onto from beside it, and ridden; climbing onto it while it moves breaks the climb's do-after. Its ends are
+  #   further than a table's reach, hence the range.
+  - type: Climbable
+    range: 2
+    delay: 2
+  - type: KsCrewVehicleRideable
   # On its driver's side while they drive it and are fit to, which is when NPCs fight it, and before most else in sight,
   #   as they would a turret. Nobody's otherwise.
   - type: KsVehicleOperatorFactions
