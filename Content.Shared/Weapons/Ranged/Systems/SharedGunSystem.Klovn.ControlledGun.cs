@@ -154,7 +154,8 @@ public abstract partial class SharedGunSystem
         _ksEntityLookupSystem.GetEntitiesIntersecting(aimMap.MapId,
             Box2.CenteredAround(aimMap.Position, new Vector2(KsAimedAtTolerance * 2f)),
             _ksAimedAtCandidates,
-            LookupFlags.Dynamic | LookupFlags.Static | LookupFlags.Approximate);
+            // Sundries: a body asleep with its collision off (a corpse's) is in no physics tree.
+            LookupFlags.Dynamic | LookupFlags.Static | LookupFlags.Sundries | LookupFlags.Approximate);
 
         EntityUid? aimedAtUid = null;
         var aimedAtDistanceSquared = float.MaxValue;

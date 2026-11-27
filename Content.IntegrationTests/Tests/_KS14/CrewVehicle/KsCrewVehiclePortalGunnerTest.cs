@@ -161,6 +161,36 @@ public sealed class KsCrewVehiclePortalGunnerTest : KsCrewVehicleGunnerTestBase
     }
 
     /// <summary>
+    ///     A dead mob's body goes to sleep with its collision off (<see cref="CollisionWakeComponent"/>); a round aimed at it
+    ///         still hits it on the server, as one aimed at a body that is awake does.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task DeadSleepingMobIsHit(bool clickedTheMob)
+    {
+        var (scene, weapon) = await SeatGunnerAsync(_autoHull);
+        if (SEntMan.HasComponent<Content.Shared._KS14.CrewVehicle.Engine.KsCrewVehicleEngineComponent>(scene.Hull))
+            await StartEngineAsync(scene.Hull);
+
+        var mob = await DownAMobAheadAsync(scene, MapData.Grid.Owner, MapId);
+
+        await Server.WaitPost(() =>
+            SEntMan.System<MobStateSystem>().ChangeMobState(mob, MobState.Dead));
+
+        // Until it sleeps: a body only goes to sleep once it has come to rest.
+        for (var tick = 0; tick < TickRate * 10 && SComp<PhysicsComponent>(mob).CanCollide; tick++)
+            await RunTicks(1);
+
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(SEntMan.System<MobStateSystem>().IsDead(mob), "precondition: the mob is dead");
+            Assert.That(SComp<PhysicsComponent>(mob).CanCollide, Is.False, "precondition: the dead mob's body sleeps with collision off");
+        });
+
+        await FireAndCompareAsync(weapon, mob, clickedTheMob, "dead and asleep");
+    }
+
+    /// <summary>
     ///     Two linked portals, one ahead of the hull and one on a second map with floor of its own, and the hull driven across
     ///         the first, so the portal's own travel moves it. Returns the second map's grid and map.
     /// </summary>
