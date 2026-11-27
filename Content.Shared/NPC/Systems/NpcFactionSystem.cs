@@ -68,7 +68,10 @@ public sealed partial class NpcFactionSystem : EntitySystem
             ent.Comp.HostileFactions.UnionWith(ent.Comp.AddHostileFactions);
         }
 
-        KsRaiseFactionsRefreshed(ent); // KS14: tells others the factions changed, see NpcFactionSystem.Klovn.Refreshed.cs
+        // KS14 start: what is sent to clients about its factions goes by them (KsFactionCollisionSystem)
+        var ksRefreshedEv = new Content.Shared._KS14.FactionCollision.KsNpcFactionsRefreshedEvent();
+        RaiseLocalEvent(ent, ref ksRefreshedEv);
+        // KS14 end
     }
 
     /// <summary>

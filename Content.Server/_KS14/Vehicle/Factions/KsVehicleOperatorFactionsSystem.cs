@@ -1,4 +1,4 @@
-using Content.Shared._KS14.NPC.Factions;
+using Content.Shared._KS14.FactionCollision;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.NPC.Components;
