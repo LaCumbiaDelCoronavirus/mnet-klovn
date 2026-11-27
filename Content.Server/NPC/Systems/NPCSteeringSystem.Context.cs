@@ -889,7 +889,8 @@ public sealed partial class NPCSteeringSystem
             // KS14 end
             // Check if we can smash. Should also check if we can even damage the entity at some point.
             else if (checkSmash &&
-                     _destructibleQuery.HasComponent(nearbyEnt))
+                     _destructibleQuery.HasComponent(nearbyEnt) &&
+                     !_vehicleQuery.HasComp(nearbyEnt) /* KS14: added, a hull is gone round, not smashed through */)
                 nearbyEntities.Remove(nearbyEnt);
         }
     }
