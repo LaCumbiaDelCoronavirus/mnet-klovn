@@ -25,7 +25,8 @@ namespace Content.Shared._KS14.RayCollision;
 ///             what a collision means is for whoever opted it in. If it is still on its way after that (it went through,
 ///             or was reflected), the way it now goes is looked along as well, from where it was moved up to: physics
 ///             moves it a whole step from there, and that step would otherwise be one nothing looked along. At most
-///             <see cref="MaxHitsPerStep"/> a step.
+///             <see cref="MaxHitsPerStep"/> a step. What the ray can't see, having no hard fixture, may still be offered
+///             as nearer by <see cref="KsRayCollisionLookAheadEvent"/> (a lag-compensation ghost).
 ///     </para>
 ///     <para>
 ///         A ray finds what it enters, not what it starts inside. So the first time an entity is looked ahead of on a
@@ -296,16 +297,20 @@ public sealed partial class KsRayCollisionSystem : EntitySystem
                     IsIgnored = _isIgnored,
                 });
 
-            if (!result.Hit)
-            {
-                _sweeping = null;
-                _sweepingFixture = null;
-                return false;
-            }
+            _sweeping = null;
+            _sweepingFixture = null;
 
-            var hit = result.Results[0];
-            hitUid = hit.Entity;
-            point = origin + step * MathF.Max(0f, hit.Fraction - ContactMargin / step.Length());
+            // What it would collide with that the ray can't see: the physics hit stands unless an answer is nearer.
+            var lookAhead = result.Hit
+                ? new KsRayCollisionLookAheadEvent(transformComponent.MapID, origin, step, result.Results[0].Fraction, result.Results[0].Entity)
+                : new KsRayCollisionLookAheadEvent(transformComponent.MapID, origin, step, 1f, null);
+            RaiseLocalEvent(uid, ref lookAhead);
+
+            if (lookAhead.HitUid is not { } lookAheadHitUid)
+                return false;
+
+            hitUid = lookAheadHitUid;
+            point = origin + step * MathF.Max(0f, lookAhead.Fraction - ContactMargin / step.Length());
         }
 
         _sweeping = null;

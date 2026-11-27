@@ -1,6 +1,7 @@
 using Content.Shared.Movement.Components;
 using Content.Server.Movement.Components;
 using Content.Server.Movement.Systems;
+using Content.Shared._KS14.RayCollision;
 using Content.Shared._Trauma.Projectiles;
 using Content.Shared.Projectiles;
 using Content.Shared.Trigger.Components.Triggers;
@@ -43,11 +44,13 @@ public sealed partial class LagCompProjectileSystem : EntitySystem
     [Dependency] private FixtureSystem _fixtures = default!;
     [Dependency] private SharedPhysicsSystem _physics = default!;
     [Dependency] private TriggerSystem _triggerSystem = default!;
+    [Dependency] private KsRayCollisionSystem _ksRayCollisionSystem = default!;
 
     [Dependency] private EntityQuery<LagCompensationComponent> _lagCompensationQuery = default;
     [Dependency] private EntityQuery<TransformComponent> _xformQuery = default;
     [Dependency] private EntityQuery<PhysicsComponent> _physicsQuery = default;
     [Dependency] private EntityQuery<FixturesComponent> _fixturesQuery = default;
+    [Dependency] private EntityQuery<LagCompensationGhostComponent> _ghostQuery = default;
 
     private const string GhostFixtureId = "lag-compensation-ghost";
 
@@ -72,6 +75,9 @@ public sealed partial class LagCompProjectileSystem : EntitySystem
         // the *following* tick's broadphase/contact pass - a permanent one-tick lag behind where it should be,
         // which is significant against a fast-moving target and a direct contributor to missed hits.
         UpdatesBefore.Add(typeof(SharedPhysicsSystem));
+
+        // The look ahead of each round (KsRayCollisionSystem) asks where this tick's ghosts are: they are moved first.
+        UpdatesBefore.Add(typeof(KsRayCollisionSystem));
     }
 
     [SubscribeLocalEvent]
@@ -423,6 +429,18 @@ public sealed partial class LagCompProjectileSystem : EntitySystem
         if (args.OtherEntity != ghost.Comp.Projectile || args.OtherFixtureId != SharedProjectileSystem.ProjectileFixture)
             return;
 
+        // Already caught by looking ahead (OnProjectileRayCollision), this same step or before.
+        if (_ksRayCollisionSystem.WasSwept(ghost.Comp.Projectile, ghost.Owner))
+            return;
+
+        ResolveGhost(ghost);
+    }
+
+    /// <summary>
+    ///     The ghost was in the round's way: resolve this candidate, win or lose, and if it wins, hit the real target.
+    /// </summary>
+    private void ResolveGhost(Entity<LagCompensationGhostComponent> ghost)
+    {
         var projectileUid = ghost.Comp.Projectile;
         var targetUid = ghost.Comp.Target;
 
@@ -432,6 +450,96 @@ public sealed partial class LagCompProjectileSystem : EntitySystem
             return;
 
         HitRealTarget(projectileUid, targetUid);
+    }
+
+    /// <summary>
+    ///     Offers the round's look ahead the nearest of its ghosts on the way. The ray it casts finds only hard fixtures, and
+    ///         a ghost's is soft (see <see cref="SpawnGhost"/>), so it never saw them: a round moves more than a tile a
+    ///         tick, and physics alone finds a ghost only when a step happens to end inside it. It stepped clean over one
+    ///         across a whole band of distances, and the real target behind the ghost is never collided with.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileLookAhead(Entity<LagCompensatingProjectileComponent> projectile, ref KsRayCollisionLookAheadEvent args)
+    {
+        if (projectile.Comp.Ghosts.Count == 0 ||
+            !_fixturesQuery.TryComp(projectile, out var projectileFixturesComponent) ||
+            !projectileFixturesComponent.Fixtures.TryGetValue(SharedProjectileSystem.ProjectileFixture, out var projectileFixture))
+            return;
+
+        // As wide as physics' overlap: the ghost's circle, widened by the round's own half-width.
+        var projectileHalfWidth = GetHalfWidth(projectileFixture.Shape);
+
+        foreach (var ghostUid in projectile.Comp.Ghosts)
+        {
+            if (!_fixturesQuery.TryComp(ghostUid, out var ghostFixturesComponent) ||
+                !ghostFixturesComponent.Fixtures.TryGetValue(GhostFixtureId, out var ghostFixture) ||
+                ghostFixture.Shape is not PhysShapeCircle ghostShape ||
+                ((ghostFixture.CollisionLayer & projectileFixture.CollisionMask) == 0 &&
+                 (ghostFixture.CollisionMask & projectileFixture.CollisionLayer) == 0) ||
+                !_xformQuery.TryComp(ghostUid, out var ghostTransformComponent) ||
+                ghostTransformComponent.MapID != args.MapId ||
+                _ksRayCollisionSystem.WasSwept(projectile.Owner, ghostUid))
+            {
+                continue;
+            }
+
+            var (ghostPosition, ghostRotation) = _transform.GetWorldPositionRotation(ghostTransformComponent);
+            var centre = ghostPosition + ghostRotation.RotateVec(ghostShape.Position);
+            if (TryGetCircleEntry(args.Origin, args.Step, centre, ghostShape.Radius + projectileHalfWidth, out var fraction))
+                args.Offer(ghostUid, fraction);
+        }
+    }
+
+    /// <summary>
+    ///     Looking ahead, the round reached one of its ghosts: what <see cref="OnGhostStartCollide"/> does for physics' contact.
+    ///         The round's own hit on the ghost (<see cref="PredictedProjectileSystem"/>) does nothing, as the ghost has no
+    ///         hard fixture.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileRayCollision(Entity<LagCompensatingProjectileComponent> projectile, ref KsRayCollisionEvent args)
+    {
+        if (!_ghostQuery.TryComp(args.OtherUid, out var ghostComponent) || ghostComponent.Projectile != projectile.Owner)
+            return;
+
+        ResolveGhost((args.OtherUid, ghostComponent));
+    }
+
+    /// <summary>
+    ///     How far across <paramref name="shape"/> reaches from its middle, at least: a circle's radius, or half the shorter
+    ///         side of anything else's bounds, so a ghost is never reached sooner than physics would reach it.
+    /// </summary>
+    private static float GetHalfWidth(IPhysShape shape)
+    {
+        if (shape is PhysShapeCircle circle)
+            return circle.Radius;
+
+        var bounds = shape.ComputeAABB(new Robust.Shared.Physics.Transform(Vector2.Zero, 0f), 0);
+        return MathF.Min(bounds.Width, bounds.Height) * 0.5f;
+    }
+
+    /// <summary>
+    ///     Where along <paramref name="step"/> from <paramref name="origin"/> a point first comes within
+    ///         <paramref name="radius"/> of <paramref name="centre"/>: 0 if it already is.
+    /// </summary>
+    private static bool TryGetCircleEntry(Vector2 origin, Vector2 step, Vector2 centre, float radius, out float fraction)
+    {
+        fraction = 0f;
+        var offset = origin - centre;
+        var c = Vector2.Dot(offset, offset) - radius * radius;
+        if (c <= 0f)
+            return true;
+
+        var a = Vector2.Dot(step, step);
+        if (a <= float.Epsilon)
+            return false;
+
+        var b = 2f * Vector2.Dot(offset, step);
+        var discriminant = b * b - 4f * a * c;
+        if (discriminant < 0f)
+            return false;
+
+        fraction = (-b - MathF.Sqrt(discriminant)) / (2f * a);
+        return fraction >= 0f && fraction <= 1f;
     }
 
     /// <summary>
