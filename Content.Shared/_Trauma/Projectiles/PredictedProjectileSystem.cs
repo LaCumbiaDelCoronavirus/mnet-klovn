@@ -288,6 +288,7 @@ public sealed partial class PredictedProjectileSystem : EntitySystem
                 $"Projectile {ToPrettyString(uid):projectile} shot by {ToPrettyString(shooter):user} hit {otherName:target} and dealt {damage:damage} damage");
 
             comp.ProjectileSpent = !TryPenetrate((uid, comp), damage, damageRequired);
+            if (!comp.ProjectileSpent && !KsTryContinuePenetrating((uid, comp), target)) comp.ProjectileSpent = true; // KS14: something the round went through can take it elsewhere (a crew vehicle's interior)
         }
         else
         {

@@ -102,6 +102,21 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     public List<float> EjectRadii = new() { 1.5f, 2.5f, 3.5f };
 
     /// <summary>
+    ///     Whether a round that penetrates the hull goes on inside, through the cabin and whoever is in its way, and out
+    ///         the far side if it still can (<c>KsCrewVehiclePassThroughSystem</c>). False: it goes on outside, as through
+    ///         anything else.
+    /// </summary>
+    [DataField]
+    public bool PenetrationPassThrough = true;
+
+    /// <summary>
+    ///     The cabin's outline on the interior grid, in its local coordinates, that the hull's body is laid over for a round
+    ///         going through. Null: every tile of the grid and every solid piece of the interior on it.
+    /// </summary>
+    [DataField]
+    public Box2? PassThroughBounds;
+
+    /// <summary>
     ///     How many living occupants are inside, as the server last counted them: what <see cref="MaxOccupants"/> is
     ///         checked against.
     /// </summary>

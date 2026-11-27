@@ -50,9 +50,18 @@ public sealed partial class KsRiderProjectileSystem : EntitySystem
         if (GetShooterVehicle(args.User) is not { } vehicleUid)
             return;
 
-        var riderProjectileComponent = EnsureComp<KsRiderProjectileComponent>(args.Projectile);
+        SetVehicle(args.Projectile, vehicleUid);
+    }
+
+    /// <summary>
+    ///     Has <paramref name="projectileUid"/> pass through <paramref name="vehicleUid"/>'s body from here on: a round fired
+    ///         from it, or one that has just come out of it.
+    /// </summary>
+    public void SetVehicle(EntityUid projectileUid, EntityUid vehicleUid)
+    {
+        var riderProjectileComponent = EnsureComp<KsRiderProjectileComponent>(projectileUid);
         riderProjectileComponent.Vehicle = vehicleUid;
-        Dirty(args.Projectile, riderProjectileComponent);
+        Dirty(projectileUid, riderProjectileComponent);
     }
 
     [SubscribeLocalEvent]

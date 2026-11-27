@@ -74,6 +74,16 @@ public sealed partial class KsCrewVehicleShotRecordSystem : EntitySystem
     }
 
     /// <summary>
+    ///     A round carried on as a fresh one (through a crew vehicle) remembers the same gunner.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileCarried(ref Content.Shared._KS14.Projectiles.KsProjectileCarriedEvent args)
+    {
+        if (TryComp<KsCrewVehicleRoundComponent>(args.Original, out var roundComponent))
+            EnsureComp<KsCrewVehicleRoundComponent>(args.Copy).Gunner = roundComponent.Gunner;
+    }
+
+    /// <summary>
     ///     A round about to deal its damage, with its weapon as the origin.
     /// </summary>
     [SubscribeLocalEvent]

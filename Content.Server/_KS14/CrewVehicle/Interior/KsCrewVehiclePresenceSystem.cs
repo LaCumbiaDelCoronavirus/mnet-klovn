@@ -61,6 +61,10 @@ public sealed partial class KsCrewVehiclePresenceSystem : EntitySystem
             // The interior grid is the only place to be on an interior map: off it, out you go.
             if (transform.GridUid == null)
             {
+                // A round flying through the cabin is let out by the hull it is in, at the cabin's outline.
+                if (HasComp<Content.Shared._KS14.CrewVehicle.PassThrough.KsCrewVehiclePassThroughRoundComponent>(uid))
+                    continue;
+
                 if (_interiorSystem.CanBeOccupant(uid) || _ejectionSystem.IsLoose(uid))
                     _ejectionSystem.EjectBesideVehicle(uid, interiorMap.Value.Comp.Vehicle);
 

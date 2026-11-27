@@ -87,6 +87,20 @@ public sealed partial class KsFactionCollisionSystem : EntitySystem
     }
 
     /// <summary>
+    ///     A round carried on as a fresh one (through a crew vehicle) passes the same side.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileCarried(ref Content.Shared._KS14.Projectiles.KsProjectileCarriedEvent args)
+    {
+        if (!TryComp<KsFactionCollisionComponent>(args.Original, out var originalComponent))
+            return;
+
+        var copyComponent = EnsureComp<KsFactionCollisionComponent>(args.Copy);
+        copyComponent.Factions.UnionWith(originalComponent.Factions);
+        Dirty(args.Copy, copyComponent);
+    }
+
+    /// <summary>
     ///     Whether the server has <paramref name="shooterUid"/>'s shots pass through <paramref name="target"/>.
     /// </summary>
     private bool ShotsPass(EntityUid shooterUid, Entity<NpcFactionMemberComponent> target)

@@ -92,6 +92,28 @@ public sealed partial class KsExplosiveLastRoundsSystem : EntitySystem
         _audioSystem.PlayPredicted(entity.Comp.FireSound, args.Gun.Owner, entity.Owner);
     }
 
+    /// <summary>
+    ///     A round carried on as a fresh one (through a crew vehicle) still explodes where it lands.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileCarried(ref Content.Shared._KS14.Projectiles.KsProjectileCarriedEvent args)
+    {
+        if (!TryComp<KsExplosiveShotComponent>(args.Original, out var originalComponent) ||
+            originalComponent.Exploded ||
+            HasComp<KsExplosiveShotComponent>(args.Copy))
+            return;
+
+        AddComp(args.Copy, new KsExplosiveShotComponent
+        {
+            TracerColor = originalComponent.TracerColor,
+            Shooter = originalComponent.Shooter,
+            ExplosionType = originalComponent.ExplosionType,
+            TotalIntensity = originalComponent.TotalIntensity,
+            IntensitySlope = originalComponent.IntensitySlope,
+            MaxIntensity = originalComponent.MaxIntensity,
+        });
+    }
+
     // Raised while the shot is being fired, before OnFired, so ArmedShot still says whether this one explodes.
     [SubscribeLocalEvent]
     private void OnHitscanHit(Entity<KsExplosiveLastRoundsAbilityComponent> entity, ref KsShooterHitscanHitEvent args)

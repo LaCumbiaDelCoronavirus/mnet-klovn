@@ -57,6 +57,26 @@ public sealed partial class KsProjectileFalloffSystem : EntitySystem
     }
 
     /// <summary>
+    /// A round carried on as a fresh one (through a crew vehicle) keeps its tuning and where it was fired from: inside
+    /// another map that is no falloff, and out again it counts from the muzzle.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileCarried(ref KsProjectileCarriedEvent args)
+    {
+        if (!TryComp<KsProjectileFalloffComponent>(args.Original, out var originalComponent))
+            return;
+
+        var copyComponent = EnsureComp<KsProjectileFalloffComponent>(args.Copy);
+        copyComponent.FullDamageRange = originalComponent.FullDamageRange;
+        copyComponent.MinDamageRange = originalComponent.MinDamageRange;
+        copyComponent.MinMultiplier = originalComponent.MinMultiplier;
+        copyComponent.GunOptedIn = originalComponent.GunOptedIn;
+        copyComponent.OriginMap = originalComponent.OriginMap;
+        copyComponent.OriginPosition = originalComponent.OriginPosition;
+        Dirty(args.Copy, copyComponent);
+    }
+
+    /// <summary>
     /// The damage multiplier for a projectile that has now reached <paramref name="hitCoordinates"/>.
     /// 1 when the origin is unknown or on another map.
     /// </summary>

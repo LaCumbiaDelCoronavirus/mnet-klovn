@@ -99,6 +99,21 @@ public sealed partial class KsPerkGunSystem : EntitySystem
     }
 
     /// <summary>
+    ///     A round carried on as a fresh one (through a crew vehicle) keeps where and by whom it was fired.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileCarried(ref Content.Shared._KS14.Projectiles.KsProjectileCarriedEvent args)
+    {
+        if (!TryComp<KsPerkShotOriginComponent>(args.Original, out var originalComponent))
+            return;
+
+        var copyComponent = EnsureComp<KsPerkShotOriginComponent>(args.Copy);
+        copyComponent.Shooter = originalComponent.Shooter;
+        copyComponent.OriginMap = originalComponent.OriginMap;
+        copyComponent.OriginPosition = originalComponent.OriginPosition;
+    }
+
+    /// <summary>
     ///     How far from its shooter a hitscan shot landed; null if that can't be told.
     /// </summary>
     public float? GetHitscanDistance(in KsHitscanDamageModifyEvent args)

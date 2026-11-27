@@ -143,6 +143,16 @@ public sealed partial class KsKillCreditSystem : EntitySystem
     }
 
     /// <summary>
+    ///     A round carried on as a fresh one (through a crew vehicle) answers to whoever the original did.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileCarried(ref Content.Shared._KS14.Projectiles.KsProjectileCarriedEvent args)
+    {
+        if (TryComp<KsCreditOwnerComponent>(args.Original, out var ownerComponent) && ownerComponent.OwnerUserId is { } ownerUserId)
+            SetOwner(args.Copy, ownerUserId);
+    }
+
+    /// <summary>
     ///     What comes out of a flatpack answers to whoever unpacked it.
     /// </summary>
     [SubscribeLocalEvent]

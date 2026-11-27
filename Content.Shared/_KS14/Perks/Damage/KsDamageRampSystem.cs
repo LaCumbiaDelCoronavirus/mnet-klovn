@@ -96,6 +96,21 @@ public sealed partial class KsDamageRampSystem : EntitySystem
             TryCountHit(entity, targetUid, entity.Comp.Generation, entity.Comp.Shot);
     }
 
+    /// <summary>
+    ///     A round carried on as a fresh one (through a crew vehicle) still counts for the shot it was fired in.
+    /// </summary>
+    [SubscribeLocalEvent]
+    private void OnProjectileCarried(ref Content.Shared._KS14.Projectiles.KsProjectileCarriedEvent args)
+    {
+        if (!TryComp<KsDamageRampShotComponent>(args.Original, out var originalComponent))
+            return;
+
+        var copyComponent = EnsureComp<KsDamageRampShotComponent>(args.Copy);
+        copyComponent.Shooter = originalComponent.Shooter;
+        copyComponent.Generation = originalComponent.Generation;
+        copyComponent.Shot = originalComponent.Shot;
+    }
+
     [SubscribeLocalEvent]
     private void OnProjectileHit(Entity<KsDamageRampShotComponent> entity, ref ProjectileHitEvent args)
     {
