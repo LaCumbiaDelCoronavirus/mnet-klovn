@@ -220,14 +220,16 @@
     - state: turret
     - state: cannon
     - state: coax
-  # The middle of the turret ring in each drawing of _KS14/Vehicles/tank.rsi's tank_base: its pixel from the frame's
-  #   centre, over 32.
+  # The middle of the turret ring in each drawing of _KS14/Vehicles/tank.rsi's tank_base, where that drawing's own
+  #   tank_turret_0 sits (the AI tank draws that): its pixel from the frame's centre, over 32. The ring is about 3.5
+  #   pixels ahead of the hull's centre and the art's view from above and in front lifts it about 6.5 up the screen,
+  #   so it is highest when the hull faces north and lowest facing south.
   - type: KsCrewVehicleTurretSprite
     pivotOffsets:
-      South: 0,0
+      South: 0,0.09375
       North: 0,0.3125
-      East: 0.25,0.25
-      West: -0.25,0.25
+      East: 0.15625,0.25
+      West: -0.15625,0.25
   - type: Gun
     fireRate: 0.25
     minAngle: 0
