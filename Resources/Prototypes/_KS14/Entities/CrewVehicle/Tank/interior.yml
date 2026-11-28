@@ -67,8 +67,15 @@
     anchored: false
   - type: Sprite
     sprite: _KS14/CrewVehicle/Tank/interior.rsi
-    state: prop4
     drawdepth: Objects
+    layers:
+    - state: prop4
+    - state: prop4_emissive
+      shader: unshaded
+      map: [ "emissiveBreech" ]
+  - type: EmissiveLayers
+    layers:
+    - emissiveBreech
   - type: InteractionOutline
   - type: Fixtures
     fixtures:
@@ -98,8 +105,15 @@
     anchored: false
   - type: Sprite
     sprite: _KS14/CrewVehicle/Humvee/interior.rsi
-    state: weapons_loader
     drawdepth: Objects
+    layers:
+    - state: weapons_loader
+    - state: weapons_loader_emissive
+      shader: unshaded
+      map: [ "emissiveLoader" ]
+  - type: EmissiveLayers
+    layers:
+    - emissiveLoader
   - type: InteractionOutline
   - type: Fixtures
     fixtures:
@@ -129,7 +143,18 @@
   - type: Sprite
     sprite: _KS14/CrewVehicle/Humvee/interior.rsi
     drawdepth: HighFloorObjects
-    state: exit_door
+    layers:
+    - state: exit_door
+    # semi-unshaded: half lit by the room, half always on; only the unshaded half glows
+    - state: exit_door_emissive
+      color: '#FFFFFF80'
+    - state: exit_door_emissive
+      shader: unshaded
+      color: '#FFFFFF80'
+      map: [ "emissiveDoor" ]
+  - type: EmissiveLayers
+    layers:
+    - emissiveDoor
 
 # The walls are drawn by the floor plan: these only stop people.
 - type: entity
@@ -235,8 +260,16 @@
     # The driver's instruments left of the seat, a radio and gauge console on the right.
     - state: prop0
       offset: 0.5,3.5
+    - state: prop0_emissive
+      shader: unshaded
+      offset: 0.5,3.5
+      map: [ "emissiveProp0" ]
     - state: prop6
       offset: 2.5,3.5
+    - state: prop6_emissive
+      shader: unshaded
+      offset: 2.5,3.5
+      map: [ "emissiveProp6" ]
     # The front wall, with the vision blocks in the middle.
     - state: trank_front_1
       offset: 0.5,4.5
@@ -292,3 +325,7 @@
     - state: wall
       rotation: -90
       offset: 3.5,4.5
+  - type: EmissiveLayers
+    layers:
+    - emissiveProp0
+    - emissiveProp6

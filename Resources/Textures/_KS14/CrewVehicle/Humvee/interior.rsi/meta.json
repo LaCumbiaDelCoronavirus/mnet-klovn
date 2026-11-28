@@ -5,7 +5,7 @@
     "y": 32
   },
   "license": "CC-BY-SA-3.0",
-  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/icons/obj/vehicles/interiors/general_humvee.dmi. From cmss13 pull request 11308 (https://github.com/cmss13-devs/cmss13/pull/11308) by Zenith00000, which was not merged; the commit is that pull request's head. Art credited in the pull request to dimdimich1996 and others; unused states removed",
+  "copyright": "Taken from cmss13 at https://github.com/cmss13-devs/cmss13/blob/8708d85f73f49a18a7059fff2ecf5eece82ac7e5/icons/obj/vehicles/interiors/general_humvee.dmi. From cmss13 pull request 11308 (https://github.com/cmss13-devs/cmss13/pull/11308) by Zenith00000, which was not merged; the commit is that pull request's head. Art credited in the pull request to dimdimich1996 and others; unused states removed. Emissive masks derived. Emissive masks derived",
   "states": [
     {
       "name": "car_seat",
@@ -35,6 +35,12 @@
     },
     {
       "name": "viewport_frontwindow_south"
+    },
+    {
+      "name": "exit_door_emissive"
+    },
+    {
+      "name": "weapons_loader_emissive"
     }
   ]
 }

@@ -52,7 +52,17 @@
     drawdepth: HighFloorObjects
     layers:
     - state: exit_door
+    # semi-unshaded: half lit by the room, half always on; only the unshaded half glows
+    - state: exit_door_emissive
+      color: '#FFFFFF80'
+    - state: exit_door_emissive
+      shader: unshaded
+      color: '#FFFFFF80'
+      map: [ "emissiveDoor" ]
     - state: viewport_door
+  - type: EmissiveLayers
+    layers:
+    - emissiveDoor
 
 # Stands between the seats, where everyone can reach it. Not solid: it is narrower than a tile.
 - type: entity
@@ -68,8 +78,15 @@
     anchored: false
   - type: Sprite
     sprite: _KS14/CrewVehicle/Humvee/interior.rsi
-    state: weapons_loader
     drawdepth: Objects
+    layers:
+    - state: weapons_loader
+    - state: weapons_loader_emissive
+      shader: unshaded
+      map: [ "emissiveLoader" ]
+  - type: EmissiveLayers
+    layers:
+    - emissiveLoader
   - type: InteractionOutline
   - type: Fixtures
     fixtures:
