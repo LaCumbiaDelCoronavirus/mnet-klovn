@@ -350,7 +350,6 @@ public sealed partial class GunSystem : SharedGunSystem
         Lights.SetRadius(gunUid, 2f, light);
         Lights.SetColor(gunUid, Color.FromHex("#cc8e2b"), light);
         Lights.SetEnergy(gunUid, 5f, light);
-        Lights.SetCastShadows(gunUid, false, light); // KS14: a muzzle inside its own vehicle's hull occluder would drop the light
 
         var animTwo = new Animation()
         {

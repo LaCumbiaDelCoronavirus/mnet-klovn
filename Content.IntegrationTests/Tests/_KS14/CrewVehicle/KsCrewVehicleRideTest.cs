@@ -44,7 +44,6 @@ public sealed class KsCrewVehicleRideTest : KsCrewVehicleDriveTestBase
 {
     private readonly EntProtoId _rideHull = "KsCrewVehicleRideTestHull";
     private readonly EntProtoId _calmRideHull = "KsCrewVehicleRideTestHullCalm";
-    private readonly EntProtoId _occludedRideHull = "KsCrewVehicleRideTestHullOccluded";
     private readonly EntProtoId _table = "KsCrewVehicleRideTestTable";
     private readonly EntProtoId _post = "KsCrewVehicleRideTestPost";
     private readonly EntProtoId _laser = "KsCrewVehicleRideTestLaser";
@@ -74,20 +73,6 @@ public sealed class KsCrewVehicleRideTest : KsCrewVehicleDriveTestBase
   - type: KsCrewVehicleRideable
     maxRiders: 2
     throwOffSpeed: 100
-
-- type: entity
-  parent: KsCrewVehicleRideTestHull
-  id: KsCrewVehicleRideTestHullOccluded
-  components:
-  - type: PointLight
-    enabled: false
-    offset: 0,-0.9
-  - type: KsCrewVehicleHullOccluder
-    polygon:
-    - -0.45,-0.75
-    - 0.45,-0.75
-    - 0.45,0.75
-    - -0.45,0.75
 
 # Climbable, and nothing to ride.
 - type: entity
@@ -855,13 +840,12 @@ public sealed class KsCrewVehicleRideTest : KsCrewVehicleDriveTestBase
     }
 
     /// <summary>
-    ///     The player's own rider is drawn over the hull, and its eye isn't blinded by the hull's occluder; both put back
-    ///         once it climbs down.
+    ///     The player's own rider is drawn over the hull, and its own depth put back once it climbs down.
     /// </summary>
     [Test]
-    public async Task RiderDrawnOverTheHullAndSeesPastIt()
+    public async Task RiderDrawnOverTheHull()
     {
-        var scene = await SpawnHullAsync(Vector2.Zero, _occludedRideHull);
+        var scene = await SpawnHullAsync(Vector2.Zero, _rideHull);
         var hull = scene.Hull;
         await Server.WaitPost(() => Transform.SetCoordinates(SPlayer, OriginCoordinates.Offset(new Vector2(1.3f, 0f))));
         await RunTicks(5);
@@ -876,18 +860,13 @@ public sealed class KsCrewVehicleRideTest : KsCrewVehicleDriveTestBase
             var clientHull = CEntMan.GetEntity(SEntMan.GetNetEntity(hull));
             Assert.That(CEntMan.GetComponent<SpriteComponent>(CPlayer).DrawDepth,
                 Is.EqualTo(CEntMan.GetComponent<SpriteComponent>(clientHull).DrawDepth + 1), "the rider is drawn over the hull");
-            Assert.That(CEntMan.GetComponent<Robust.Shared.GameObjects.OccluderComponent>(clientHull).Enabled, Is.False,
-                "and the hull doesn't blind its own rider");
         });
 
         await Server.WaitAssertion(() => Assert.That(RideSystem.TryClimbDown(SEntity<KsCrewVehicleRiderComponent>(SPlayer)), Is.True));
         await RunTicks(5);
         await Client.WaitAssertion(() =>
         {
-            var clientHull = CEntMan.GetEntity(SEntMan.GetNetEntity(hull));
             Assert.That(CEntMan.GetComponent<SpriteComponent>(CPlayer).DrawDepth, Is.EqualTo(originalDepth), "its own depth back once off");
-            Assert.That(CEntMan.GetComponent<Robust.Shared.GameObjects.OccluderComponent>(clientHull).Enabled, Is.True,
-                "and the hull blocks its sight again");
         });
     }
 

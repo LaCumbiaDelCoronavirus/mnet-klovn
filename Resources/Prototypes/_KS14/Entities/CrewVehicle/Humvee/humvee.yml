@@ -90,18 +90,6 @@
     lightMask: ConeSingle
     autoRot: true
     offset: 0,-1.35
-  # Blocks sight and light for everyone outside, like a wall: a chamfered box just inside the south-facing sprite's
-  #   outline (wheels at x ±0.84, y -1.25 to 1.28), so its edge pixels draw over the start of its shadow.
-  - type: KsCrewVehicleHullOccluder
-    polygon:
-    - -0.54,-1.2
-    - 0.54,-1.2
-    - 0.72,-1.02
-    - 0.72,1.04
-    - 0.54,1.22
-    - -0.54,1.22
-    - -0.72,1.04
-    - -0.72,-1.02
   # Run over from 3 tiles a second, thrown from 5: at its top speed of 6, a throw force of 36.
   - type: KsCrewVehicleRunOver
     minSpeed: 3

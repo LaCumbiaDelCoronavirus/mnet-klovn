@@ -21,9 +21,7 @@ namespace Content.Client.Viewport
     ///         hull, so it blacks out what the vehicle itself can't see; the viewer's own, cast from where they stand in
     ///         the cabin, paints opaque black over the uncleared target wherever the cabin's occluders hide the world.
     ///         What shows is what both can see: through the glass (the gaps in the cabin's occluder ring), and only what
-    ///         is in sight of the hull. The hull's own occluder is off on this client while its eye is inside
-    ///         (<c>KsCrewVehicleHullOccluderSystem</c>), or the backdrop's FOV would be cast from inside it.
-    ///     Only pass one is drawn here. Pass two is whatever <see cref="Draw"/> does next, which on an interior map is the
+    ///         is in sight of the hull.    ///     Only pass one is drawn here. Pass two is whatever <see cref="Draw"/> does next, which on an interior map is the
     ///         ordinary single pass through the viewer's real eye, then the one blit and the screen overlays.
     ///     Crew in a view seat have their eye on the vehicle's own map, so they never reach this and pay nothing for it.
     ///         An interior with no outside backdrop (<see cref="KsCrewVehicleInteriorComponent.OutsideBackdrop"/>) skips it
