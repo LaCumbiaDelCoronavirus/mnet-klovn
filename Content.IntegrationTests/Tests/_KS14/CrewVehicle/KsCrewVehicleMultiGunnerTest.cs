@@ -375,8 +375,8 @@ public sealed class KsCrewVehicleMultiGunnerTest : KsCrewVehicleGunnerTestBase
     [Test]
     public async Task PredictedTurnHoldsUntilTheServerArrives()
     {
-        var clientConfigurationManager = Client.ResolveDependency<Robust.Shared.Configuration.IConfigurationManager>();
-        await Client.WaitPost(() => clientConfigurationManager.SetCVar(Robust.Shared.CVars.NetPredictTickBias, 4));
+        // The base class's teardown puts the bias back; set directly, it stayed for the next test on the pair.
+        await SimulateLatencyAsync(4);
 
         var multi = await SpawnMultiAsync();
         await SeatPlayerAsync(multi, multi.SeatA);

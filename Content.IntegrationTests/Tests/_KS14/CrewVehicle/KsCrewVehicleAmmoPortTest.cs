@@ -66,8 +66,8 @@ public sealed class KsCrewVehicleAmmoPortTest : KsCrewVehicleGunnerTestBase
     [Test]
     public async Task LoadingIsPredicted()
     {
-        var clientConfigurationManager = Client.ResolveDependency<IConfigurationManager>();
-        await Client.WaitPost(() => clientConfigurationManager.SetCVar(CVars.NetPredictTickBias, 4));
+        // The base class's teardown puts the bias back; set directly, it stayed for the next test on the pair.
+        await SimulateLatencyAsync(4);
 
         var portScene = await SpawnPortAsync(rounds: 2);
         await HoldAsync(_ammoBox);
