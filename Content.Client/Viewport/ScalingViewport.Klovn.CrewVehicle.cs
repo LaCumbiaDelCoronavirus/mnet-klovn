@@ -34,8 +34,7 @@ namespace Content.Client.Viewport
     /// </remarks>
     public sealed partial class ScalingViewport
     {
-        private SharedTransformSystem? _crewVehicleTransformSystem;
-        private SharedKsCrewVehicleInteriorSystem? _crewVehicleInteriorSystem;
+        private KsCrewVehicleInteriorSystem? _crewVehicleInteriorSystem;
         private KsCrewVehicleInteriorLightSystem? _crewVehicleLightSystem;
 
         /// <summary>
@@ -206,10 +205,8 @@ namespace Content.Client.Viewport
 
         /// <summary>
         ///     Whether the eye is on a crew vehicle's interior map whose vehicle this client knows, and where that vehicle
-        ///         and the interior's anchor are.
+        ///         and the interior's anchor are (<see cref="KsCrewVehicleInteriorSystem.TryGetBackdropFrame"/>).
         /// </summary>
-        /// <param name="anchor">The anchor on the interior map, not on its grid.</param>
-        /// <param name="interiorRotation">How far the interior's grid is turned on its map.</param>
         private bool TryGetCrewVehicleBackdrop(
             IEye eye,
             out Entity<KsCrewVehicleInteriorMapComponent> interiorMap,
@@ -220,56 +217,15 @@ namespace Content.Client.Viewport
             out Vector2 hullPosition,
             out Angle hullRotation)
         {
-            interiorMap = default;
-            backdropMapUid = EntityUid.Invalid;
-            backdropMapId = MapId.Nullspace;
-            anchor = default;
-            interiorRotation = default;
-            hullPosition = default;
-            hullRotation = default;
-
-            if (!_mapSystem.TryGetMap(eye.Position.MapId, out var interiorMapUid) ||
-                !_entityManager.TryGetComponent<KsCrewVehicleInteriorMapComponent>(interiorMapUid, out var interiorMapComponent))
-                return false;
-
-            _crewVehicleInteriorSystem ??= _entityManager.System<SharedKsCrewVehicleInteriorSystem>();
-            if (!_crewVehicleInteriorSystem.DrawsOutsideBackdrop((interiorMapUid.Value, interiorMapComponent)))
-                return false;
-
-            // The vehicle is only drawn from while it is really here: in PVS (a vehicle out of it is detached, in
-            //      nullspace) and on a map other than its own interior's.
-            var vehicleUid = interiorMapComponent.Vehicle;
-            if (!vehicleUid.IsValid() ||
-                !_entityManager.TryGetComponent<TransformComponent>(vehicleUid, out var vehicleTransform) ||
-                !_entityManager.TryGetComponent<MetaDataComponent>(vehicleUid, out var vehicleMetaData) ||
-                (vehicleMetaData.Flags & MetaDataFlags.Detached) != 0 ||
-                vehicleTransform.MapID == MapId.Nullspace ||
-                vehicleTransform.MapID == eye.Position.MapId ||
-                vehicleTransform.MapUid is not { } vehicleMapUid)
-                return false;
-
-            _crewVehicleTransformSystem ??= _entityManager.System<SharedTransformSystem>();
-            (hullPosition, hullRotation) = _crewVehicleTransformSystem.GetWorldPositionRotation(vehicleTransform);
-            interiorMap = (interiorMapUid.Value, interiorMapComponent);
-            backdropMapUid = vehicleMapUid;
-            backdropMapId = vehicleTransform.MapID;
-
-            // The anchor is in the interior grid's coordinates. An interior is loaded unrotated, usually at the map's
-            //      origin, but nothing makes it so; with no grid at all, its coordinates are taken as the map's.
-            anchor = interiorMapComponent.Anchor;
-            var mapChildren = _entityManager.GetComponent<TransformComponent>(interiorMapUid.Value).ChildEnumerator;
-            while (mapChildren.MoveNext(out var childUid))
-            {
-                if (!_entityManager.HasComponent<MapGridComponent>(childUid))
-                    continue;
-
-                var (gridPosition, gridRotation) = _crewVehicleTransformSystem.GetWorldPositionRotation(childUid);
-                anchor = gridPosition + gridRotation.RotateVec(interiorMapComponent.Anchor);
-                interiorRotation = gridRotation;
-                break;
-            }
-
-            return true;
+            _crewVehicleInteriorSystem ??= _entityManager.System<KsCrewVehicleInteriorSystem>();
+            return _crewVehicleInteriorSystem.TryGetBackdropFrame(eye.Position.MapId,
+                out interiorMap,
+                out backdropMapUid,
+                out backdropMapId,
+                out anchor,
+                out interiorRotation,
+                out hullPosition,
+                out hullRotation);
         }
     }
 }

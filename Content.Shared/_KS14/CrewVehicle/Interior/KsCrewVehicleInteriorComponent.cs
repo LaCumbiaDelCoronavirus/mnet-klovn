@@ -19,7 +19,7 @@ namespace Content.Shared._KS14.CrewVehicle.Interior;
 public sealed partial class KsCrewVehicleInteriorComponent : Component
 {
     /// <summary>
-    ///     The map file of the interior: one unrotated grid whose front is grid north.
+    ///     The map file of the interior: one unrotated grid, whose front is <see cref="CabinFront"/>.
     /// </summary>
     [DataField(required: true)]
     public ResPath InteriorPath;
@@ -29,6 +29,14 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     /// </summary>
     [DataField]
     public Vector2 InteriorAnchor;
+
+    /// <summary>
+    ///     Which way the cabin's front faces on its grid, a cardinal direction: art drawn for a cabin that faces east is
+    ///         laid out facing east, and every mapping between the interior and the hull turns by
+    ///         <see cref="KsCrewVehicleHullFrame.GetCabinRotation"/> of it.
+    /// </summary>
+    [DataField]
+    public Direction CabinFront = Direction.North;
 
     /// <summary>
     ///     How much of the light falling on the ground outside reaches the interior, spread over the whole cabin. 0 lets

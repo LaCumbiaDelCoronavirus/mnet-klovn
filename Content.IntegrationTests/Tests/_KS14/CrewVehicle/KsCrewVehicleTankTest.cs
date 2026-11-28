@@ -1,7 +1,9 @@
 #nullable enable
+using System;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
+using Content.Shared._KS14.CrewVehicle;
 using Content.Shared._KS14.CrewVehicle.AmmoPort;
 using Content.Shared._KS14.CrewVehicle.Drive;
 using Content.Shared._KS14.CrewVehicle.Gunner;
@@ -189,6 +191,48 @@ public sealed class KsCrewVehicleTankTest : KsCrewVehicleGunnerTestBase
                 Assert.That(damage, Is.GreaterThanOrEqualTo(destroyedAt * 0.25f), $"an AP shell hits hard: {damage} of {destroyedAt}");
             else
                 Assert.That(damage, Is.GreaterThan(directHit), $"an HE shell's burst damages it more than its hit alone: {damage}, the hit {directHit}");
+        });
+    }
+
+    /// <summary>
+    ///     Each hatch inside leads out beside the crew compartment, on the side of the hull it is in: its doorway is past
+    ///         the hull's side that the hatch's place in the cabin maps to, and along the compartment, not behind it in the
+    ///         engine bay.
+    /// </summary>
+    [Test]
+    public async Task HatchesLeadOutBesideTheCompartment()
+    {
+        var scene = await SpawnHullAsync(new Vector2(0f, 5f), Tank);
+
+        await Server.WaitAssertion(() =>
+        {
+            var interiorComponent = SComp<KsCrewVehicleInteriorComponent>(scene.Hull);
+            var compartment = interiorComponent.PassThroughHullBounds!.Value;
+            var hullBox = SComp<Robust.Shared.Physics.FixturesComponent>(scene.Hull).Fixtures["fix1"].Shape
+                .ComputeAABB(Robust.Shared.Physics.Transform.Empty, 0);
+            var cabin = SComp<Robust.Shared.Map.Components.MapGridComponent>(scene.InteriorGrid).LocalAABB;
+            var cabinRotation = KsCrewVehicleHullFrame.GetCabinRotation(interiorComponent.CabinFront);
+
+            var exits = 0;
+            foreach (var exit in SEntMan.AllEntities<KsCrewVehicleExitComponent>())
+            {
+                var exitTransform = SComp<TransformComponent>(exit);
+                if (exitTransform.ParentUid != scene.InteriorGrid)
+                    continue;
+
+                exits++;
+                var doorway = interiorComponent.Doorways[exit.Comp.Doorway].Offset;
+                var hatch = KsCrewVehiclePassThroughFrame.InteriorToHull(compartment, cabin, exitTransform.LocalPosition,
+                    cabinRotation: cabinRotation);
+
+                Assert.That(doorway.Y, Is.InRange(compartment.Bottom, compartment.Top),
+                    $"{exit.Comp.Doorway} leads out alongside the compartment, not behind it");
+                Assert.That(Math.Abs(doorway.X), Is.GreaterThan(hullBox.Right), $"{exit.Comp.Doorway} leads out past the hull's side");
+                Assert.That(Math.Sign(doorway.X), Is.EqualTo(Math.Sign(hatch.X)),
+                    $"{exit.Comp.Doorway} leads out of the side its hatch is on, at {hatch} in the hull");
+            }
+
+            Assert.That(exits, Is.GreaterThan(0), "precondition: the tank has a hatch");
         });
     }
 }

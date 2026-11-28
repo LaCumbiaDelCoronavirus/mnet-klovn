@@ -121,7 +121,12 @@ public sealed partial class KsCrewVehicleChatRelaySystem : EntitySystem
     private MapCoordinates InteriorToWorld(Entity<KsCrewVehicleInteriorComponent> vehicle, Vector2 interiorPoint)
     {
         var (hullPosition, hullRotation) = _transformSystem.GetWorldPositionRotation(vehicle.Owner);
-        var world = KsCrewVehicleInteriorTransform.InteriorToWorld(interiorPoint, vehicle.Comp.InteriorAnchor, hullPosition, hullRotation);
+        // The interior's grid is loaded unrotated at the map's origin; the cabin on it may face any way.
+        var world = KsCrewVehicleInteriorTransform.InteriorToWorld(interiorPoint,
+            vehicle.Comp.InteriorAnchor,
+            hullPosition,
+            hullRotation,
+            interiorRotation: KsCrewVehicleHullFrame.GetCabinRotation(vehicle.Comp.CabinFront));
         return new MapCoordinates(world, Transform(vehicle.Owner).MapID);
     }
 }

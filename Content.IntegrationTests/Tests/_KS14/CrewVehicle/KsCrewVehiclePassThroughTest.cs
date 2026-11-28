@@ -53,6 +53,11 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
     ///     A hull whose cabin is its front half only: an engine bay behind it.
     /// </summary>
     private readonly EntProtoId _compartmentHull = "KsCrewVehiclePassThroughTestHullCompartment";
+
+    /// <summary>
+    ///     The test interior laid out as a cabin whose front is grid east: the hull's left is the cabin's north side.
+    /// </summary>
+    private readonly EntProtoId _eastCabinHull = "KsCrewVehiclePassThroughTestHullEastCabin";
     private readonly EntProtoId _mob = "KsCrewVehiclePassThroughTestMob";
     private readonly EntProtoId _wall = "KsCrewVehiclePassThroughTestWall";
     private readonly EntProtoId _shooter = "KsCrewVehiclePassThroughTestShooter";
@@ -128,6 +133,19 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
   - type: KsCrewVehicleInterior
     interiorPath: /Maps/Test/_KS14/CrewVehicle/basic.yml
     passThroughHullBounds: -0.8,-1.5,0.8,0
+    doorways:
+      left:
+        offset: 1,0
+      right:
+        offset: -1,0
+
+- type: entity
+  parent: KsCrewVehiclePassThroughTestHull
+  id: KsCrewVehiclePassThroughTestHullEastCabin
+  components:
+  - type: KsCrewVehicleInterior
+    interiorPath: /Maps/Test/_KS14/CrewVehicle/basic.yml
+    cabinFront: East
     doorways:
       left:
         offset: 1,0
@@ -465,6 +483,41 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
             Assert.That(outside.FalloffOrigin!.Value.MapId, Is.EqualTo(scene.MapId), "counted from the muzzle's map");
             Assert.That(Vector2.Distance(outside.FalloffOrigin.Value.Position, HullToWorld(scene, new Vector2(6f, HitOffset))), Is.LessThan(0.01f),
                 "and from the muzzle");
+        });
+    }
+
+    /// <summary>
+    ///     A cabin laid out facing grid east takes a round through the hull's left side in by its north side, the hull's
+    ///         left, where the hit is along the hull, flying south, across the hull; and lets it out of the hull's right,
+    ///         in line. Facing north, as if its layout were ignored, it would come in by the cabin's west side.
+    /// </summary>
+    [TestCase(0d)]
+    [TestCase(90d)]
+    public async Task EastFacingCabinTakesRoundsInByTheMatchingSide(double degrees)
+    {
+        var scene = await SpawnHullAsync(degrees, loadInterior: true, hullPrototype: _eastCabinHull);
+        var (hullBox, cabin) = Boxes(scene);
+
+        // The hull's east side, its left as it faces -Y, is the cabin's north; HitOffset aft along it is toward the
+        //      cabin's back, west, the same fraction of its length.
+        var entryX = cabin.Center.X - HitOffset / (hullBox.Height / 2f) * (cabin.Width / 2f);
+        var (round, sightings) = await FireAsync(scene, _throughRound);
+
+        await Server.WaitAssertion(() =>
+        {
+            var inside = FirstOn(sightings, InteriorMapId(scene), round);
+            Assert.That(inside, Is.Not.Null, "a round appears inside");
+            var local = ToGrid(scene, inside!.Position);
+            Assert.That(local.X, Is.EqualTo(entryX).Within(0.05f), "as far back as its hit is along the hull");
+            Assert.That(local.Y, Is.GreaterThan(cabin.Top - Speed / SGameTiming.TickRate - 0.1f), "coming in by the cabin's north side");
+            AssertDirection(inside.Velocity, new Vector2(0f, -1f), "the round inside");
+
+            var outside = FirstOn(sightings, scene.MapId, round);
+            Assert.That(outside, Is.Not.Null, "it comes out");
+            var hullLocal = (-scene.HullRotation).RotateVec(outside!.Position - HullPosition);
+            Assert.That(hullLocal.X, Is.LessThan(hullBox.Left), "out of the hull's right side, the far side");
+            Assert.That(hullLocal.Y, Is.EqualTo(HitOffset).Within(0.05f), "in line with where it went in");
+            AssertDirection(outside.Velocity, scene.HullRotation.RotateVec(new Vector2(-1f, 0f)), "the round outside");
         });
     }
 

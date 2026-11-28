@@ -1,9 +1,11 @@
 # The inside of the tank (Maps/_KS14/CrewVehicle/tank.yml and tank_empty.yml): its crew compartment, ahead of the engine
-#   bay, round the turret ring. Its front is north. Its grid has floor three tiles by three; the walls round it are drawn
-#   by the KsCrewVehicleInteriorChassisTank*Wall pieces, stop people with KsCrewVehicleInteriorWallTank and block sight
-#   with a closed ring of KsCrewVehicleInteriorOccluderTank: there are no windows, and only the driver's seat looks out.
+#   bay, round the turret ring. Its front is east on its grid (the tank's cabinFront), as the art is drawn: the driver's
+#   console and the breech take the front half, the seats face them, and the racks and the hatch are at the back. Its
+#   grid has floor four tiles by three; the walls round it are drawn by KsCrewVehicleInteriorChassisTankWalls, stop
+#   people with KsCrewVehicleInteriorWallTank and block sight with a closed ring of KsCrewVehicleInteriorOccluderTank:
+#   there are no windows, and only the driver's seat looks out.
 
-# Up front: drives, aims the turret and fires both guns, switching between them with one action.
+# At the driver's console: drives, aims the turret and fires both guns, switching between them with one action.
 - type: entity
   parent: KsCrewVehicleInteriorBaseSeat
   id: KsCrewVehicleSeatTankDriver
@@ -27,7 +29,7 @@
     zoom: 1.75,1.75
     cursorOffset: 4
 
-# Beside the breech, where a loader sits; a gunner's seat of its own if the machine gun is ever given one.
+# Beside the breech, facing it, where a loader sits; a gunner's seat of its own if the machine gun is ever given one.
 - type: entity
   parent: KsCrewVehicleInteriorBaseSeat
   id: KsCrewVehicleSeatTankCrew
@@ -45,15 +47,15 @@
   id: KsCrewVehicleSeatTankPassenger
   categories: [ HideSpawnMenu ]
   name: passenger seat
-  description: A hard seat on the far side of the breech.
+  description: A hard seat between the loader's and the driver's.
   components:
   - type: Sprite
     sprite: _KS14/CrewVehicle/Humvee/interior.rsi
     state: car_seat
     drawdepth: Objects
 
-# The cannon's breech, in the middle of the cabin: one shell at a time goes in here, and the one in it can be taken back
-#   out.
+# The cannon's breech, at the front beside the turret ring: one shell at a time goes in here, and the one in it can be
+#   taken back out. Two tiles wide, as drawn: the breech block, and the recoil guard to its right.
 - type: entity
   parent: KsCrewVehicleInteriorBaseAmmoPort
   id: KsCrewVehicleAmmoPortTankCannon
@@ -70,8 +72,14 @@
     drawdepth: Objects
     layers:
     - state: prop4
+      offset: -0.5,0
+    - state: prop5
+      offset: 0.5,0
+    - state: prop8_extra
+      offset: -0.5,0
     - state: prop4_emissive
       shader: unshaded
+      offset: -0.5,0
       map: [ "emissiveBreech" ]
   - type: EmissiveLayers
     layers:
@@ -82,7 +90,7 @@
       fix1:
         shape:
           !type:PhysShapeAabb
-          bounds: "-0.4,-0.3,0.4,0.3"
+          bounds: "-0.9,-0.4,0.9,0.4"
         hard: false
         layer:
         - MidImpassable
@@ -128,33 +136,28 @@
     mount: coax
     loadDelay: 3
 
-# The hatch in the back wall, the bulkhead to the engine bay, drawn on the floor in front of it.
+# The hatch in the cabin's north wall, the tank's left side: drawn edge on in the wall, opening into the cabin. Its
+#   doorway on the hull is on the left, beside the compartment.
 - type: entity
   parent: KsCrewVehicleInteriorBaseExit
   id: KsCrewVehicleExitDoorTank
   categories: [ HideSpawnMenu ]
   name: hatch
-  description: The way out, at the back.
+  description: The way out, through the left side of the hull.
   placement:
     mode: PlaceFree
   components:
   - type: Transform
     anchored: false
   - type: Sprite
-    sprite: _KS14/CrewVehicle/Humvee/interior.rsi
+    sprite: _KS14/CrewVehicle/Tank/interior.rsi
     drawdepth: HighFloorObjects
+    enableOverrideDir: true
+    overrideDir: East
     layers:
-    - state: exit_door
-    # semi-unshaded: half lit by the room, half always on; only the unshaded half glows
-    - state: exit_door_emissive
-      color: '#FFFFFF80'
-    - state: exit_door_emissive
-      shader: unshaded
-      color: '#FFFFFF80'
-      map: [ "emissiveDoor" ]
-  - type: EmissiveLayers
-    layers:
-    - emissiveDoor
+    # The east frame is the hatch on a tile's east edge; turned a quarter, it lies along the wall at the tile's north edge.
+    - state: hatch
+      rotation: 90
 
 # The walls are drawn by the floor plan: these only stop people.
 - type: entity
@@ -217,10 +220,9 @@
     energy: 0.3
     color: '#FF8060'
 
-# The floor plan, placed at the grid's origin: the floor and the driver's instruments. Each layer is one tile, offset to its
-#   place. Always drawn as the south-facing frames, however the eye turns. The walls round it are drawn by the three
-#   KsCrewVehicleInteriorChassisTank*Wall pieces, as the art is meant to be seen from above and the south: the front and
-#   back walls as faces, each a run of three tiles closed at both ends, and the side walls edge on.
+# The floor plan, placed at the grid's origin: the floor and, at the front right, the driver's console on its raised
+#   platform, two tiles by two. Each layer is one tile, offset to its place. The row against the south wall has a kick
+#   plate, which runs on along the console's.
 - type: entity
   parent: KsCrewVehicleInteriorBaseDecoration
   id: KsCrewVehicleInteriorChassisTank
@@ -230,104 +232,111 @@
   components:
   - type: Sprite
     sprite: _KS14/CrewVehicle/Tank/interior.rsi
-    enableOverrideDir: true
-    overrideDir: South
     layers:
-    # Floor, x 0 to 2, y 0 to 2; the row against the back wall has a kick plate.
+    # Floor, x 0 to 1 by y 0 to 2, under the breech, and showing past the console's west edge.
     - state: prop1
       offset: 0.5,0.5
     - state: prop1
       offset: 1.5,0.5
-    - state: prop1
-      offset: 2.5,0.5
     - state: prop3
       offset: 0.5,1.5
     - state: prop3
       offset: 1.5,1.5
-    - state: prop3
-      offset: 2.5,1.5
     - state: prop3
       offset: 0.5,2.5
     - state: prop3
       offset: 1.5,2.5
     - state: prop3
       offset: 2.5,2.5
-    # The driver's instruments, left of the seat, against the front wall.
+    - state: prop3
+      offset: 3.5,2.5
+    # The driver's console, its screens and stick on the platform's west edge, facing the driver's seat.
+    - state: prop3
+      offset: 2.5,1.5
+    - state: prop2
+      offset: 2.5,1.5
+    - state: prop3
+      offset: 3.5,1.5
+    - state: prop1
+      offset: 2.5,0.5
     - state: prop0
-      offset: 0.5,2.5
+      offset: 2.5,0.5
+    - state: prop1
+      offset: 3.5,0.5
     - state: prop0_emissive
       shader: unshaded
-      offset: 0.5,2.5
+      offset: 2.5,0.5
       map: [ "emissiveProp0" ]
   - type: EmissiveLayers
     layers:
     - emissiveProp0
 
-# The front wall, with the vision blocks on the left, and the bulkhead to the engine bay at the back: faces, their north
-#   frames, each a run of three closed at both ends. The faces leave their top four pixels clear, so the back wall is
-#   raised by that much to meet the floor.
+# The walls round the floor, as the art is drawn for a cabin facing east: the north wall as a face, the rear bulkhead and
+#   the glacis edge on, west and east, and the south wall's face below the floor, raised by its four clear pixels to meet
+#   it.
 - type: entity
   parent: KsCrewVehicleInteriorBaseDecoration
-  id: KsCrewVehicleInteriorChassisTankEndWalls
+  id: KsCrewVehicleInteriorChassisTankWalls
   categories: [ HideSpawnMenu ]
   name: tank wall
   description: Armour plate, from the inside.
   components:
   - type: Sprite
     sprite: _KS14/CrewVehicle/Tank/interior.rsi
-    enableOverrideDir: true
-    overrideDir: North
     layers:
-    - state: tank_front_3
+    - state: wall
       offset: 0.5,3.5
-    - state: tank_front_2
+    - state: wall
       offset: 1.5,3.5
-    - state: trank_front_1
+    - state: wall
       offset: 2.5,3.5
-    - state: tank_back_1
+    - state: wall
+      offset: 3.5,3.5
+    - state: back_3
+      offset: -0.5,3.5
+    - state: back_2
+      offset: -0.5,2.5
+    - state: back_2
+      offset: -0.5,1.5
+    - state: back_1
+      offset: -0.5,0.5
+    - state: front_3
+      offset: 4.5,3.5
+    - state: front_2
+      offset: 4.5,2.5
+    - state: front_2
+      offset: 4.5,1.5
+    - state: front_1
+      offset: 4.5,0.5
+    - state: exterior_1
       offset: 0.5,-0.375
-    - state: tank_back_2
+    - state: exterior_2
       offset: 1.5,-0.375
-    - state: tank_back_3
+    - state: exterior_2
       offset: 2.5,-0.375
+    - state: exterior_3
+      offset: 3.5,-0.375
 
-# The left wall, edge on: its east frames, a strip at the tile's east edge, moved in by its width to lie along the floor's
-#   edge under the ends of the front and back walls.
+# The radio and the fire-control readout, on the north wall over the breech: the top of the machine the breech is in.
 - type: entity
   parent: KsCrewVehicleInteriorBaseDecoration
-  id: KsCrewVehicleInteriorChassisTankLeftWall
+  id: KsCrewVehicleInteriorRadioTank
   categories: [ HideSpawnMenu ]
-  name: tank wall
-  description: Armour plate, from the inside.
+  name: radio
+  description: The tank's radio set, and the readout of the round in the breech.
   components:
   - type: Sprite
     sprite: _KS14/CrewVehicle/Tank/interior.rsi
-    enableOverrideDir: true
-    overrideDir: East
+    drawdepth: FloorObjects
     layers:
-    - state: tank_left_1
-      offset: -0.375,0.5
-    - state: tank_left_2
-      offset: -0.375,1.5
-    - state: tank_left_3
-      offset: -0.375,2.5
-
-# The right wall, edge on: its west frames, moved in the same way.
-- type: entity
-  parent: KsCrewVehicleInteriorBaseDecoration
-  id: KsCrewVehicleInteriorChassisTankRightWall
-  categories: [ HideSpawnMenu ]
-  name: tank wall
-  description: Armour plate, from the inside.
-  components:
-  - type: Sprite
-    sprite: _KS14/CrewVehicle/Tank/interior.rsi
-    enableOverrideDir: true
-    overrideDir: West
+    - state: prop6
+      offset: -0.5,0
+    - state: prop7
+      offset: 0.5,0
+    - state: prop6_emissive
+      shader: unshaded
+      offset: -0.5,0
+      map: [ "emissiveRadio" ]
+  - type: EmissiveLayers
     layers:
-    - state: tank_right_1
-      offset: 3.375,0.5
-    - state: tank_right_2
-      offset: 3.375,1.5
-    - state: tank_right_3
-      offset: 3.375,2.5
+    - emissiveRadio

@@ -208,8 +208,10 @@ public sealed partial class KsCrewVehiclePassThroughSystem : SharedKsCrewVehicle
         var compartment = GetCompartment(interiorComponent, hullBox);
         var compartmentEntry = KsCrewVehiclePassThroughFrame.GetEntry(compartment, hullEntry, hullDirection);
         var cabin = GetCabinBounds(hull, (gridUid.Value, gridComponent));
-        var direction = KsCrewVehiclePassThroughFrame.HullDirectionToInterior(compartment, cabin, hullDirection);
-        var inside = KsCrewVehiclePassThroughFrame.HullToInterior(compartment, cabin, compartmentEntry) + direction * EntryInset;
+        var cabinRotation = KsCrewVehicleHullFrame.GetCabinRotation(interiorComponent.CabinFront);
+        var direction = KsCrewVehiclePassThroughFrame.HullDirectionToInterior(compartment, cabin, hullDirection, cabinRotation: cabinRotation);
+        var inside = KsCrewVehiclePassThroughFrame.HullToInterior(compartment, cabin, compartmentEntry, cabinRotation: cabinRotation) +
+                     direction * EntryInset;
         inside = KsCrewVehiclePassThroughFrame.Clamp(cabin, inside, inset: 0.01f);
 
         var (gridPosition, gridRotation) = _transformSystem.GetWorldPositionRotation(gridUid.Value);
@@ -292,8 +294,9 @@ public sealed partial class KsCrewVehiclePassThroughSystem : SharedKsCrewVehicle
         }
 
         var compartment = GetCompartment(interiorComponent, hullBox);
-        var hullPoint = KsCrewVehiclePassThroughFrame.InteriorToHull(compartment, cabin, leftAt);
-        var hullDirection = KsCrewVehiclePassThroughFrame.InteriorDirectionToHull(compartment, cabin, localDirection);
+        var cabinRotation = KsCrewVehicleHullFrame.GetCabinRotation(interiorComponent.CabinFront);
+        var hullPoint = KsCrewVehiclePassThroughFrame.InteriorToHull(compartment, cabin, leftAt, cabinRotation: cabinRotation);
+        var hullDirection = KsCrewVehiclePassThroughFrame.InteriorDirectionToHull(compartment, cabin, localDirection, cabinRotation: cabinRotation);
         var hullExit = KsCrewVehiclePassThroughFrame.GetExit(hullBox, hullPoint, hullDirection);
         SpawnOutside(roundUid, hullPlace, hullExit, hullDirection, speed);
         QueueDel(roundUid);

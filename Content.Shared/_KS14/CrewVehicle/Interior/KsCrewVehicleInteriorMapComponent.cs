@@ -28,6 +28,13 @@ public sealed partial class KsCrewVehicleInteriorMapComponent : Component
     public Vector2 Anchor;
 
     /// <summary>
+    ///     How far the cabin is turned on its grid, from the vehicle's
+    ///         <see cref="KsCrewVehicleInteriorComponent.CabinFront"/>, for clients.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]
+    public Angle CabinRotation;
+
+    /// <summary>
     ///     The vehicle's <see cref="KsCrewVehicleInteriorComponent.OutsideLightBleed"/>, for the client's renderer.
     /// </summary>
     [ViewVariables(VVAccess.ReadOnly), AutoNetworkedField]

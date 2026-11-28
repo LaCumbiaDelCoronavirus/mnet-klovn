@@ -13,9 +13,13 @@ namespace Content.Shared._KS14.CrewVehicle;
 ///             SS14 way, <see cref="Forward"/>: south at rotation 0, local -Y.
 ///     </para>
 ///     <para>
-///         The interior's front is grid north, its +Y, so an interior point P is the hull-local point
+///         A cabin whose front is grid north, its +Y, has an interior point P at the hull-local point
 ///             <see cref="InteriorToHull"/> (P - anchor): turned half a circle. At rotation 0 the interior's west wall
 ///             (the hull's left) is on the world's east.
+///     </para>
+///     <para>
+///         A cabin laid out facing another way on its grid is turned back by its <see cref="GetCabinRotation"/> first:
+///             the turn from grid axes to hull axes is <see cref="GetInteriorToHull"/>.
 ///     </para>
 /// </remarks>
 public static class KsCrewVehicleHullFrame
@@ -24,6 +28,24 @@ public static class KsCrewVehicleHullFrame
     ///     The turn from interior-grid axes to hull-local axes: the interior faces +Y, the hull -Y.
     /// </summary>
     public static readonly Angle InteriorToHull = new(Math.PI);
+
+    /// <summary>
+    ///     The turn that takes grid north to the cabin's front: zero for a cabin facing north, a quarter turn clockwise
+    ///         (-90°) for one facing east.
+    /// </summary>
+    public static Angle GetCabinRotation(Direction cabinFront)
+    {
+        return cabinFront.ToAngle() - Direction.North.ToAngle();
+    }
+
+    /// <summary>
+    ///     The turn from interior-grid axes to hull-local axes for a cabin turned <paramref name="cabinRotation"/> on its
+    ///         grid: the cabin is turned back to face north, then half a circle.
+    /// </summary>
+    public static Angle GetInteriorToHull(Angle cabinRotation)
+    {
+        return InteriorToHull - cabinRotation;
+    }
 
     /// <summary>
     ///     The world direction a hull at <paramref name="hullWorldRotation"/> faces.

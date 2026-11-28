@@ -8,44 +8,51 @@ namespace Content.Shared._KS14.CrewVehicle;
 /// </summary>
 /// <remarks>
 ///     A hull-local point h is the interior point c_I + S(R⁻¹(h − c_H)): c the boxes' centres, R
-///         <see cref="KsCrewVehicleHullFrame.InteriorToHull"/> (a half turn, so axes stay axes), and S each axis scaled by
-///         the cabin's half-extent over the hull's. Directions turn and scale the same way, then are made unit again.
+///         <see cref="KsCrewVehicleHullFrame.GetInteriorToHull"/> of the cabin's rotation on its grid (a half turn for a
+///         cabin facing grid north, three quarters for one facing east: a whole number of quarter turns, so axes stay
+///         axes), and S each interior axis scaled by the cabin's half-extent along it over the hull's along the hull axis
+///         it lies on. Directions turn and scale the same way, then are made unit again.
 /// </remarks>
 public static class KsCrewVehiclePassThroughFrame
 {
     /// <summary>
     ///     A hull-local point as the interior point over it.
     /// </summary>
-    public static Vector2 HullToInterior(Box2 hullBox, Box2 interiorBox, Vector2 hullPoint)
+    /// <param name="cabinRotation">How far the cabin is turned on its grid (<see cref="KsCrewVehicleHullFrame.GetCabinRotation"/>).</param>
+    public static Vector2 HullToInterior(Box2 hullBox, Box2 interiorBox, Vector2 hullPoint, Angle cabinRotation = default)
     {
-        var turned = (-KsCrewVehicleHullFrame.InteriorToHull).RotateVec(hullPoint - hullBox.Center);
-        return interiorBox.Center + turned * GetScale(hullBox, interiorBox);
+        var turned = (-KsCrewVehicleHullFrame.GetInteriorToHull(cabinRotation)).RotateVec(hullPoint - hullBox.Center);
+        return interiorBox.Center + turned * GetScale(hullBox, interiorBox, cabinRotation);
     }
 
     /// <summary>
     ///     An interior point as the hull-local point it stands for.
     /// </summary>
-    public static Vector2 InteriorToHull(Box2 hullBox, Box2 interiorBox, Vector2 interiorPoint)
+    /// <param name="cabinRotation">How far the cabin is turned on its grid (<see cref="KsCrewVehicleHullFrame.GetCabinRotation"/>).</param>
+    public static Vector2 InteriorToHull(Box2 hullBox, Box2 interiorBox, Vector2 interiorPoint, Angle cabinRotation = default)
     {
-        var unscaled = (interiorPoint - interiorBox.Center) / GetScale(hullBox, interiorBox);
-        return hullBox.Center + KsCrewVehicleHullFrame.InteriorToHull.RotateVec(unscaled);
+        var unscaled = (interiorPoint - interiorBox.Center) / GetScale(hullBox, interiorBox, cabinRotation);
+        return hullBox.Center + KsCrewVehicleHullFrame.GetInteriorToHull(cabinRotation).RotateVec(unscaled);
     }
 
     /// <summary>
     ///     A hull-local direction as the unit interior direction it maps to.
     /// </summary>
-    public static Vector2 HullDirectionToInterior(Box2 hullBox, Box2 interiorBox, Vector2 hullDirection)
+    /// <param name="cabinRotation">How far the cabin is turned on its grid (<see cref="KsCrewVehicleHullFrame.GetCabinRotation"/>).</param>
+    public static Vector2 HullDirectionToInterior(Box2 hullBox, Box2 interiorBox, Vector2 hullDirection, Angle cabinRotation = default)
     {
-        var turned = (-KsCrewVehicleHullFrame.InteriorToHull).RotateVec(hullDirection);
-        return Normalise(turned * GetScale(hullBox, interiorBox));
+        var turned = (-KsCrewVehicleHullFrame.GetInteriorToHull(cabinRotation)).RotateVec(hullDirection);
+        return Normalise(turned * GetScale(hullBox, interiorBox, cabinRotation));
     }
 
     /// <summary>
     ///     An interior direction as the unit hull-local direction it maps back to.
     /// </summary>
-    public static Vector2 InteriorDirectionToHull(Box2 hullBox, Box2 interiorBox, Vector2 interiorDirection)
+    /// <param name="cabinRotation">How far the cabin is turned on its grid (<see cref="KsCrewVehicleHullFrame.GetCabinRotation"/>).</param>
+    public static Vector2 InteriorDirectionToHull(Box2 hullBox, Box2 interiorBox, Vector2 interiorDirection, Angle cabinRotation = default)
     {
-        return Normalise(KsCrewVehicleHullFrame.InteriorToHull.RotateVec(interiorDirection / GetScale(hullBox, interiorBox)));
+        return Normalise(KsCrewVehicleHullFrame.GetInteriorToHull(cabinRotation)
+            .RotateVec(interiorDirection / GetScale(hullBox, interiorBox, cabinRotation)));
     }
 
     /// <summary>
@@ -99,11 +106,20 @@ public static class KsCrewVehiclePassThroughFrame
             Math.Clamp(point.Y, box.Bottom + insetY, box.Top - insetY));
     }
 
-    private static Vector2 GetScale(Box2 hullBox, Box2 interiorBox)
+    /// <summary>
+    ///     Each interior axis's extent over the extent of the hull along the hull axis it lies on.
+    /// </summary>
+    private static Vector2 GetScale(Box2 hullBox, Box2 interiorBox, Angle cabinRotation)
     {
+        // The hull's box as seen along the interior's axes: its sides swap for a cabin turned a quarter.
+        var turn = KsCrewVehicleHullFrame.GetInteriorToHull(cabinRotation);
+        var cos = Math.Abs(Math.Cos(turn.Theta));
+        var sin = Math.Abs(Math.Sin(turn.Theta));
+        var hullWidth = (float)(cos * hullBox.Width + sin * hullBox.Height);
+        var hullHeight = (float)(sin * hullBox.Width + cos * hullBox.Height);
         return new Vector2(
-            hullBox.Width > 0f ? interiorBox.Width / hullBox.Width : 1f,
-            hullBox.Height > 0f ? interiorBox.Height / hullBox.Height : 1f);
+            hullWidth > 0f ? interiorBox.Width / hullWidth : 1f,
+            hullHeight > 0f ? interiorBox.Height / hullHeight : 1f);
     }
 
     private static Vector2 Normalise(Vector2 vector)
