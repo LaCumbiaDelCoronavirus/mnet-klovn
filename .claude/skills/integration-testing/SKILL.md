@@ -159,6 +159,35 @@ dotnet test ... -c Debug --filter "FullyQualifiedName~KsPortalTravelTest.TestWal
 - **Parametrise** with `[TestCase(2.5f)]`, `[TestCase(6f)]` when a geometric rule could hold at one size and fail at
   another. The hallway test runs at two lengths for this reason.
 
+## Leaks between tests
+
+Pooled pairs are reused, so state a test leaves on the pair outlives it. The symptom is a test that passes alone and
+fails in a batch, or only after certain others. CLAUDE.md §6 says to fix a leak rather than rerun it away; this is how.
+
+Leaks found here:
+
+- **A cvar set straight on the client's `IConfigurationManager`.** `OverrideCVar` stores the old value and puts it
+  back after the test (`GameTest.CVars.cs`); `SetCVar` doesn't. `net.predict_tick_bias` was set that way and never
+  restored, so every later test on the pair ran under simulated latency. Restore it in a `finally`, as
+  `KsPlaceOnTileTest` does; crew vehicle tests call `SimulateLatencyAsync`, which remembers the old bias for teardown.
+- **An input the server hasn't acknowledged.** Recycling the pair clears the client's processed inputs but not its
+  pending ones (`ClientGameStateManager.Reset`), so a key-up still in flight replays into the next test. End such a
+  test with `RunTicks(tickBias + 2)` (`KsPredictedSpawnTest`).
+- **A held movement key.** The next test's player may have no mover to take it. `KsReleaseMovementKeys` in
+  `KsCrewVehicleDriveTestBase` is a `[TearDown]` that lets go of all four, waits out the acknowledgement, then puts
+  the latency back.
+- **Static mutable state on a system**, which every pooled server in the process shares (CLAUDE.md §6).
+
+Finding the leaker:
+
+1. Run the failing test after one suspect: `--filter "FullyQualifiedName~Suspect|FullyQualifiedName~Victim"`.
+2. Bisect the batch by halves until the smallest set that still fails is found.
+3. While hunting, assert the suspected state at the start of the victim (the cvar's value, the key state, the
+   pending inputs): the run then names the leak instead of failing strangely two tests later.
+
+The rule: a test that changes pair-wide state restores it on teardown, preferably through a helper that does it
+(`OverrideCVar`, `SimulateLatencyAsync`) rather than a line the next author has to remember.
+
 ## A test that never fails is worse than no test
 
 Two bugs in one feature were each "covered" by a test that passed with the bug present, and such a test is the reason
