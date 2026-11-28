@@ -1,14 +1,13 @@
 ---
 name: sprites
-description: How sprites and sprite animation work in this repo - SpriteComponent layers and map keys (enum keys in YAML), what AnimationPlayer can and cannot animate, driving layer scale, rotation and colour from FrameUpdate, smooth client timing with CurTime plus TickRemainder, KsSpriteFadeOut, GenericVisualizer, draw depth, and testing layer state headlessly. Use when animating a sprite or one of its layers, scaling or rotating a layer over time, making an effect fade, spin or shrink, syncing a client visual to a server timer, or when a sprite animation stutters, steps at the tick rate or does nothing.
+description: How sprites and sprite animation work in this repo - SpriteComponent layers and map keys (enum keys in YAML), what AnimationPlayer can and cannot animate, driving layer scale, rotation and colour from FrameUpdate, smooth client timing with CurTime plus TickRemainder, KsSpriteFadeOut, GenericVisualizer, draw depth, semi-unshaded layers for dim lights that stay faintly visible in the dark, and testing layer state headlessly. Use when animating a sprite or one of its layers, scaling or rotating a layer over time, making an effect fade, spin or shrink, syncing a client visual to a server timer, or when a sprite animation stutters, steps at the tick rate or does nothing.
 ---
 
 # Sprites
 
 Index of sprite work in this repo. The engine mechanics that sit underneath are in the `rendering` skill (Sprites
 section: when layers animate, pixel snapping, draw order). Warping a layer with a mask is `displacement-maps`. Glow
-is `client-lighting`, including a part that stays faintly visible in the dark (its "Semi-unshaded"
-section).
+is `client-lighting`.
 
 ## Layers and keys
 
@@ -19,6 +18,33 @@ section).
 - `GenericVisualizer` swaps layer state, visibility, sprite or rotation from `AppearanceComponent` data. Use it when
   the server decides the look. Use a client system when the look is a continuous function of time.
 - Draw depth uses the `DrawDepth` vocabulary (`HighFloorObjects`, `Objects`, ...), never raw ints.
+
+## Semi-unshaded layers
+
+For a dim light that should stay faintly visible in the dark but still be lit by the room (a dim indicator), draw
+its pixels twice: a shaded layer at colour alpha `X` and an `unshaded` one at `1 - X`. Only the unshaded layer's key
+goes in `EmissiveLayers` (`client-lighting`). The part is then `X` lit by the room and `1 - X` always on: higher `X`
+is darker in the dark, `X = 0` is a plain unshaded glow. Usually both are an `_emissive` mask state over the complete,
+shaded base state.
+
+Wherever it's used, put a one-line comment above the pair: two copies of one state at partial alpha look like a
+mistake.
+
+```yaml
+- type: Sprite
+  layers:
+  - state: exit_door
+  # semi-unshaded: half lit by the room, half always on; only the unshaded half glows
+  - state: exit_door_emissive
+    color: "#ffffff80"
+  - state: exit_door_emissive
+    map: [ "exitDoorLights" ]
+    shader: unshaded
+    color: "#ffffff80"
+- type: EmissiveLayers
+  layers:
+  - exitDoorLights
+```
 
 ## Animating
 

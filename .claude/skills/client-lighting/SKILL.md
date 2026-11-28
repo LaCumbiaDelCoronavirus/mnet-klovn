@@ -148,27 +148,8 @@ Constraints:
 - For overlays, `WorldSpace` is already unaffected by lighting and FOV (overlays skill section 3).
 - Combine: an unshaded layer for the crisp sprite plus `EmissiveLayers` on the same layer key for the spill.
 
-### Semi-unshaded (partly visible in the dark, still lit)
-
-For a dim light that should stay faintly visible in the dark but still react to the room's light (a dim indicator), draw its pixels twice: a **shaded** layer at colour alpha `X` and an **unshaded** one at `1 - X`, and list **only the unshaded layer's key** in `EmissiveLayers`. The part is then `X` lit by the room and `1 - X` always on. Higher `X` means darker in the dark; `X = 0` is a plain unshaded glow. Usually both layers are an `_emissive` mask state drawn over the complete, shaded base state.
-
-**Wherever it's used, put a one-line YAML comment above the pair**, because two copies of one state at partial alpha look like a mistake:
-
-```yaml
-- type: Sprite
-  layers:
-  - state: exit_door
-  # semi-unshaded: half lit by the room, half always on; only the unshaded half glows
-  - state: exit_door_emissive
-    color: "#ffffff80"
-  - state: exit_door_emissive
-    map: [ "exitDoorLights" ]
-    shader: unshaded
-    color: "#ffffff80"
-- type: EmissiveLayers
-  layers:
-  - exitDoorLights
-```
+For a dim light that stays faintly visible in the dark but is still lit by the room, see the `sprites` skill's
+"Semi-unshaded layers".
 
 ## 7. Debugging checklist
 
