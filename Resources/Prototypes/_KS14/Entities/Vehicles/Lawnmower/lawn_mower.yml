@@ -63,6 +63,9 @@
     rotatingOffset: 0,-0.2
   - type: KsDamagedParticles
     threshold: 75
+  # Clippings, dust and splashes from under the deck (KsGroundEffectSystem).
+  - type: KsGroundEffectEmitter
+    amount: 0.6
   - type: InputMover
   - type: MovementSpeedModifier
     baseWalkSpeed: 2.5

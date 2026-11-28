@@ -42,6 +42,10 @@ public abstract partial class KsParticlesOverlay : Overlay
         _lit.Clear();
         _unshaded.Clear();
 
+        // One layer is enough to know every view and pass drawn; the floor runs first.
+        if (_layer == KsParticleLayer.Floor)
+            _particlesSystem.RecordView(args.MapId, args.WorldAABB);
+
         if (args.Viewport.Eye == null)
             return false;
 

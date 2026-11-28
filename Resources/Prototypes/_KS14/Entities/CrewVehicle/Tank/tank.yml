@@ -177,6 +177,14 @@
     rotatingOffset: 0,1.3
   - type: KsDamagedParticles
     threshold: 1000
+  # Snow, dust and splashes from both ends of each track (KsGroundEffectSystem); a pivot on the spot throws them too.
+  - type: KsGroundEffectEmitter
+    amount: 1.5
+    contactPoints:
+    - -1.1,-1.7
+    - 1.1,-1.7
+    - -1.1,1.7
+    - 1.1,1.7
   - type: Explosive
     explosionType: Default
     totalIntensity: 40

@@ -158,6 +158,13 @@
     rotatingOffset: 0,-0.8
   - type: KsDamagedParticles
     threshold: 500
+  # Snow, dust and splashes from each wheel (KsGroundEffectSystem).
+  - type: KsGroundEffectEmitter
+    contactPoints:
+    - -0.55,-0.85
+    - 0.55,-0.85
+    - -0.55,0.85
+    - 0.55,0.85
   - type: Explosive
     explosionType: Default
     totalIntensity: 20

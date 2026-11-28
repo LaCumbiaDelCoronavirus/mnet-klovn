@@ -20,6 +20,11 @@ namespace Content.Client._KS14.Particles;
 public readonly record struct KsParticleDrawEntry(EntityUid Uid, KsParticlesComponent Particles, KsParticleEmitterComponent Emitter);
 
 /// <summary>
+///     A view the particle overlays drew into: the map it showed and the part of it, in map coordinates.
+/// </summary>
+public readonly record struct KsParticleView(MapId MapId, Box2 WorldAABB);
+
+/// <summary>
 ///     Simulates every <see cref="KsParticlesComponent"/> this client knows of, in fixed steps from
 ///         <see cref="FrameUpdate"/>, and hands the live emitters to the <see cref="KsParticlesOverlay"/>s by layer.
 ///         The server never sees a particle.
@@ -94,6 +99,36 @@ public sealed partial class KsParticlesSystem : KsSharedParticlesSystem
     private bool _enabled;
     private float _density;
     private int _maxAlive;
+
+    /// <summary>
+    ///     Whether particles are simulated and drawn at all (<see cref="KsCCVars.ParticlesEnabled"/>).
+    /// </summary>
+    public bool Enabled => _enabled;
+
+    /// <summary>
+    ///     What every effect's spawning is scaled by, 0 to 1 (<see cref="KsCCVars.ParticlesDensity"/>).
+    /// </summary>
+    public float Density => _density;
+
+    /// <summary>
+    ///     The most views <see cref="RecordView"/> keeps between two frames; past it, <see cref="RecordedViewsOverflowed"/>.
+    /// </summary>
+    public const int MaxRecordedViews = 16;
+
+    /// <summary>
+    ///     The views drawn since the last <see cref="FrameUpdate"/>, in <c>[0, RecordedViewCount)</c>: every viewport
+    ///         and render pass the floor overlay ran in (the main view, z-levels, a vehicle's backdrop, portals,
+    ///         cameras). A system that updates before this one reads what was drawn last frame, to skip work nobody
+    ///         would see. An array and a count rather than a span: the sandbox refuses a method returning one.
+    /// </summary>
+    public readonly KsParticleView[] RecordedViews = new KsParticleView[MaxRecordedViews];
+
+    public int RecordedViewCount { get; private set; }
+
+    /// <summary>
+    ///     More views were drawn than <see cref="RecordedViews"/> holds: treat everything as seen.
+    /// </summary>
+    public bool RecordedViewsOverflowed { get; private set; }
 
     /// <summary>
     ///     Particles the global budget still allows this frame.
@@ -323,8 +358,17 @@ public sealed partial class KsParticlesSystem : KsSharedParticlesSystem
     {
         base.FrameUpdate(frameTime);
 
+        // A loop rather than RemoveAll: its lambda would capture now, a closure allocated every frame.
         var now = _gameTiming.RealTime;
-        _predictedEffects.RemoveAll(predictedEffect => now - predictedEffect.Time > PredictedEffectMatchWindow);
+        for (var i = _predictedEffects.Count - 1; i >= 0; i--)
+        {
+            if (now - _predictedEffects[i].Time > PredictedEffectMatchWindow)
+                _predictedEffects.RemoveAt(i);
+        }
+
+        // Read by systems updating before this one; the overlays record this frame's afresh.
+        RecordedViewCount = 0;
+        RecordedViewsOverflowed = false;
 
         foreach (var layer in Layers)
             layer.Clear();
@@ -398,7 +442,7 @@ public sealed partial class KsParticlesSystem : KsSharedParticlesSystem
         {
             emitterComponent.BurstDone = true;
             var burst = (int)MathF.Ceiling(prototype.Burst * _density * particlesComponent.Amount);
-            for (var i = 0; i < burst && TrySpawn(particlesComponent, emitterComponent, prototype, maxCount); i++)
+            for (var i = 0; i < burst && TrySpawn(particlesComponent, emitterComponent, prototype, maxCount, emitterComponent.Origin, Vector3.Zero, particlesComponent.Speed, Color.White); i++)
             {
             }
         }
@@ -411,7 +455,7 @@ public sealed partial class KsParticlesSystem : KsSharedParticlesSystem
             emitterComponent.SpawnAccumulator += prototype.Spawning * _density * particlesComponent.Amount * dt;
             var owed = (int)emitterComponent.SpawnAccumulator;
             emitterComponent.SpawnAccumulator -= owed;
-            for (var i = 0; i < owed && TrySpawn(particlesComponent, emitterComponent, prototype, maxCount); i++)
+            for (var i = 0; i < owed && TrySpawn(particlesComponent, emitterComponent, prototype, maxCount, emitterComponent.Origin, Vector3.Zero, particlesComponent.Speed, Color.White); i++)
             {
             }
         }
@@ -503,7 +547,76 @@ public sealed partial class KsParticlesSystem : KsSharedParticlesSystem
             Collide(particlesComponent, emitterComponent, prototype, collision, collisionCache, dt);
     }
 
-    private bool TrySpawn(KsParticlesComponent particlesComponent, KsParticleEmitterComponent emitterComponent, KsParticlesPrototype prototype, int maxCount)
+    /// <summary>
+    ///     Spawns <paramref name="count"/> particles of a <see cref="KsParticleSpace.World"/> emitter, whatever its
+    ///         spawning rate says, spread evenly along the segment <paramref name="from"/> to <paramref name="to"/> (map
+    ///         coordinates), the prototype's generators applied around each point. Honours the emitter's count, the
+    ///         density cvar and the global alive budget. For an effect fed from outside, frame by frame: dust where a
+    ///         wheel rolled since the last frame, so a fast one at a low frame rate leaves a continuous wake. A
+    ///         <see cref="KsParticleSpace.Local"/> emitter spawns nothing.
+    /// </summary>
+    /// <param name="inheritedVelocity">Added to each particle's velocity, map frame, metres per second.</param>
+    /// <param name="speedScale">Multiplies the prototype's velocity, on top of the component's speed.</param>
+    /// <param name="tint">Multiplied into each particle's colour, unless the prototype has a gradient.</param>
+    /// <returns>How many spawned.</returns>
+    public int Emit(Entity<KsParticlesComponent, KsParticleEmitterComponent> emitter, Vector2 from, Vector2 to, Vector2 inheritedVelocity, float speedScale, Color tint, int count)
+    {
+        var particlesComponent = emitter.Comp1;
+        var emitterComponent = emitter.Comp2;
+        if (!_enabled || count <= 0 || emitterComponent.Prototype is not { } prototype)
+            return 0;
+
+        // A local emitter's particles are in its own frame, which a map position means nothing in.
+        if (prototype.Space != KsParticleSpace.World)
+            return 0;
+
+        var maxCount = Math.Max(0, (int)MathF.Ceiling(prototype.Count * _density * particlesComponent.Amount));
+        var extraVelocity = new Vector3(inheritedVelocity, 0f);
+        var speed = particlesComponent.Speed * speedScale;
+        var spawned = 0;
+        for (var i = 0; i < count; i++)
+        {
+            var origin = Vector2.Lerp(from, to, (i + 0.5f) / count);
+            if (!TrySpawn(particlesComponent, emitterComponent, prototype, maxCount, origin, extraVelocity, speed, tint))
+                break;
+
+            spawned++;
+        }
+
+        return spawned;
+    }
+
+    /// <summary>
+    ///     Kills every live particle of an emitter at once: its effect moved to another map, or jumped.
+    /// </summary>
+    public void Clear(Entity<KsParticleEmitterComponent?> emitter)
+    {
+        if (!_emitterQuery.Resolve(emitter.Owner, ref emitter.Comp, logMissing: false))
+            return;
+
+        emitter.Comp.Alive = 0;
+    }
+
+    /// <summary>
+    ///     Notes a view the overlays are drawing this frame, for <see cref="RecordedViews"/>. Called by the floor
+    ///         overlay once per viewport and pass.
+    /// </summary>
+    public void RecordView(MapId mapId, Box2 worldAABB)
+    {
+        if (RecordedViewCount >= RecordedViews.Length)
+        {
+            RecordedViewsOverflowed = true;
+            return;
+        }
+
+        RecordedViews[RecordedViewCount++] = new KsParticleView(mapId, worldAABB);
+    }
+
+    /// <param name="origin">What a <see cref="KsParticleSpace.World"/> particle spawns about, map frame.</param>
+    /// <param name="extraVelocity">Added to a world particle's velocity, map frame.</param>
+    /// <param name="speed">Multiplies the prototype's velocity.</param>
+    /// <param name="tint">Multiplied into the colour, unless the prototype has a gradient.</param>
+    private bool TrySpawn(KsParticlesComponent particlesComponent, KsParticleEmitterComponent emitterComponent, KsParticlesPrototype prototype, int maxCount, Vector2 origin, Vector3 extraVelocity, float speed, Color tint)
     {
         if (emitterComponent.Alive >= maxCount || _aliveBudget <= 0)
             return false;
@@ -520,13 +633,13 @@ public sealed partial class KsParticlesSystem : KsSharedParticlesSystem
         ref var particle = ref emitterComponent.Particles[emitterComponent.Alive];
 
         var position = prototype.Position.SampleVector3(random);
-        var velocity = prototype.Velocity.SampleVector3(random) * particlesComponent.Speed;
+        var velocity = prototype.Velocity.SampleVector3(random) * speed;
         var scale = prototype.Scale.SampleVector2(random);
         var grow = prototype.Grow.SampleVector2(random);
         if (world)
         {
-            position = ToEmitter(position, particlesComponent, emitterComponent) + new Vector3(emitterComponent.Origin, 0f);
-            velocity = ToEmitter(velocity, particlesComponent, emitterComponent);
+            position = ToEmitter(position, particlesComponent, emitterComponent) + new Vector3(origin, 0f);
+            velocity = ToEmitter(velocity, particlesComponent, emitterComponent) + extraVelocity;
             scale *= particlesComponent.Scale;
             grow *= particlesComponent.Scale;
         }
@@ -563,7 +676,7 @@ public sealed partial class KsParticlesSystem : KsSharedParticlesSystem
         {
             particle.GradientIndex = 0f;
             particle.ColorChange = 0f;
-            particle.Color = prototype.Color.SampleColor(random);
+            particle.Color = prototype.Color.SampleColor(random) * tint;
         }
 
         emitterComponent.Alive++;

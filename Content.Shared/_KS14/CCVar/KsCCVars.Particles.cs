@@ -21,4 +21,11 @@ public sealed partial class KsCCVars
     /// </summary>
     public static readonly CVarDef<int> ParticlesMaxAlive =
         CVarDef.Create("klovn.particles.max_alive", 20000, CVar.CLIENTONLY | CVar.ARCHIVE);
+
+    /// <summary>
+    ///     Whether ground particles (dust, snow and splashes kicked up by wheels, tracks and feet) spawn only near what
+    ///         was drawn last frame. Off, they spawn everywhere: for a headless client, which draws nothing.
+    /// </summary>
+    public static readonly CVarDef<bool> ParticlesGroundCull =
+        CVarDef.Create("klovn.particles.ground_cull", true, CVar.CLIENTONLY);
 }

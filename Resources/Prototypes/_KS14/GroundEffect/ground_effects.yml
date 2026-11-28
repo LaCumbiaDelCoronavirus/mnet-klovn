@@ -1,0 +1,38 @@
+# What a tile throws up under wheels, tracks and running feet (KsGroundEffectSystem). Tiles name these with
+#   ksGroundEffect in _KS14/Tiles/Partials/ground_effects.yml; a puddle on any tile is KsGroundEffectPuddle. Rates are
+#   per metre a contact point travels, so a four-wheeled humvee at full speed throws up 4 x perMetre x 6 a second.
+
+- type: ksGroundEffect
+  id: KsGroundEffectSnow
+  particles: KsGroundDustSnow
+  perMetre: 3
+  throw: 0.3
+
+- type: ksGroundEffect
+  id: KsGroundEffectSand
+  particles: KsGroundDustSand
+  perMetre: 3
+
+- type: ksGroundEffect
+  id: KsGroundEffectSandRed
+  particles: KsGroundDustSandRed
+  perMetre: 3
+
+- type: ksGroundEffect
+  id: KsGroundEffectDirt
+  particles: KsGroundDustDirt
+  perMetre: 2
+
+- type: ksGroundEffect
+  id: KsGroundEffectGrass
+  particles: KsGroundDustGrass
+  perMetre: 1.5
+  minSpeed: 1.5
+  throw: 0.2
+
+- type: ksGroundEffect
+  id: KsGroundEffectPuddle
+  particles: KsGroundSplash
+  perMetre: 5
+  minSpeed: 1
+  throw: 0.35

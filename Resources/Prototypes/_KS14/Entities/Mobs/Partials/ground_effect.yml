@@ -1,0 +1,10 @@
+# A mob running across snow, sand or a puddle kicks a little of it up (KsGroundEffectSystem); walking, it doesn't.
+#   On the base of every mob with health, so ghosts and other bodiless things are left out; flying mobs are in the air
+#   and skipped by the system.
+- type: !PartialOnly entity
+  id: MobDamageable
+  components:
+  - type: KsGroundEffectEmitter
+    amount: 0.5
+    # Above a walk (2.5), below a run (4.5).
+    minSpeed: 3.5

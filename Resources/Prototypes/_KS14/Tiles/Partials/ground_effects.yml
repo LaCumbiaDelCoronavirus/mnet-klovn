@@ -1,0 +1,207 @@
+# What each natural tile throws up under wheels, tracks and running feet (KsGroundEffectSystem). Every tile is listed
+#   by id, children of a listed parent included, so nothing hangs on partials reaching children.
+
+# Snow
+- type: !PartialOnly tile
+  id: FloorSnow
+  ksGroundEffect: KsGroundEffectSnow
+
+- type: !PartialOnly tile
+  id: FloorSnowDug
+  ksGroundEffect: KsGroundEffectSnow
+
+- type: !PartialOnly tile
+  id: PlatingSnow
+  ksGroundEffect: KsGroundEffectSnow
+
+- type: !PartialOnly tile
+  id: FloorAstroSnow
+  ksGroundEffect: KsGroundEffectSnow
+
+# Sand, desert and asteroid
+- type: !PartialOnly tile
+  id: FloorDesert
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorLowDesert
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorDesertAstroSand
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSand
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandBorderless
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandDug
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandDugBorderless
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandUnvariantized
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandUnvariantizedBorderless
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAstroAsteroidSand
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAstroAsteroidSandBorderless
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidCoarseSand0
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidCoarseSand1
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidCoarseSand2
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidCoarseSandDug
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandRocks
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandPebbles
+  ksGroundEffect: KsGroundEffectSand
+
+- type: !PartialOnly tile
+  id: PlatingAsteroid
+  ksGroundEffect: KsGroundEffectSand
+
+# Red sand and ironsand
+- type: !PartialOnly tile
+  id: FloorAsteroidSandRed
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandRedBorderless
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidSandRocksRed
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidIronsand
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidIronsand1
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidIronsand2
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidIronsand3
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidIronsand4
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidIronsandBorderless
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidIronsandUnvariantized
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAsteroidIronsandUnvariantizedBorderless
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAstroIronsand
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: FloorAstroIronsandBorderless
+  ksGroundEffect: KsGroundEffectSandRed
+
+- type: !PartialOnly tile
+  id: PlatingIronsand
+  ksGroundEffect: KsGroundEffectSandRed
+
+# Dirt
+- type: !PartialOnly tile
+  id: FloorDirt
+  ksGroundEffect: KsGroundEffectDirt
+
+- type: !PartialOnly tile
+  id: FloorPlanetDirt
+  ksGroundEffect: KsGroundEffectDirt
+
+- type: !PartialOnly tile
+  id: FloorCave
+  ksGroundEffect: KsGroundEffectDirt
+
+- type: !PartialOnly tile
+  id: FloorCaveDrought
+  ksGroundEffect: KsGroundEffectDirt
+
+# Grass
+- type: !PartialOnly tile
+  id: FloorGrass
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorGrassJungle
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorGrassDark
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorGrassLight
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorPlanetGrass
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorAstroGrass
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorJungleAstroGrass
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorDarkAstroGrass
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorLightAstroGrass
+  ksGroundEffect: KsGroundEffectGrass
+
+- type: !PartialOnly tile
+  id: FloorMowedAstroGrass
+  ksGroundEffect: KsGroundEffectGrass

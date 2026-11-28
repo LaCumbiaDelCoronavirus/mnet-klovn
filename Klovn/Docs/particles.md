@@ -278,6 +278,24 @@ between 0.1 and 0.3 of it.
 source). `KsGunOverheatSmoke`, with a `KsParticles` that starts `emitting: false`, turns it on after a burst
 and off once a purely visual heat cools.
 
+## Ground particles: snow, dust and splashes under wheels and feet
+
+`KsGroundEffectSystem` (`Content.Client/_KS14/GroundEffect/`) throws up the ground under anything with a
+`KsGroundEffectEmitter`: the humvee's wheels, the tank's track ends, the lawnmower, and every mob with health (from
+a partial on `MobDamageable`, only at a run: `minSpeed: 3.5`). Flying mobs (`bodyStatus: InAir`) are skipped.
+
+- **What a tile throws up** is its `ksGroundEffect` field, set from `Resources/Prototypes/_KS14/Tiles/Partials/ground_effects.yml`.
+  A puddle on any tile is `KsGroundEffectPuddle`, tinted with the puddle's colour. The `ksGroundEffect` prototypes
+  (`Resources/Prototypes/_KS14/GroundEffect/`) give particles per metre, the minimum and full speeds and the throw.
+- **Fed through `KsParticlesSystem.Emit`**, which spawns a given number of particles along a segment of the map, on a
+  `World` emitter with `spawning: 0`. Each contact point emits along the stretch it covered since the last frame, so
+  the count follows the distance, not the frame rate. One client-side emitter per entity and effect, parented to it.
+- **Cost**: an entity that stands still costs one compare; one far from every view drawn last frame (recorded by the
+  floor overlay, `RecordedViews`) does no contact maths at all. The tile is read only when a contact changes tile.
+  The steady state allocates nothing (`KsGroundParticleTest.SteadyStateAllocatesNothing`). There is no cap of its own:
+  the global `klovn.particles.max_alive` and `klovn.particles.density` apply. A headless client draws no views, so
+  tests set `klovn.particles.ground_cull false`.
+
 ## Trying it in game
 
 `ksparticles KsSmoke` attaches an emitter to you; `ksparticles KsEmbers 1234` to net entity 1234;

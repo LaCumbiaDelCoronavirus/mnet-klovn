@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Made for Klovnstation 14 (generated: soft greyscale puffs, tinted per effect)",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "puff_1"
+    },
+    {
+      "name": "puff_2"
+    },
+    {
+      "name": "puff_3"
+    }
+  ]
+}
