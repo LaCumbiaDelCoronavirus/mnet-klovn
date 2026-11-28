@@ -7,7 +7,8 @@ description: How sprites and sprite animation work in this repo - SpriteComponen
 
 Index of sprite work in this repo. The engine mechanics that sit underneath are in the `rendering` skill (Sprites
 section: when layers animate, pixel snapping, draw order). Warping a layer with a mask is `displacement-maps`. Glow
-is `client-lighting`.
+is `client-lighting`, including a part that stays faintly visible in the dark (its "Semi-unshaded"
+section).
 
 ## Layers and keys
 
