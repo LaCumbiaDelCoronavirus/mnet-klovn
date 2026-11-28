@@ -128,7 +128,12 @@
         pitch: 0.6
   - type: KsCrewVehicleInterior
     interiorPath: /Maps/_KS14/CrewVehicle/tank.yml
-    interiorAnchor: 1.5,2
+    # The cabin is the crew compartment only: inside the tracks and side armour, from behind the glacis to just aft of the
+    #   turret ring, with the engine and transmission behind it. The cabin's middle, the breech, sits over the middle of
+    #   the compartment, 0.6 ahead of the hull's centre.
+    interiorAnchor: 1.5,0.9
+    # A round through the engine bay or the track guards, clear of the compartment, goes on outside past the one hole.
+    passThroughHullBounds: -0.9,-1.75,0.9,0.55
     # Sealed: standing inside, the cabin is all anyone sees, and no light gets in. Only the driver's seat looks out.
     outsideBackdrop: false
     outsideLightBleed: 0

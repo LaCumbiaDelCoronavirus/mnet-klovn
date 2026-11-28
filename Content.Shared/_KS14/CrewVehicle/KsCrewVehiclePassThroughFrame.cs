@@ -76,6 +76,18 @@ public static class KsCrewVehiclePassThroughFrame
     }
 
     /// <summary>
+    ///     Whether the line through <paramref name="point"/> along <paramref name="direction"/> goes through
+    ///         <paramref name="box"/> at all, rather than only touching it.
+    /// </summary>
+    public static bool Crosses(Box2 box, Vector2 point, Vector2 direction)
+    {
+        var length = GetReach(box, point);
+        var start = point - direction * length;
+        return TryClip(start, direction * (length * 2f), box, out var enter, out var exit) &&
+               (exit - enter) * length * 2f > 1e-4f;
+    }
+
+    /// <summary>
     ///     The point <paramref name="box"/> is nearest to <paramref name="point"/>, at least <paramref name="inset"/> inside
     ///         its outline (or its centre, along an axis it is too thin for).
     /// </summary>

@@ -1,7 +1,7 @@
-# The inside of the tank (Maps/_KS14/CrewVehicle/tank.yml and tank_empty.yml). Its front is north. Its grid has floor three
-#   tiles by four; the walls round it are drawn by the floor plan (KsCrewVehicleInteriorChassisTank), stop people with
-#   KsCrewVehicleInteriorWallTank and block sight with a closed ring of KsCrewVehicleInteriorOccluderTank: there are no
-#   windows, and only the driver's seat looks out.
+# The inside of the tank (Maps/_KS14/CrewVehicle/tank.yml and tank_empty.yml): its crew compartment, ahead of the engine
+#   bay, round the turret ring. Its front is north. Its grid has floor three tiles by three; the walls round it are drawn
+#   by the KsCrewVehicleInteriorChassisTank*Wall pieces, stop people with KsCrewVehicleInteriorWallTank and block sight
+#   with a closed ring of KsCrewVehicleInteriorOccluderTank: there are no windows, and only the driver's seat looks out.
 
 # Up front: drives, aims the turret and fires both guns, switching between them with one action.
 - type: entity
@@ -45,7 +45,7 @@
   id: KsCrewVehicleSeatTankPassenger
   categories: [ HideSpawnMenu ]
   name: passenger seat
-  description: A hard seat between the shell racks.
+  description: A hard seat on the far side of the breech.
   components:
   - type: Sprite
     sprite: _KS14/CrewVehicle/Humvee/interior.rsi
@@ -128,7 +128,7 @@
     mount: coax
     loadDelay: 3
 
-# The hatch in the back wall, drawn on the floor in front of it.
+# The hatch in the back wall, the bulkhead to the engine bay, drawn on the floor in front of it.
 - type: entity
   parent: KsCrewVehicleInteriorBaseExit
   id: KsCrewVehicleExitDoorTank
@@ -217,9 +217,10 @@
     energy: 0.3
     color: '#FF8060'
 
-# The floor plan, placed at the grid's origin: the floor, the instruments up front, and the walls round it, each wall's
-#   face folded down flat beside the floor with its foot against it. Each layer is one tile, offset to its place. Always
-#   drawn as the south-facing frames, however the eye turns: the other frames of the wall states are edge-on slivers.
+# The floor plan, placed at the grid's origin: the floor and the driver's instruments. Each layer is one tile, offset to its
+#   place. Always drawn as the south-facing frames, however the eye turns. The walls round it are drawn by the three
+#   KsCrewVehicleInteriorChassisTank*Wall pieces, as the art is meant to be seen from above and the south: the front and
+#   back walls as faces, each a run of three tiles closed at both ends, and the side walls edge on.
 - type: entity
   parent: KsCrewVehicleInteriorBaseDecoration
   id: KsCrewVehicleInteriorChassisTank
@@ -232,7 +233,7 @@
     enableOverrideDir: true
     overrideDir: South
     layers:
-    # Floor, x 0 to 2, y 0 to 3; the row against the back wall has a kick plate.
+    # Floor, x 0 to 2, y 0 to 2; the row against the back wall has a kick plate.
     - state: prop1
       offset: 0.5,0.5
     - state: prop1
@@ -251,81 +252,82 @@
       offset: 1.5,2.5
     - state: prop3
       offset: 2.5,2.5
-    - state: prop3
-      offset: 0.5,3.5
-    - state: prop3
-      offset: 1.5,3.5
-    - state: prop3
-      offset: 2.5,3.5
-    # The driver's instruments left of the seat, a radio and gauge console on the right.
+    # The driver's instruments, left of the seat, against the front wall.
     - state: prop0
-      offset: 0.5,3.5
+      offset: 0.5,2.5
     - state: prop0_emissive
       shader: unshaded
-      offset: 0.5,3.5
+      offset: 0.5,2.5
       map: [ "emissiveProp0" ]
-    - state: prop6
-      offset: 2.5,3.5
-    - state: prop6_emissive
-      shader: unshaded
-      offset: 2.5,3.5
-      map: [ "emissiveProp6" ]
-    # The front wall, with the vision blocks in the middle.
-    - state: trank_front_1
-      offset: 0.5,4.5
-    - state: tank_front_3
-      offset: 1.5,4.5
-    - state: tank_front_2
-      offset: 2.5,4.5
-    # The back wall, round the hatch, turned to stand on the floor's edge.
-    - state: tank_back_1
-      rotation: 180
-      offset: 0.5,-0.5
-    - state: tank_back_2
-      rotation: 180
-      offset: 1.5,-0.5
-    - state: tank_back_3
-      rotation: 180
-      offset: 2.5,-0.5
-    # The side walls, rear to front: the track housing, lights, a stowage box. Turned to stand on the floor's edge.
-    - state: tank_left_1
-      rotation: 90
-      offset: -0.5,0.5
-    - state: tank_left_2
-      rotation: 90
-      offset: -0.5,1.5
-    - state: tank_left_3
-      rotation: 90
-      offset: -0.5,2.5
-    - state: tank_left_2
-      rotation: 90
-      offset: -0.5,3.5
-    - state: tank_right_1
-      rotation: -90
-      offset: 3.5,0.5
-    - state: tank_right_2
-      rotation: -90
-      offset: 3.5,1.5
-    - state: tank_right_3
-      rotation: -90
-      offset: 3.5,2.5
-    - state: tank_right_2
-      rotation: -90
-      offset: 3.5,3.5
-    # The corners: plain plate.
-    - state: wall
-      rotation: 90
-      offset: -0.5,-0.5
-    - state: wall
-      rotation: 90
-      offset: -0.5,4.5
-    - state: wall
-      rotation: -90
-      offset: 3.5,-0.5
-    - state: wall
-      rotation: -90
-      offset: 3.5,4.5
   - type: EmissiveLayers
     layers:
     - emissiveProp0
-    - emissiveProp6
+
+# The front wall, with the vision blocks on the left, and the bulkhead to the engine bay at the back: faces, their north
+#   frames, each a run of three closed at both ends. The faces leave their top four pixels clear, so the back wall is
+#   raised by that much to meet the floor.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseDecoration
+  id: KsCrewVehicleInteriorChassisTankEndWalls
+  categories: [ HideSpawnMenu ]
+  name: tank wall
+  description: Armour plate, from the inside.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/interior.rsi
+    enableOverrideDir: true
+    overrideDir: North
+    layers:
+    - state: tank_front_3
+      offset: 0.5,3.5
+    - state: tank_front_2
+      offset: 1.5,3.5
+    - state: trank_front_1
+      offset: 2.5,3.5
+    - state: tank_back_1
+      offset: 0.5,-0.375
+    - state: tank_back_2
+      offset: 1.5,-0.375
+    - state: tank_back_3
+      offset: 2.5,-0.375
+
+# The left wall, edge on: its east frames, a strip at the tile's east edge, moved in by its width to lie along the floor's
+#   edge under the ends of the front and back walls.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseDecoration
+  id: KsCrewVehicleInteriorChassisTankLeftWall
+  categories: [ HideSpawnMenu ]
+  name: tank wall
+  description: Armour plate, from the inside.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/interior.rsi
+    enableOverrideDir: true
+    overrideDir: East
+    layers:
+    - state: tank_left_1
+      offset: -0.375,0.5
+    - state: tank_left_2
+      offset: -0.375,1.5
+    - state: tank_left_3
+      offset: -0.375,2.5
+
+# The right wall, edge on: its west frames, moved in the same way.
+- type: entity
+  parent: KsCrewVehicleInteriorBaseDecoration
+  id: KsCrewVehicleInteriorChassisTankRightWall
+  categories: [ HideSpawnMenu ]
+  name: tank wall
+  description: Armour plate, from the inside.
+  components:
+  - type: Sprite
+    sprite: _KS14/CrewVehicle/Tank/interior.rsi
+    enableOverrideDir: true
+    overrideDir: West
+    layers:
+    - state: tank_right_1
+      offset: 3.375,0.5
+    - state: tank_right_2
+      offset: 3.375,1.5
+    - state: tank_right_3
+      offset: 3.375,2.5

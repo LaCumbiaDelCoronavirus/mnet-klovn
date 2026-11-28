@@ -48,6 +48,11 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
     ///         it reaches the far side, which is not where the grid's off-grid rule puts things out.
     /// </summary>
     private readonly EntProtoId _wideCabinHull = "KsCrewVehiclePassThroughTestHullWideCabin";
+
+    /// <summary>
+    ///     A hull whose cabin is its front half only: an engine bay behind it.
+    /// </summary>
+    private readonly EntProtoId _compartmentHull = "KsCrewVehiclePassThroughTestHullCompartment";
     private readonly EntProtoId _mob = "KsCrewVehiclePassThroughTestMob";
     private readonly EntProtoId _wall = "KsCrewVehiclePassThroughTestWall";
     private readonly EntProtoId _shooter = "KsCrewVehiclePassThroughTestShooter";
@@ -110,6 +115,19 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
   - type: KsCrewVehicleInterior
     interiorPath: /Maps/Test/_KS14/CrewVehicle/basic.yml
     passThroughBounds: -3,-3,8,8
+    doorways:
+      left:
+        offset: 1,0
+      right:
+        offset: -1,0
+
+- type: entity
+  parent: KsCrewVehiclePassThroughTestHull
+  id: KsCrewVehiclePassThroughTestHullCompartment
+  components:
+  - type: KsCrewVehicleInterior
+    interiorPath: /Maps/Test/_KS14/CrewVehicle/basic.yml
+    passThroughHullBounds: -0.8,-1.5,0.8,0
     doorways:
       left:
         offset: 1,0
@@ -264,16 +282,18 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
     }
 
     /// <summary>
-    ///     Fires <paramref name="prototype"/> at the hull's east side, <see cref="HitOffset"/> along it, flying west in the
-    ///         hull's frame, by a shooter far away. Every round of it seen after each tick is recorded until none is left.
+    ///     Fires <paramref name="prototype"/> at the hull's east side, <paramref name="hitOffset"/> (or
+    ///         <see cref="HitOffset"/>) along it, flying west in the hull's frame, by a shooter far away. Every round of it
+    ///         seen after each tick is recorded until none is left.
     /// </summary>
-    private async Task<(EntityUid Round, List<Sighting> Sightings)> FireAsync(Scene scene, EntProtoId prototype, NetUserId? owner = null)
+    private async Task<(EntityUid Round, List<Sighting> Sightings)> FireAsync(Scene scene, EntProtoId prototype, NetUserId? owner = null, float? hitOffset = null)
     {
+        var offset = hitOffset ?? HitOffset;
         var round = EntityUid.Invalid;
         await Server.WaitPost(() =>
         {
             var shooter = SEntMan.Spawn(_shooter, new MapCoordinates(HullPosition + new Vector2(40f, 40f), scene.MapId));
-            round = SEntMan.Spawn(prototype, new MapCoordinates(HullToWorld(scene, new Vector2(6f, HitOffset)), scene.MapId));
+            round = SEntMan.Spawn(prototype, new MapCoordinates(HullToWorld(scene, new Vector2(6f, offset)), scene.MapId));
             if (owner is { } ownerUserId)
                 SEntMan.System<KsKillCreditSystem>().SetOwner(round, ownerUserId);
             SEntMan.System<SharedGunSystem>().ShootProjectile(round,
@@ -478,6 +498,54 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
     }
 
     /// <summary>
+    ///     Where along the hull's east side a round hits that goes through the middle of its crew compartment.
+    /// </summary>
+    private float CompartmentHitOffset(Scene scene) =>
+        SComp<KsCrewVehicleInteriorComponent>(scene.Hull).PassThroughHullBounds?.Center.Y ?? HitOffset;
+
+    /// <summary>
+    ///     A hull with an engine bay behind its crew compartment: a round through the compartment goes into the cabin, at
+    ///         the height its hit maps to on the compartment rather than the whole hull; one through the engine bay never
+    ///         goes in, and goes on outside past the one hole, as through anything else.
+    /// </summary>
+    [Test]
+    public async Task OnlyTheCompartmentLeadsIntoTheCabin()
+    {
+        var scene = await SpawnHullAsync(0d, loadInterior: true, hullPrototype: _compartmentHull);
+        var (hullBox, cabin) = Boxes(scene);
+        var compartment = SComp<KsCrewVehicleInteriorComponent>(scene.Hull).PassThroughHullBounds!.Value;
+        Assert.That(hullBox.Contains(compartment.BottomLeft) && hullBox.Contains(compartment.TopRight) && compartment.Height < hullBox.Height,
+            "precondition: the compartment is part of the hull");
+        var share = SEntMan.System<SharedDestructibleSystem>().DestroyedAt(scene.Hull).Float() / MinShots;
+
+        // Off the compartment's middle, so a mapping over the whole hull lands somewhere else.
+        var compartmentHit = compartment.Center.Y + compartment.Height / 4f;
+        var engineBayHit = (compartment.Top + hullBox.Top) / 2f;
+
+        var (round, sightings) = await FireAsync(scene, _entryOnlyRound, hitOffset: compartmentHit);
+        await Server.WaitAssertion(() =>
+        {
+            var inside = FirstOn(sightings, InteriorMapId(scene), round);
+            Assert.That(inside, Is.Not.Null, "a round through the compartment goes into the cabin");
+            var entryY = cabin.Center.Y - (compartmentHit - compartment.Center.Y) / (compartment.Height / 2f) * (cabin.Height / 2f);
+            Assert.That(ToGrid(scene, inside!.Position).Y, Is.EqualTo(entryY).Within(0.05f),
+                "at the height its hit maps to on the compartment");
+            AssertDirection(inside.Velocity, new Vector2(1f, 0f), "the round inside");
+        });
+
+        var damageBefore = Damage(scene.Hull);
+        var target = await SpawnMobAsync(new MapCoordinates(HullToWorld(scene, new Vector2(-5f, engineBayHit)), scene.MapId));
+        await Pair.RunTicksSync(2);
+        var (bayRound, baySightings) = await FireAsync(scene, _throughRound, hitOffset: engineBayHit);
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(FirstOn(baySightings, InteriorMapId(scene), bayRound), Is.Null, "a round through the engine bay does not go into the cabin");
+            Assert.That(Damage(scene.Hull) - damageBefore, Is.EqualTo(share).Within(1f), "the hull is holed once, going in");
+            Assert.That(Damage(target), Is.GreaterThan(0f), "it goes on, and hits what is behind the hull");
+        });
+    }
+
+    /// <summary>
     ///     What the penetration framework does with a round against a hull needing <paramref name="required"/> a hit
     ///         (<c>PredictedProjectileSystem.TryPenetrate</c>): a hit deals at most what is left of the round's budget, and
     ///         lets it go on only if it dealt what the hull needs and the budget is not used up by it.
@@ -524,7 +592,7 @@ public sealed class KsCrewVehiclePassThroughTest : GameTest
 
         // Before the shot: a hull the exit hole destroys takes its interior with it.
         var interiorMapId = InteriorMapId(scene);
-        var (round, sightings) = await FireAsync(scene, shell);
+        var (round, sightings) = await FireAsync(scene, shell, hitOffset: CompartmentHitOffset(scene));
 
         var inside = FirstOn(sightings, interiorMapId, round);
         var outside = FirstOn(sightings, scene.MapId, round);

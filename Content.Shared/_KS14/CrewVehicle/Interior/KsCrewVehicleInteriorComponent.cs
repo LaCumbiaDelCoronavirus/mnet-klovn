@@ -117,6 +117,15 @@ public sealed partial class KsCrewVehicleInteriorComponent : Component
     public Box2? PassThroughBounds;
 
     /// <summary>
+    ///     The part of the hull's body, in the hull's own frame (<see cref="KsCrewVehicleHullFrame"/>), that the cabin is
+    ///         and that <see cref="PassThroughBounds"/> is laid over: the crew compartment, with the engine bay and the side
+    ///         armour round it. A round whose way through the hull misses it goes on outside, as through anything else, and
+    ///         is charged the one hole. Null: the whole of the hull's body.
+    /// </summary>
+    [DataField]
+    public Box2? PassThroughHullBounds;
+
+    /// <summary>
     ///     How many living occupants are inside, as the server last counted them: what <see cref="MaxOccupants"/> is
     ///         checked against.
     /// </summary>

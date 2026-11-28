@@ -55,11 +55,6 @@ public sealed partial class KsCrewVehiclePassThroughSystem : SharedKsCrewVehicle
     /// </summary>
     private const float ExitMargin = 0.05f;
 
-    /// <summary>
-    ///     The hull fixture a round goes through, if the hull has one by this name; otherwise its first hard one.
-    /// </summary>
-    private const string HullFixture = "fix1";
-
     private readonly record struct PendingEntry(EntityUid Round, EntityUid Hull, Vector2 Velocity, MapCoordinates Point);
 
     private readonly List<PendingEntry> _pending = new();
@@ -126,35 +121,6 @@ public sealed partial class KsCrewVehiclePassThroughSystem : SharedKsCrewVehicle
 
         var local = Vector2.Transform(_transformSystem.GetWorldPosition(transformComponent), _transformSystem.GetInvWorldMatrix(round.Comp.Grid));
         return !round.Comp.Bounds.Contains(local);
-    }
-
-    /// <summary>
-    ///     The hull's body, in its own frame: what a round goes through.
-    /// </summary>
-    private bool TryGetHullBox(EntityUid hullUid, out Box2 box)
-    {
-        box = default;
-        if (!_fixturesQuery.TryComp(hullUid, out var fixturesComponent))
-            return false;
-
-        if (!fixturesComponent.Fixtures.TryGetValue(HullFixture, out var fixture) || !fixture.Hard)
-        {
-            fixture = null;
-            foreach (var candidate in fixturesComponent.Fixtures.Values)
-            {
-                if (!candidate.Hard)
-                    continue;
-
-                fixture = candidate;
-                break;
-            }
-        }
-
-        if (fixture == null)
-            return false;
-
-        box = fixture.Shape.ComputeAABB(Robust.Shared.Physics.Transform.Empty, 0);
-        return box.Width > 0f && box.Height > 0f;
     }
 
     /// <summary>
@@ -238,9 +204,12 @@ public sealed partial class KsCrewVehiclePassThroughSystem : SharedKsCrewVehicle
             return;
         }
 
+        // Where it reaches the crew compartment, past the armour or machinery between it and the hull's outline.
+        var compartment = GetCompartment(interiorComponent, hullBox);
+        var compartmentEntry = KsCrewVehiclePassThroughFrame.GetEntry(compartment, hullEntry, hullDirection);
         var cabin = GetCabinBounds(hull, (gridUid.Value, gridComponent));
-        var direction = KsCrewVehiclePassThroughFrame.HullDirectionToInterior(hullBox, cabin, hullDirection);
-        var inside = KsCrewVehiclePassThroughFrame.HullToInterior(hullBox, cabin, hullEntry) + direction * EntryInset;
+        var direction = KsCrewVehiclePassThroughFrame.HullDirectionToInterior(compartment, cabin, hullDirection);
+        var inside = KsCrewVehiclePassThroughFrame.HullToInterior(compartment, cabin, compartmentEntry) + direction * EntryInset;
         inside = KsCrewVehiclePassThroughFrame.Clamp(cabin, inside, inset: 0.01f);
 
         var (gridPosition, gridRotation) = _transformSystem.GetWorldPositionRotation(gridUid.Value);
@@ -296,7 +265,7 @@ public sealed partial class KsCrewVehiclePassThroughSystem : SharedKsCrewVehicle
         // Its vehicle is going, and the interior with it, or it has stopped somehow: it ends inside.
         if (TerminatingOrDeleted(hullUid) ||
             EntityManager.IsQueuedForDeletion(hullUid) ||
-            !HasComp<KsCrewVehicleInteriorComponent>(hullUid) ||
+            !TryComp<KsCrewVehicleInteriorComponent>(hullUid, out var interiorComponent) ||
             TerminatingOrDeleted(gridUid) ||
             speed < 0.001f ||
             !TryGetHullBox(hullUid, out var hullBox))
@@ -322,8 +291,9 @@ public sealed partial class KsCrewVehiclePassThroughSystem : SharedKsCrewVehicle
             return;
         }
 
-        var hullPoint = KsCrewVehiclePassThroughFrame.InteriorToHull(hullBox, cabin, leftAt);
-        var hullDirection = KsCrewVehiclePassThroughFrame.InteriorDirectionToHull(hullBox, cabin, localDirection);
+        var compartment = GetCompartment(interiorComponent, hullBox);
+        var hullPoint = KsCrewVehiclePassThroughFrame.InteriorToHull(compartment, cabin, leftAt);
+        var hullDirection = KsCrewVehiclePassThroughFrame.InteriorDirectionToHull(compartment, cabin, localDirection);
         var hullExit = KsCrewVehiclePassThroughFrame.GetExit(hullBox, hullPoint, hullDirection);
         SpawnOutside(roundUid, hullPlace, hullExit, hullDirection, speed);
         QueueDel(roundUid);
